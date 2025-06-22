@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "memory-db": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "/Users/viktorfarcic/memory/db.json"
+      }
+    }
+  }
+}

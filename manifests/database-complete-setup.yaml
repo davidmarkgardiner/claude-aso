@@ -1,0 +1,172 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-root-password
+  labels:
+    app: postgresql-database
+    component: credentials
+type: Opaque
+data:
+  password: UG9zdGdyZVNxbDE1VGVzdA== # Base64 encoded: "PostgreSql15Test"
+---
+apiVersion: sql.gcp.upbound.io/v1beta2
+kind: DatabaseInstance
+metadata:
+  name: postgres-dev-instance
+  labels:
+    app: postgresql-database
+    environment: development
+    engine: postgresql
+spec:
+  forProvider:
+    databaseVersion: "POSTGRES_15"
+    region: "us-central1"
+    deletionProtection: false
+    rootPasswordSecretRef:
+      key: password
+      name: postgres-root-password
+      namespace: default
+    settings:
+      tier: "db-f1-micro"
+      availabilityType: "ZONAL"
+      diskSize: 20
+      diskType: "PD_SSD"
+      diskAutoresize: true
+      pricingPlan: "PER_USE"
+      ipConfiguration:
+        ipv4Enabled: true
+        authorizedNetworks:
+          - name: "allow-all"
+            value: "0.0.0.0/0"
+      backupConfiguration:
+        enabled: false
+      userLabels:
+        environment: "development"
+        purpose: "testing"
+  deletionPolicy: Delete
+---
+apiVersion: sql.gcp.upbound.io/v1beta1
+kind: Database
+metadata:
+  name: my-db-01
+  labels:
+    app: postgresql-database
+    database-name: my-db-01
+    schema-type: user-management
+spec:
+  forProvider:
+    instance: postgres-dev-instance
+  deletionPolicy: Delete
+---
+apiVersion: sql.gcp.upbound.io/v1beta1
+kind: Database
+metadata:
+  name: my-db-02
+  labels:
+    app: postgresql-database
+    database-name: my-db-02
+    schema-type: ecommerce
+spec:
+  forProvider:
+    instance: postgres-dev-instance
+  deletionPolicy: Delete
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-connection-string
+  labels:
+    app: postgresql-database
+    component: atlas-config
+type: Opaque
+stringData:
+  connection: "postgres://postgres:PostgreSql15Test@34.30.134.22:5432/my-db-01?sslmode=disable"
+  connection-db-02: "postgres://postgres:PostgreSql15Test@34.30.134.22:5432/my-db-02?sslmode=disable"
+---
+apiVersion: db.atlasgo.io/v1alpha1
+kind: AtlasSchema
+metadata:
+  name: user-management-schema
+  labels:
+    app: postgresql-database
+    database: my-db-01
+    schema-type: user-management
+spec:
+  urlFrom:
+    secretKeyRef:
+      key: connection
+      name: postgres-connection-string
+  schema:
+    sql: |
+      -- Users table
+      CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          username VARCHAR(50) UNIQUE NOT NULL,
+          email VARCHAR(100) UNIQUE NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
+          first_name VARCHAR(50),
+          last_name VARCHAR(50),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          is_active BOOLEAN DEFAULT true
+      );
+
+      -- Roles table
+      CREATE TABLE roles (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(50) UNIQUE NOT NULL,
+          description TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- User roles junction table
+      CREATE TABLE user_roles (
+          user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+          role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
+          assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (user_id, role_id)
+      );
+---
+apiVersion: db.atlasgo.io/v1alpha1
+kind: AtlasSchema
+metadata:
+  name: ecommerce-schema
+  labels:
+    app: postgresql-database
+    database: my-db-02
+    schema-type: ecommerce
+spec:
+  urlFrom:
+    secretKeyRef:
+      key: connection-db-02
+      name: postgres-connection-string
+  schema:
+    sql: |
+      -- Categories table
+      CREATE TABLE categories (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          description TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Products table
+      CREATE TABLE products (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(200) NOT NULL,
+          description TEXT,
+          price DECIMAL(10,2) NOT NULL,
+          category_id INTEGER REFERENCES categories(id),
+          stock_quantity INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Orders table
+      CREATE TABLE orders (
+          id SERIAL PRIMARY KEY,
+          customer_email VARCHAR(100) NOT NULL,
+          total_amount DECIMAL(10,2) NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ); 
