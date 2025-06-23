@@ -116,34 +116,30 @@ def --env "main apply crossplane" [
 
     }
 
-    if $db_config or $db_provider {
+    if ($db_config or $db_provider) and $provider == "google" {
 
-        if $provider == "google" {
-            
-            start $"https://console.cloud.google.com/marketplace/product/google/sqladmin.googleapis.com?project=($provider_data.project_id)"
-            
-            print $"\n(ansi yellow_bold)ENABLE(ansi reset) the API.\nPress any key to continue.\n"
-            input
+        start $"https://console.cloud.google.com/marketplace/product/google/sqladmin.googleapis.com?project=($provider_data.project_id)"
+        
+        print $"\n(ansi yellow_bold)ENABLE(ansi reset) the API.\nPress the (ansi yellow_bold)enter key(ansi reset) to continue.\n"
+        input
 
+    }
+
+    if $db_config {
+
+        print $"\n(ansi yellow_bold)Applying `dot-sql` Configuration...(ansi reset)\n"
+
+        mut version = "v2.1.10"
+        if not $preview {
+            $version = "v1.1.21"
         }
 
-        if $db_config {
-
-            print $"\n(ansi yellow_bold)Applying `dot-sql` Configuration...(ansi reset)\n"
-
-            mut version = "v2.1.10"
-            if not $preview {
-                $version = "v1.1.21"
-            }
-
-            {
-                apiVersion: "pkg.crossplane.io/v1"
-                kind: "Configuration"
-                metadata: { name: "crossplane-sql" }
-                spec: { package: $"xpkg.upbound.io/devops-toolkit/dot-sql:($version)" }
-            } | to yaml | kubectl apply --filename -
-
-        }
+        {
+            apiVersion: "pkg.crossplane.io/v1"
+            kind: "Configuration"
+            metadata: { name: "crossplane-sql" }
+            spec: { package: $"xpkg.upbound.io/devops-toolkit/dot-sql:($version)" }
+        } | to yaml | kubectl apply --filename -
 
     } else if $db_provider {
 
@@ -584,7 +580,7 @@ def "setup google" [] {
 
         print $"
 Select the (ansi yellow_bold)Billing account(ansi reset) and press the (ansi yellow_bold)SET ACCOUNT(ansi reset) button.
-Press any key to continue.
+Press the (ansi yellow_bold)enter key(ansi reset) to continue.
 "
         input
 
@@ -605,13 +601,13 @@ Press any key to continue.
 
     (
         gcloud projects add-iam-policy-binding
-            --role roles/admin $project_id
+            --role roles/admin $project
             --member $"serviceAccount:($sa)"
     )
 
     (
         gcloud iam service-accounts keys
-            create gcp-creds.json --project $project_id
+            create gcp-creds.json --project $project
             --iam-account $sa
     )
 
@@ -621,7 +617,7 @@ Press any key to continue.
             --from-file creds=./gcp-creds.json
     )
 
-    { project_id: $project_id }
+    { project_id: $project }
 
 }
 

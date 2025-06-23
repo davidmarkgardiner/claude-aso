@@ -9,6 +9,16 @@
       "env": {
         "MEMORY_FILE_PATH": "/Users/viktorfarcic/memory/db.json"
       }
+    },
+    "memory-app": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "/Users/viktorfarcic/memory/app.json"
+      }
     }
   }
 }

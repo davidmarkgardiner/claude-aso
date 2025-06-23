@@ -6,7 +6,8 @@
     "kind@0.29.0",
     "kubernetes-helm@3.18.2",
     "path:gcloud#google-cloud-sdk",
-    "git@2.49.0"
+    "git@2.49.0",
+    "postgresql@17.5"
   ],
   "shell": {
     "scripts": {}

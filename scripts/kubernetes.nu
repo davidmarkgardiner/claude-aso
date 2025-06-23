@@ -8,11 +8,11 @@
 def --env "main create kubernetes" [
     provider: string  # The Kubernetes provider to use (aws, azure, google, upcloud, kind)
     --name = "dot"  # Name of the Kubernetes cluster
-    --min_nodes = 2  # Minimum number of nodes in the cluster
-    --max_nodes = 4  # Maximum number of nodes in the cluster
-    --node_size = "small" # Supported values: small, medium, large
+    --min-nodes = 2  # Minimum number of nodes in the cluster
+    --max-nodes = 4  # Maximum number of nodes in the cluster
+    --node-size = "small" # Supported values: small, medium, large
     --auth = true  # Whether to perform authentication with the cloud provider
-    --enable_ingress = true  # Whether to enable ingress for the kind provider
+    --enable-ingress = true  # Whether to enable ingress for the kind provider
 ] {
 
     $env.KUBECONFIG = $"($env.PWD)/kubeconfig-($name).yaml"
@@ -313,7 +313,7 @@ print $"
 Visit https://signup.upcloud.com/?promo=devops50 to (ansi yellow_bold)sign up(ansi reset) and get $50+ credits.
 Make sure that (ansi yellow_bold)Allow API connections from all networks(ansi reset) is checked inside the https://hub.upcloud.com/account/overview page.
 Install `(ansi yellow_bold)upctl(ansi reset)` from https://upcloudltd.github.io/upcloud-cli if you do not have it already.
-Press (ansi yellow_bold)any key(ansi reset) to continue.
+Press the (ansi yellow_bold)enter key(ansi reset) to continue.
 "
         input
 
@@ -461,7 +461,7 @@ def --env "create gke" [
 
         print $"
     (ansi yellow_bold)ENABLE(ansi reset) the API.
-    Press (ansi yellow_bold)any key(ansi reset) to continue.
+    Press the (ansi yellow_bold)enter key(ansi reset) to continue.
     "
         input
     }
