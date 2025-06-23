@@ -19,7 +19,7 @@ def --env "main apply crossplane" [
     --db-provider = false    # Whether to apply database provider (not needed if --db-config is `true`)
 ] {
 
-    print $"\nInstalling (ansi yellow_bold)Crossplane(ansi reset)...\n"
+    print $"\nInstalling (ansi green_bold)Crossplane(ansi reset)...\n"
 
     helm repo add crossplane https://charts.crossplane.io/stable
 
@@ -60,7 +60,7 @@ def --env "main apply crossplane" [
 
     if $app_config {
 
-        print $"\n(ansi yellow_bold)Applying `dot-application` Configuration...(ansi reset)\n"
+        print $"\n(ansi green_bold)Applying `dot-application` Configuration...(ansi reset)\n"
 
         mut version = "v2.0.2"
         if not $preview {
@@ -127,7 +127,7 @@ def --env "main apply crossplane" [
 
     if $db_config {
 
-        print $"\n(ansi yellow_bold)Applying `dot-sql` Configuration...(ansi reset)\n"
+        print $"\n(ansi green_bold)Applying `dot-sql` Configuration...(ansi reset)\n"
 
         mut version = "v2.1.10"
         if not $preview {
@@ -149,7 +149,7 @@ def --env "main apply crossplane" [
 
     if $github_config {
 
-        print $"\n(ansi yellow_bold)Applying `dot-github` Configuration...(ansi reset)\n"
+        print $"\n(ansi green_bold)Applying `dot-github` Configuration...(ansi reset)\n"
 
         {
             apiVersion: "pkg.crossplane.io/v1"
@@ -160,7 +160,9 @@ def --env "main apply crossplane" [
 
     }
 
-    if $db_config or $github_config {
+    if $db_config or $github_config or $app_config {
+
+        print $"\n(ansi green_bold)Applying Kubernetes and Helm providers...(ansi reset)\n"
 
         {
             apiVersion: "rbac.authorization.k8s.io/v1"
@@ -351,7 +353,7 @@ def "main delete crossplane" [
         kubectl --namespace $namespace delete $kind $name
     }
 
-    print $"\nWaiting for (ansi yellow_bold)Crossplane managed resources(ansi reset) to be deleted...\n"
+    print $"\nWaiting for (ansi green_bold)Crossplane managed resources(ansi reset) to be deleted...\n"
     
     mut command = { kubectl get managed --output name }
     if ($name | is-not-empty) {
@@ -367,7 +369,7 @@ def "main delete crossplane" [
     mut counter = ($resources | wc -l | into int)
 
     while $counter > 0 {
-        print $"($resources)\nWaiting for remaining (ansi yellow_bold)($counter)(ansi reset) managed resources to be (ansi yellow_bold)removed(ansi reset)...\n"
+        print $"($resources)\nWaiting for remaining (ansi green_bold)($counter)(ansi reset) managed resources to be (ansi green_bold)removed(ansi reset)...\n"
         sleep 10sec
         $resources = (do $command)
         $counter = ($resources | wc -l | into int)
@@ -520,14 +522,14 @@ def "apply db-provider" [
             apiVersion: "pkg.crossplane.io/v1"
             kind: "Provider"
             metadata: { name: "provider-aws-rds" }
-            spec: { package: "xpkg.crossplane.io/crossplane-contrib/provider-aws-rds:v1.23.1" }
+            spec: { package: "xpkg.crossplane.io/crossplane-contrib/provider-aws-rds:v1.23.0" }
         } | to yaml | kubectl apply --filename -
 
         {
             apiVersion: "pkg.crossplane.io/v1"
             kind: "Provider"
             metadata: { name: "provider-aws-ec2" }
-            spec: { package: "xpkg.crossplane.io/crossplane-contrib/provider-aws-ec2:v1.23.1" }
+            spec: { package: "xpkg.crossplane.io/crossplane-contrib/provider-aws-ec2:v1.23.0" }
         } | to yaml | kubectl apply --filename -
 
     } else if $provider == "azure" {
@@ -546,7 +548,7 @@ def "apply db-provider" [
 # Waits for all Crossplane providers to be deployed and healthy
 def "wait crossplane" [] {
 
-    print $"\n(ansi yellow_bold)Waiting for Crossplane providers to be deployed...(ansi reset)\n"
+    print $"\n(ansi green_bold)Waiting for Crossplane providers to be deployed...(ansi reset)\n"
 
     sleep 60sec
 
@@ -562,7 +564,7 @@ def "setup google" [] {
 
     mut project_id = ""
 
-    print $"\nInstalling (ansi yellow_bold)Crossplane Google Cloud Provider(ansi reset)...\n"
+    print $"\nInstalling (ansi green_bold)Crossplane Google Cloud Provider(ansi reset)...\n"
 
     if PROJECT_ID in $env {
         $project_id = $env.PROJECT_ID
@@ -623,7 +625,7 @@ Press the (ansi yellow_bold)enter key(ansi reset) to continue.
 
 def "setup aws" [] {
 
-    print $"\nInstalling (ansi yellow_bold)Crossplane AWS Provider(ansi reset)...\n"
+    print $"\nInstalling (ansi green_bold)Crossplane AWS Provider(ansi reset)...\n"
 
     if AWS_ACCESS_KEY_ID not-in $env {
         $env.AWS_ACCESS_KEY_ID = input $"(ansi yellow_bold)Enter AWS Access Key ID: (ansi reset)"
@@ -656,7 +658,7 @@ def "setup azure" [
     --skip-login = false
 ] {
 
-    print $"\nInstalling (ansi yellow_bold)Crossplane Azure Provider(ansi reset)...\n"
+    print $"\nInstalling (ansi green_bold)Crossplane Azure Provider(ansi reset)...\n"
 
     mut azure_tenant = ""
     if AZURE_TENANT not-in $env {
@@ -686,7 +688,7 @@ def "setup azure" [
 
 def "setup upcloud" [] {
 
-    print $"\nInstalling (ansi yellow_bold)Crossplane UpCloud Provider(ansi reset)...\n"
+    print $"\nInstalling (ansi green_bold)Crossplane UpCloud Provider(ansi reset)...\n"
 
     if UPCLOUD_USERNAME not-in $env {
         $env.UPCLOUD_USERNAME = input $"(ansi yellow_bold)UpCloud Username: (ansi reset)"

@@ -12,7 +12,7 @@ def "main setup" [] {
 
     rm --force .env
 
-    let provider = main get provider --providers ["google"]
+    let provider = main get provider --providers ["aws" "google"]
 
     main create kubernetes $provider
 
