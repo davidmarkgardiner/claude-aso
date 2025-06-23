@@ -11,9 +11,9 @@ def "main setup" [] {
 
     rm --force .env
 
-    main create kubernetes kind
+    let provider = main get provider --providers ["google"]
 
-    let provider = "google"
+    main create kubernetes $provider
 
     main apply crossplane --provider $provider --db-provider true
 
@@ -27,13 +27,7 @@ def "main destroy" [
     provider: string
 ] {
 
-    main destroy kubernetes kind
-
-    if $provider == "google" {
-
-        gcloud projects delete $env.PROJECT_ID --quiet
-
-    }
+    main destroy kubernetes $provider
 
     rm --force .env
 

@@ -116,9 +116,7 @@ def --env "main apply crossplane" [
 
     }
 
-    if $db_config {
-
-        print $"\n(ansi yellow_bold)Applying `dot-sql` Configuration...(ansi reset)\n"
+    if $db_config or $db_provider {
 
         if $provider == "google" {
             
@@ -129,17 +127,23 @@ def --env "main apply crossplane" [
 
         }
 
-        mut version = "v2.1.10"
-        if not $preview {
-            $version = "v1.1.21"
-        }
+        if $db_config {
 
-        {
-            apiVersion: "pkg.crossplane.io/v1"
-            kind: "Configuration"
-            metadata: { name: "crossplane-sql" }
-            spec: { package: $"xpkg.upbound.io/devops-toolkit/dot-sql:($version)" }
-        } | to yaml | kubectl apply --filename -
+            print $"\n(ansi yellow_bold)Applying `dot-sql` Configuration...(ansi reset)\n"
+
+            mut version = "v2.1.10"
+            if not $preview {
+                $version = "v1.1.21"
+            }
+
+            {
+                apiVersion: "pkg.crossplane.io/v1"
+                kind: "Configuration"
+                metadata: { name: "crossplane-sql" }
+                spec: { package: $"xpkg.upbound.io/devops-toolkit/dot-sql:($version)" }
+            } | to yaml | kubectl apply --filename -
+
+        }
 
     } else if $db_provider {
 
@@ -277,7 +281,7 @@ def --env "main apply crossplane" [
 
     }
 
-    if $db_config or $app_config or $github_config {
+    if $db_config or $app_config or $github_config or $db_provider {
         wait crossplane
     }
 
