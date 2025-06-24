@@ -42,12 +42,12 @@ kubectl explain <discovered-crd>
 - Ask user whether to save manifest to file
 - Get user confirmation before creating resources
 - Apply resources and monitor status
+- **Create db-registry-{setup-name} ConfigMap** to track all resources
 
 ### STEP 4: Handle Issues (As They Occur)
 **When troubleshooting any database issue:**
 ```
 🔴 IMMEDIATELY store in Memory-DB MCP by entity type:
-- cluster-fingerprint: Platform + technology stack + constraints
 - troubleshooting-guide: Issue symptoms → root cause → resolution
 - prevention-guide: How to avoid this issue (CRITICAL)
 - api-reference: Specific API corrections (e.g., field names, versions)
@@ -58,11 +58,11 @@ Critical Prevention Patterns:
 - PostgreSQL version compatibility (use '15' not '15.4' for RDS)
 ```
 
-### STEP 5: Document Success (Required)
-**After successful deployment, store in Memory-DB MCP:**
-- deployment-sequence: Complete workflow with timing (~5-10min for RDS)
-- configuration-pattern: Working YAML configs and API references
-- cluster-fingerprint: Platform capabilities and constraints identified
+### STEP 5: Document Issues Only
+**ONLY store when encountering problems or discoveries:**
+- Store configuration gotchas and API field corrections
+- Store troubleshooting patterns for actual issues
+- Skip storing normal deployment timings and success patterns
 
 ## Essential Guidelines
 
@@ -97,6 +97,22 @@ labels:
   managed-by: database-agent
 ```
 
+### Resource Registry ConfigMap
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-registry-{setup-name}
+  labels:
+    managed-by: database-agent
+    registry-type: database
+data:
+  setup-name: "{setup-name}"
+  resource-types: "databaseinstance,database,atlasschema,secret"
+  namespace: "{namespace}"
+  created: "{timestamp}"
+```
+
 ### Common CRD Patterns
 - **GCP Crossplane**: DatabaseInstance + Database + AtlasSchema
 - **AWS Operators**: RDSInstance + Database + SchemaManagement  
@@ -126,4 +142,4 @@ Before ending any database operation:
 - [ ] Stored any issues encountered immediately
 - [ ] Documented final success patterns
 
-**Remember**: Discovery determines what's possible, memory provides intelligence for how to do it effectively.
+**Remember**: Only store knowledge when you encounter issues or discover non-obvious behaviors.

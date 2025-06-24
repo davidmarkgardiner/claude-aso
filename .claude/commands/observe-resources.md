@@ -16,6 +16,9 @@ You're an agent specialized in observing, analyzing, and troubleshooting Kuberne
 ### STEP 1: Universal Discovery
 **Discover what resources exist and their current state:**
 ```bash
+# Check resource registries first
+kubectl get cm -l registry-type --all-namespaces
+
 # Discover all CRDs to understand cluster capabilities
 kubectl get crd | grep -E "(sql|database|db|app|deploy|service|ingress|pv|config|secret)"
 
@@ -38,12 +41,11 @@ kubectl get pv,pvc,configmaps,secrets --all-namespaces
 - Dependency mapping and relationships
 - Performance metrics and resource usage
 
-### STEP 4: Store Findings (Required)
-**Document patterns and issues discovered:**
-- Store troubleshooting patterns in appropriate Memory MCP
-- Document cluster-specific behaviors
-- Update resource relationship maps
-- Record performance baselines
+### STEP 4: Store Issues Only
+**Document only when discovering problems or unusual patterns:**
+- Store troubleshooting patterns for actual issues
+- Document non-obvious cluster behaviors
+- Skip storing normal performance baselines and healthy status
 
 ## Universal Discovery Patterns
 
@@ -57,6 +59,11 @@ kubectl get all -l app=<app-name> --all-namespaces
 # Find resources by setup labels
 kubectl get all -l database-setup=<setup-name> --all-namespaces
 kubectl get all -l application-setup=<setup-name> --all-namespaces
+
+# Find resource registries
+kubectl get cm -l registry-type=application --all-namespaces
+kubectl get cm -l registry-type=database --all-namespaces
+kubectl get cm app-registry-<setup-name> db-registry-<setup-name>
 ```
 
 ### Status and Health Checks

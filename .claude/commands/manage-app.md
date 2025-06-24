@@ -43,6 +43,7 @@ kubectl explain <discovered-crd>
 - Ask user whether to save manifest to file
 - Get user confirmation before creating resources
 - Apply resources and monitor status
+- **Create app-registry-{setup-name} ConfigMap** to track all resources
 
 ### STEP 4: Handle Issues (As They Occur)
 **When troubleshooting any application issue:**
@@ -59,11 +60,11 @@ Critical Prevention Patterns:
 - Monitor SYNCED=True before checking READY status
 ```
 
-### STEP 5: Document Success (Required)
-**After successful deployment, store in Memory-App MCP:**
-- deployment-sequence: Complete workflow from namespace to accessible URL
-- configuration-pattern: Working AppClaim/App configs with field requirements
-- networking-guide: Ingress resolution and access patterns
+### STEP 5: Document Issues Only
+**ONLY store when encountering problems or discoveries:**
+- Store configuration gotchas and field requirements
+- Store troubleshooting patterns for actual issues
+- Skip storing normal deployment workflows and success patterns
 
 ## Essential Guidelines
 
@@ -96,6 +97,22 @@ labels:
   app: {application-name}
   application-setup: {setup-name}
   managed-by: application-agent
+```
+
+### Resource Registry ConfigMap
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-registry-{setup-name}
+  labels:
+    managed-by: application-agent
+    registry-type: application
+data:
+  setup-name: "{setup-name}"
+  resource-types: "deployment,service,ingress,hpa"
+  namespace: "{namespace}"
+  created: "{timestamp}"
 ```
 
 ### Common CRD Patterns
@@ -146,4 +163,4 @@ Before ending any application operation:
 - [ ] Stored any issues encountered immediately
 - [ ] Documented final success patterns
 
-**Remember**: Discovery determines what's possible, memory provides intelligence for how to do it effectively.
+**Remember**: Only store knowledge when you encounter issues or discover non-obvious behaviors.

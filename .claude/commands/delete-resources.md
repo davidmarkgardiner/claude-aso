@@ -16,6 +16,9 @@ You're an agent specialized in safely deleting Kubernetes resources with proper 
 ### STEP 1: Discovery & Planning
 **Discover what exists and plan safe deletion order:**
 ```bash
+# Check resource registries first
+kubectl get cm app-registry-<setup-name> db-registry-<setup-name> -o yaml
+
 # Discover all resources to be deleted
 kubectl get all -l <label-selector> --all-namespaces
 kubectl get pv,pvc,secrets,configmaps -l <label-selector> --all-namespaces
@@ -44,12 +47,13 @@ find . -name "*.yaml" -o -name "*.yml"
 - Check for stuck deletions
 - Handle cloud resource deletion delays
 - Clean up orphaned resources
+- **Delete resource registry ConfigMaps** (app-registry-*, db-registry-*)
 
-### STEP 5: Document Patterns (Required)
-**Store deletion patterns and timing data:**
-- Document deletion timing for different resource types
+### STEP 5: Document Issues Only
+**ONLY store when encountering deletion problems:**
 - Store troubleshooting patterns for stuck deletions
-- Record cluster-specific deletion behaviors
+- Record unusual cluster-specific deletion behaviors
+- Skip storing normal deletion timings and success patterns
 
 ## Deletion Methods
 
@@ -84,7 +88,7 @@ kubectl delete <resource-type> <name>
 ## Resource-Specific Deletion Patterns
 
 ### Database Resources
-**Typical deletion order: Schemas → Databases → Instance → Secrets**
+**Typical deletion order: Schemas → Databases → Instance → Secrets → Registry**
 ```bash
 # 1. Delete schemas first (they depend on databases)
 kubectl delete atlasschemas -l database-setup=<name>
@@ -97,6 +101,9 @@ kubectl delete databaseinstance <name>
 
 # 4. Clean up secrets and configs
 kubectl delete secrets -l database-setup=<name>
+
+# 5. Delete resource registry
+kubectl delete cm db-registry-<name>
 ```
 
 **Common Issues:**
@@ -105,7 +112,7 @@ kubectl delete secrets -l database-setup=<name>
 - **Connection secrets**: May be auto-recreated by operators
 
 ### Application Resources
-**Typical deletion order: Apps → Services → Storage → Configs**
+**Typical deletion order: Apps → Services → Storage → Configs → Registry**
 ```bash
 # 1. Delete application claims/deployments
 kubectl delete appclaims,deployments -l application-setup=<name>
@@ -118,6 +125,9 @@ kubectl delete pvc -l application-setup=<name>
 
 # 4. Clean up configuration
 kubectl delete configmaps,secrets -l application-setup=<name>
+
+# 5. Delete resource registry
+kubectl delete cm app-registry-<name>
 ```
 
 **Common Issues:**
