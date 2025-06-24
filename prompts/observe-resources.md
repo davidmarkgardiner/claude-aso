@@ -7,10 +7,10 @@ You're an agent specialized in observing, analyzing, and troubleshooting Kuberne
 ### 🧠 STEP 0: Query Memory (Required)
 **Always start by querying Memory-DB and Memory-App MCP for relevant observation lessons:**
 ```
-1. Search for cluster-specific troubleshooting patterns
-2. Search for universal resource observation patterns
-3. Search for performance and connectivity patterns
-4. Apply retrieved lessons to guide investigation approach
+1. Search for cluster fingerprint: "{platform} {technology} troubleshooting"
+2. Search for troubleshooting guides: "{resource-type} common issues"
+3. Search for performance patterns: "{cluster-type} resource monitoring"
+4. Search for connectivity patterns: "networking {ingress-controller} dns"
 ```
 
 ### STEP 1: Universal Discovery
@@ -199,22 +199,19 @@ kubectl describe limitrange --all-namespaces
 
 ### 🔴 Store Issues Immediately (As They Occur)
 ```
-When discovering any resource issue, IMMEDIATELY store in appropriate Memory MCP:
-- Issue type and affected resource types
-- Symptoms and error messages observed
-- Investigation commands that revealed the issue
-- Root cause analysis and resolution steps
-- Prevention guidance for similar issues
+When discovering any resource issue, IMMEDIATELY store in appropriate Memory MCP by entity type:
+- troubleshooting-guide: Issue symptoms → investigation → root cause → resolution
+- cluster-fingerprint: Platform-specific behaviors and patterns
+- performance-pattern: Resource usage patterns and baselines
+- prevention-guide: How to detect and avoid similar issues (CRITICAL)
 ```
 
 ### Document Patterns (After Investigation)
 ```
 Store comprehensive observation findings:
-- Cluster-specific resource behaviors
-- Performance baselines and patterns
-- Common issue signatures for this cluster type
-- Effective investigation workflows
-- Resource relationship maps
+- observation-workflow: Effective investigation sequences for resource types
+- performance-baseline: Normal resource usage patterns for this cluster
+- resource-relationship: Dependency maps and interaction patterns
 ```
 
 ## Essential Guidelines

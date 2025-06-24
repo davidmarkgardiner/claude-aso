@@ -113,6 +113,70 @@
         }
       }
     },
+    "azure-cli@2.74.0": {
+      "last_modified": "2025-06-20T02:24:11Z",
+      "resolved": "github:NixOS/nixpkgs/076e8c6678d8c54204abcb4b1b14c366835a58bb#azure-cli",
+      "source": "devbox-search",
+      "version": "2.74.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/yl4brh91pg6annvjy3y1j9h3wys7w67q-python3.13-azure-cli-2.74.0",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/yxraz9v7yx0xy4ckk5ndvqydvabqggjq-python3.13-azure-cli-2.74.0-dist"
+            }
+          ],
+          "store_path": "/nix/store/yl4brh91pg6annvjy3y1j9h3wys7w67q-python3.13-azure-cli-2.74.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/l5f29q7ddxh62gzva1bd7rwkd57yd1aj-python3.13-azure-cli-2.74.0",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/vyk3ql3f3g3x3hb5ilvp88lqzylfq6kw-python3.13-azure-cli-2.74.0-dist"
+            }
+          ],
+          "store_path": "/nix/store/l5f29q7ddxh62gzva1bd7rwkd57yd1aj-python3.13-azure-cli-2.74.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/w4zqq6q12rqqvinnzyffpscabzv9fg55-python3.13-azure-cli-2.74.0",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/2dsncfnp1rp6zyfs42ppbz8yk3k58ypr-python3.13-azure-cli-2.74.0-dist"
+            }
+          ],
+          "store_path": "/nix/store/w4zqq6q12rqqvinnzyffpscabzv9fg55-python3.13-azure-cli-2.74.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/vc42aiicyqqbzcx2plgj151279ywiigs-python3.13-azure-cli-2.74.0",
+              "default": true
+            },
+            {
+              "name": "dist",
+              "path": "/nix/store/zg5y9iv67b91da6c2375pb6c1w59v5r0-python3.13-azure-cli-2.74.0-dist"
+            }
+          ],
+          "store_path": "/nix/store/vc42aiicyqqbzcx2plgj151279ywiigs-python3.13-azure-cli-2.74.0"
+        }
+      }
+    },
     "eksctl@0.210.0": {
       "last_modified": "2025-06-17T01:11:27Z",
       "resolved": "github:NixOS/nixpkgs/c539ae8d21e49776966d714f82fba33b1fca78bc#eksctl",

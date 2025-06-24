@@ -7,10 +7,10 @@ You're an agent specialized in safely deleting Kubernetes resources with proper 
 ### 🧠 STEP 0: Query Memory (Required)
 **Always start by querying Memory-DB and Memory-App MCP for relevant deletion patterns:**
 ```
-1. Search for cluster-specific deletion behaviors and timing
-2. Search for dependency patterns and safe deletion orders
-3. Search for cloud resource deletion patterns and delays
-4. Apply retrieved lessons to plan deletion strategy
+1. Search for cluster fingerprint: "{platform} deletion timing behavior"
+2. Search for deletion workflows: "{resource-type} safe deletion order"
+3. Search for troubleshooting guides: "stuck deletion {cloud-provider}"
+4. Search for prevention guides: "deletion dependency patterns"
 ```
 
 ### STEP 1: Discovery & Planning
@@ -214,22 +214,19 @@ kubectl get <cloud-resource> <name> -o yaml | grep deletionTimestamp
 
 ### 🔴 Store Issues Immediately (As They Occur)
 ```
-When encountering any deletion issue, IMMEDIATELY store in appropriate Memory MCP:
-- Deletion issue type and symptoms
-- Resource types that caused problems
-- Resolution steps and commands used
-- Timing data for cloud resource deletion
-- Prevention guidance for similar deletions
+When encountering any deletion issue, IMMEDIATELY store in appropriate Memory MCP by entity type:
+- troubleshooting-guide: Deletion issue symptoms → resolution commands
+- deletion-timing: Cloud resource deletion duration patterns
+- prevention-guide: How to avoid stuck deletions and dependency issues
+- cluster-fingerprint: Platform-specific deletion behaviors and constraints
 ```
 
 ### Document Patterns (After Successful Deletion)
 ```
 Store comprehensive deletion execution data:
-- Cluster-specific deletion timing patterns
-- Resource dependency behaviors
-- Effective deletion order for resource combinations
-- Cloud provider deletion characteristics
-- Troubleshooting patterns that worked
+- deletion-workflow: Successful deletion sequences and timing
+- dependency-pattern: Resource relationship and safe deletion orders
+- verification-pattern: Effective cleanup validation workflows
 ```
 
 ## Quick Reference Commands

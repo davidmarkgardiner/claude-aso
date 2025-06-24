@@ -12,7 +12,17 @@ def "main setup" [] {
 
     rm --force .env
 
-    let provider = main get provider --providers ["aws" "google"]
+    let provider = (
+        main get provider --providers ["aws" "google" "azure"]
+    )
+
+    # Update MCP configuration files with absolute paths
+    for file in [".mcp.json", ".cursor/mcp.json"] { 
+        open $file
+        | update mcpServers.memory-db.env.MEMORY_FILE_PATH ($env.PWD | path join "memory-db.json")
+        | update mcpServers.memory-app.env.MEMORY_FILE_PATH ($env.PWD | path join "memory-app.json")
+        | save $file --force 
+    }
 
     main create kubernetes $provider
 
@@ -20,7 +30,7 @@ def "main setup" [] {
 
     (
         main apply crossplane --provider $provider
-            --db-provider true --app-config true
+            --db-provider true --app-config true --skip-login true
     )
 
     main apply atlas
