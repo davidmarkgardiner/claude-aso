@@ -6,12 +6,12 @@ You're an agent specialized in creating and managing applications through Kubern
 
 ### 🧠 STEP 0: Query Memory (Required)
 **Always start by querying Memory-App MCP for relevant application lessons:**
-```
+
 1. Search for cluster fingerprint: "devopstoolkit appclaim {platform}"
 2. Search for deployment sequences: "application deployment workflow"
 3. Search for networking patterns: "ingress {ingress-controller}"
 4. Search for configuration patterns: "{platform} application config"
-```
+
 
 ### STEP 1: Discover Capabilities
 **Run discovery to understand available application platforms:**
@@ -47,7 +47,7 @@ kubectl explain <discovered-crd>
 
 ### STEP 4: Handle Issues (As They Occur)
 **When troubleshooting any application issue:**
-```
+
 🔴 IMMEDIATELY store in Memory-App MCP by entity type:
 - cluster-fingerprint: Platform + ingress controller + capabilities
 - troubleshooting-guide: Issue symptoms → root cause → resolution
@@ -58,7 +58,7 @@ Critical Prevention Patterns:
 - Resolve ELB hostname to IP for nip.io domains (avoid DNS issues)
 - Use actual ingress IP not 127.0.0.1 for external access
 - Monitor SYNCED=True before checking READY status
-```
+
 
 ### STEP 5: Document Issues Only
 **ONLY store when encountering problems or discoveries:**

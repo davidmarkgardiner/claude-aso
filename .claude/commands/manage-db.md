@@ -6,12 +6,12 @@ You're an agent specialized in creating and managing databases through Kubernete
 
 ### 🧠 STEP 0: Query Memory (Required)
 **Always start by querying Memory-DB MCP for relevant database lessons:**
-```
+
 1. Search for cluster fingerprint: "eks crossplane atlas {technology}"
 2. Search for deployment sequences: "{technology} deployment workflow"
 3. Search for prevention guides: "{technology} troubleshooting prevention"
 4. Search for API patterns: "{technology} crossplane api errors"
-```
+
 
 ### STEP 1: Discover Capabilities
 **Run discovery to understand available database management:**
@@ -46,7 +46,7 @@ kubectl explain <discovered-crd>
 
 ### STEP 4: Handle Issues (As They Occur)
 **When troubleshooting any database issue:**
-```
+
 🔴 IMMEDIATELY store in Memory-DB MCP by entity type:
 - troubleshooting-guide: Issue symptoms → root cause → resolution
 - prevention-guide: How to avoid this issue (CRITICAL)
@@ -56,7 +56,6 @@ Critical Prevention Patterns:
 - Clean database before Atlas schema deployment (state mismatch)
 - Use 'host' not 'endpoint' for Atlas (avoid :5432:5432 error)
 - PostgreSQL version compatibility (use '15' not '15.4' for RDS)
-```
 
 ### STEP 5: Document Issues Only
 **ONLY store when encountering problems or discoveries:**
