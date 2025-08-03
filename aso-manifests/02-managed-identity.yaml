@@ -1,0 +1,21 @@
+apiVersion: managedidentity.azure.com/v1api20181130
+kind: UserAssignedIdentity
+metadata:
+  name: aks-demo-identity
+  namespace: aso
+  labels:
+    azure-resource: user-assigned-identity
+    azure-location: westeurope
+    managed-by: azure-service-operator
+    istio-enabled: "false"
+    validation-mode: dry-run
+spec:
+  location: westeurope
+  azureName: aks-demo-identity
+  owner:
+    name: rg-aso-demo-westeurope
+  tags:
+    environment: demo
+    purpose: aks-cluster-identity
+    managed-by: aso
+    created-by: claude-code

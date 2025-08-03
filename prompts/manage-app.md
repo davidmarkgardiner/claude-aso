@@ -17,7 +17,7 @@ You're an agent specialized in creating and managing applications through Kubern
 **Run discovery to understand available application platforms:**
 ```bash
 # Discover application-related CRDs
-kubectl get crd | grep -E "(app|application|deploy|service|function|job|aws|gcp|azure|cloudrun|lambda|container|crossplane)"
+kubectl get crd | grep -E "(app|application|deploy|service|job|gcp|azure|cloudrun|container|)"
 
 # Examine relevant CRDs
 kubectl explain <discovered-crd>

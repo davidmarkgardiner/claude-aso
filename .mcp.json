@@ -7,7 +7,7 @@
         "@modelcontextprotocol/server-memory"
       ],
       "env": {
-        "MEMORY_FILE_PATH": "/Users/viktorfarcic/code/idp-ai-demo/memory-db.json"
+        "MEMORY_FILE_PATH": "/Users/davidgardiner/Desktop/repo/cluade-setup/idp-ai-demo/memory-db.json"
       }
     },
     "memory-app": {
@@ -17,7 +17,7 @@
         "@modelcontextprotocol/server-memory"
       ],
       "env": {
-        "MEMORY_FILE_PATH": "/Users/viktorfarcic/code/idp-ai-demo/memory-app.json"
+        "MEMORY_FILE_PATH": "/Users/davidgardiner/Desktop/repo/cluade-setup/idp-ai-demo/memory-app.json"
       }
     }
   }
