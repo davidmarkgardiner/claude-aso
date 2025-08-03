@@ -117,3 +117,6 @@ temp/
 output
 memory-app.json
 .cursor/mcp.json
+cmd.sh
+minikube-darwin-amd64
+
