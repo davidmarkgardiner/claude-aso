@@ -1,0 +1,52 @@
+apiVersion: containerservice.azure.com/v1api20210501
+kind: ManagedCluster
+metadata:
+  name: aks-demo-cluster
+  namespace: aso
+  labels:
+    azure-resource: managed-cluster
+    azure-location: westeurope
+    managed-by: azure-service-operator
+    istio-enabled: "false"
+    validation-mode: dry-run
+spec:
+  location: westeurope
+  azureName: aks-demo-cluster
+  owner:
+    name: rg-aso-demo-westeurope
+  dnsPrefix: aks-demo-cluster
+  kubernetesVersion: "1.30.6"
+  enableRBAC: true
+  disableLocalAccounts: true
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+      - reference:
+          name: aks-demo-identity
+          group: managedidentity.azure.com
+          kind: UserAssignedIdentity
+  agentPoolProfiles:
+    - name: system
+      count: 2
+      vmSize: Standard_DS2_v2
+      osDiskSizeGB: 100
+      osDiskType: Managed
+      osType: Linux
+      mode: System
+      enableAutoScaling: true
+      minCount: 1
+      maxCount: 3
+      maxPods: 30
+  networkProfile:
+    networkPlugin: azure
+    networkPolicy: azure
+    loadBalancerSku: standard
+    serviceCidr: 10.0.0.0/16
+    dnsServiceIP: 10.0.0.10
+  autoUpgradeProfile:
+    upgradeChannel: patch
+  tags:
+    environment: demo
+    cluster-type: aks
+    managed-by: aso
+    created-by: claude-code
