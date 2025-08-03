@@ -1,0 +1,19 @@
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: test-rg-westeurope
+  namespace: test
+  labels:
+    azure-resource: resource-group
+    azure-location: westeurope
+    managed-by: azure-service-operator
+    istio-enabled: "true"
+    validation-mode: dry-run
+spec:
+  location: westeurope
+  azureName: test-rg-westeurope
+  tags:
+    environment: development
+    managed-by: aso
+    created-by: claude-code
+    istio-enabled: "true"

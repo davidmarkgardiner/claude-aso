@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test
+  labels:
+    azure-resource: namespace
+    managed-by: azure-service-operator
+    istio-enabled: "true"
+    validation-mode: dry-run
+spec: {}

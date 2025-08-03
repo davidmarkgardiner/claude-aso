@@ -1,0 +1,22 @@
+apiVersion: managedidentity.azure.com/v1api20181130
+kind: UserAssignedIdentity
+metadata:
+  name: test-identity-westeurope
+  namespace: test
+  labels:
+    azure-resource: user-assigned-identity
+    azure-location: westeurope
+    managed-by: azure-service-operator
+    istio-enabled: "true"
+    validation-mode: dry-run
+spec:
+  location: westeurope
+  azureName: test-identity-westeurope
+  owner:
+    name: test-rg-westeurope
+  tags:
+    environment: development
+    purpose: aks-cluster-identity
+    managed-by: aso
+    created-by: claude-code
+    istio-enabled: "true"
