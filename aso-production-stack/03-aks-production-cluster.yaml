@@ -1,5 +1,5 @@
 apiVersion: containerservice.azure.com/v1api20210501
-kind: ManagedCluster
+kind: 
 metadata:
   name: aks-production-cluster
   namespace: aso
