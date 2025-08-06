@@ -1,6 +1,15 @@
 # Istio Traffic Management Components - YAML Reference Guide
 
-This comprehensive reference provides real-world YAML examples for all five core Istio traffic management components, specifically tailored for your agent team's deployment and testing activities.
+This comprehensive reference provides real-world YAML examples for all six core Istio components, specifically tailored for your agent team's deployment and testing activities.
+
+## Components Overview
+
+1. **Virtual Services** - Traffic routing rules and match conditions  
+2. **Destination Rules** - Traffic policies and service subsets
+3. **Gateways** - Ingress/egress traffic management  
+4. **Service Entries** - External services registration
+5. **Sidecars** - Proxy configuration and scope limitation
+6. **Authorization Policies** - Access control and security
 
 ## 1. Virtual Services - Traffic Routing Rules and Match Conditions
 
@@ -864,4 +873,375 @@ spec:
       maxEjectionPercent: 50
 ```
 
-This comprehensive YAML reference provides your agent team with real-world, production-ready examples for all five Istio traffic management components, with specific attention to multi-tenancy, ingress traffic management, and integration with your Azure DNS domain.
+## 6. Authorization Policies - Access Control and Security
+
+Authorization Policies enable fine-grained access control on workloads in the mesh, supporting ALLOW, DENY, AUDIT, and CUSTOM actions.
+
+### Multi-Tenant Namespace Isolation
+```yaml
+# Global deny-all policy in istio-system (applies to all namespaces)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: global-deny-all
+  namespace: istio-system
+spec:
+  action: DENY
+  rules:
+  - from:
+    - source:
+        notNamespaces: ["istio-system", "kube-system"]
+    to:
+    - operation:
+        methods: ["*"]
+---
+# Allow policy for tenant-a namespace
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: tenant-a-allow
+  namespace: tenant-a
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        namespaces: ["tenant-a"]
+    - source:
+        serviceAccounts: ["monitoring/prometheus"]
+  - from:
+    - source:
+        namespaces: ["shared-services"]
+      to:
+      - operation:
+          methods: ["GET"]
+          paths: ["/health", "/metrics"]
+```
+
+### JWT-Based Authentication
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: jwt-auth-policy
+  namespace: tenant-a
+spec:
+  selector:
+    matchLabels:
+      app: secure-api
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        requestPrincipals: ["https://accounts.google.com/*"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/api/v1/*"]
+    when:
+    - key: request.auth.claims[iss]
+      values: ["https://accounts.google.com"]
+    - key: request.auth.claims[aud]
+      values: ["secure-api.davidmarkgardiner.co.uk"]
+  - to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/health", "/ready"]
+```
+
+### Method and Path-Based Authorization
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: api-method-restrictions
+  namespace: tenant-a
+spec:
+  selector:
+    matchLabels:
+      app: web-app
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        namespaces: ["tenant-a"]
+    to:
+    - operation:
+        methods: ["GET", "HEAD", "OPTIONS"]
+  - from:
+    - source:
+        serviceAccounts: ["tenant-a/admin-service"]
+    to:
+    - operation:
+        methods: ["POST", "PUT", "DELETE"]
+        paths: ["/admin/*"]
+  - to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/health", "/metrics"]
+---
+# Explicitly deny dangerous operations
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-dangerous-ops
+  namespace: tenant-a
+spec:
+  action: DENY
+  rules:
+  - to:
+    - operation:
+        methods: ["DELETE"]
+        paths: ["/api/v1/users/*"]
+  - from:
+    - source:
+        namespaces: ["dev", "test"]
+    to:
+    - operation:
+        methods: ["POST", "PUT", "DELETE"]
+```
+
+### IP-Based Access Control
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: ip-based-access
+  namespace: tenant-a
+spec:
+  selector:
+    matchLabels:
+      app: admin-panel
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        ipBlocks: ["192.168.1.0/24", "10.0.0.0/8"]  # Internal networks
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+  - from:
+    - source:
+        remoteIpBlocks: ["203.0.113.0/24"]  # Specific external network
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/dashboard"]
+    when:
+    - key: request.headers[x-forwarded-proto]
+      values: ["https"]
+```
+
+### Gateway-Specific Authorization
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: gateway-authorization
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      istio: ingressgateway
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        remoteIpBlocks: ["0.0.0.0/0"]  # Allow all external IPs
+    to:
+    - operation:
+        hosts: ["app1.davidmarkgardiner.co.uk"]
+        methods: ["GET", "POST"]
+        paths: ["/", "/api/public/*"]
+  - from:
+    - source:
+        remoteIpBlocks: ["192.168.0.0/16", "10.0.0.0/8"]  # Internal only
+    to:
+    - operation:
+        hosts: ["admin.davidmarkgardiner.co.uk"]
+        methods: ["GET", "POST", "PUT", "DELETE"]
+        paths: ["/admin/*"]
+```
+
+### Audit Policy for Compliance
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: audit-sensitive-operations
+  namespace: tenant-a
+spec:
+  selector:
+    matchLabels:
+      app: user-management
+  action: AUDIT
+  rules:
+  - to:
+    - operation:
+        methods: ["POST", "PUT", "DELETE"]
+        paths: ["/api/users/*", "/api/permissions/*"]
+  - to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/api/users/*/profile", "/api/sensitive-data/*"]
+---
+# Allow the operations but audit them
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-audited-operations
+  namespace: tenant-a
+spec:
+  selector:
+    matchLabels:
+      app: user-management
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        serviceAccounts: ["tenant-a/user-service"]
+    to:
+    - operation:
+        methods: ["POST", "PUT", "DELETE"]
+        paths: ["/api/users/*"]
+```
+
+### Custom Authorization Provider
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: custom-authz-policy
+  namespace: tenant-a
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  action: CUSTOM
+  provider:
+    name: "payment-authorization-service"
+  rules:
+  - to:
+    - operation:
+        paths: ["/payment/*", "/billing/*"]
+  - from:
+    - source:
+        namespaces: ["tenant-a"]
+    when:
+    - key: request.headers[x-payment-tier]
+      values: ["premium", "enterprise"]
+```
+
+### Dry-Run Testing Policy
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: dry-run-test
+  namespace: tenant-a
+  annotations:
+    istio.io/dry-run: "true"
+spec:
+  selector:
+    matchLabels:
+      app: web-app
+  action: DENY
+  rules:
+  - from:
+    - source:
+        namespaces: ["untrusted"]
+  - to:
+    - operation:
+        methods: ["DELETE"]
+        paths: ["/api/critical/*"]
+```
+
+### Time-Based Access Control
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: business-hours-access
+  namespace: tenant-a
+spec:
+  selector:
+    matchLabels:
+      app: business-app
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        namespaces: ["tenant-a"]
+    when:
+    - key: request.time.hour
+      values: ["9", "10", "11", "12", "13", "14", "15", "16", "17"]
+  - from:
+    - source:
+        serviceAccounts: ["tenant-a/emergency-service"]
+  - to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/health", "/status"]
+```
+
+### Multi-Cluster Authorization (for future AKS multi-cluster)
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: cross-cluster-access
+  namespace: tenant-a
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/tenant-a/sa/cross-cluster-service"
+        - "cluster-west.local/ns/tenant-a/sa/west-service"
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/api/shared/*"]
+  - from:
+    - source:
+        namespaces: ["tenant-a"]
+```
+
+### Testing Authorization Policies
+```yaml
+# Test client for authorization validation
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authz-test-client
+  namespace: tenant-a
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authz-test-client
+  template:
+    metadata:
+      labels:
+        app: authz-test-client
+    spec:
+      serviceAccountName: test-client
+      containers:
+      - name: curl
+        image: curlimages/curl
+        command: ["sleep", "3600"]
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: test-client
+  namespace: tenant-a
+```
