@@ -122,3 +122,23 @@ memory-app.json
 cmd.sh
 minikube-darwin-amd64
 
+.my-aks-cluster
+cleanup-aks.sh
+deploy-aks-simple.sh
+logs.txt
+managedcluster.yaml
+README-AKS-Deployment.md
+.claude/agents
+.claude/commands/istio-deployment-engineer.md
+aks-deployment/base/kustomization.yaml
+aks-istio-addon/readme.md
+aks-istio-addon/external-dns/medium.md
+apps/cert-manager/signkey_annotation.txt
+apps/cert-manager/values.linter.exceptions
+aso-production-stack/03-aks-production-cluster.yaml
+deploy-aks/deploy-aks.sh
+deploy-aks/v3.sh
+aks-istio-addon/readme.md
+aso-production-stack/03-aks-production-cluster.yaml
+deploy-aks-scripts/deploy-aks.sh
+deploy-aks-scripts/v3.sh

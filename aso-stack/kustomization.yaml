@@ -6,8 +6,8 @@ resources:
   - roleassignment.yaml 
   - cluster.yaml
   - federated.yaml
-  # - extension.yaml
-  # - fluxconfiguration.yaml
+  - extension.yaml
+  - fluxconfiguration.yaml
   # - managedidenoty.yaml
   # - federated.yaml
 

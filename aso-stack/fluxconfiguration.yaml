@@ -17,6 +17,12 @@ spec:
       syncIntervalInSeconds: 120
       prune: true
       force: true
+    istio-app:
+      path: ./istio-apps
+      timeoutInSeconds: 600
+      syncIntervalInSeconds: 120
+      prune: true
+      force: true
   namespace: flux-system
   owner:
     group: containerservice.azure.com
