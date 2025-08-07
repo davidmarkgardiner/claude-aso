@@ -7,7 +7,7 @@
         "@modelcontextprotocol/server-memory"
       ],
       "env": {
-        "MEMORY_FILE_PATH": "/Users/davidgardiner/Desktop/repo/cluade-setup/idp-ai-demo/memory-db.json"
+        "MEMORY_FILE_PATH": "/Users/davidgardiner/Desktop/repo/cluade-setup/claude-aso/memory-db-app.json"
       }
     },
     "memory-app": {
@@ -17,7 +17,17 @@
         "@modelcontextprotocol/server-memory"
       ],
       "env": {
-        "MEMORY_FILE_PATH": "/Users/davidgardiner/Desktop/repo/cluade-setup/idp-ai-demo/memory-app.json"
+        "MEMORY_FILE_PATH": "/Users/davidgardiner/Desktop/repo/cluade-setup/claude-aso/memory-app.json"
+      }
+    },
+    "istio-app": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "/Users/davidgardiner/Desktop/repo/cluade-setup/claude-aso/istio-app.json"
       }
     }
   }

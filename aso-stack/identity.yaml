@@ -1,0 +1,65 @@
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: flux-identity
+  namespace: azure-system
+spec:
+  azureName: flux-identity
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  operatorSpec:
+    configMaps:
+      clientId:
+        name: flux-identity-cm
+        key: clientId
+      principalId:
+        name: flux-identity-cm
+        key: principalId
+      tenantId:
+        name: flux-identity-cm
+        key: tenantId
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: external-dns-identity
+  namespace: azure-system
+spec:
+  azureName: external-dns-identity2 # add this to eternal-dns.yaml
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  operatorSpec:
+    configMaps:
+      clientId:
+        name: external-dns-identity-cm
+        key: clientId
+      principalId:
+        name: external-dns-identity-cm
+        key: principalId
+      tenantId:
+        name: external-dns-identity-cm
+        key: tenantId
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: cert-manager-identity
+  namespace: azure-system
+spec:
+  azureName: cert-manager-identity
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  operatorSpec:
+    configMaps:
+      clientId:
+        name: cert-manager-identity-cm
+        key: clientId
+      principalId:
+        name: cert-manager-identity-cm
+        key: principalId
+      tenantId:
+        name: cert-manager-identity-cm
+        key: tenantId

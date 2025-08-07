@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-a
+  labels:
+    istio-injection: enabled
+    deployment-agent: istio-engineer
+    tenant: tenant-a
+    security-level: strict
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-b
+  labels:
+    istio-injection: enabled
+    deployment-agent: istio-engineer
+    tenant: tenant-b
+    security-level: strict
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shared-services
+  labels:
+    istio-injection: enabled
+    deployment-agent: istio-engineer
+    component: shared-services

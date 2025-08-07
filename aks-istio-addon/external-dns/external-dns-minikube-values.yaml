@@ -1,0 +1,69 @@
+# external-dns-minikube-values.yaml
+logLevel: debug
+logFormat: json
+interval: 1m
+
+provider:
+  name: azure  # Use 'azure' for public DNS
+
+sources:
+  - ingress
+  - service
+
+dnsPolicy: Default
+
+domainFilters: 
+  - davidmarkgardiner.co.uk
+
+txtOwnerId: external-dns-minikube
+
+policy: upsert-only
+
+registry: txt
+
+txtPrefix: external-dns-
+
+# Service principal configuration
+env:
+  - name: AZURE_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: azure-config-file
+        key: clientId
+  - name: AZURE_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: azure-config-file
+        key: clientSecret
+  - name: AZURE_TENANT_ID
+    valueFrom:
+      secretKeyRef:
+        name: azure-config-file
+        key: tenantId
+  - name: AZURE_SUBSCRIPTION_ID
+    valueFrom:
+      secretKeyRef:
+        name: azure-config-file
+        key: subscriptionId
+  - name: AZURE_RESOURCE_GROUP
+    valueFrom:
+      secretKeyRef:
+        name: azure-config-file
+        key: resourceGroup
+
+# Minikube-specific settings
+serviceAccount:
+  create: true
+  name: external-dns
+
+rbac:
+  create: true
+
+# Resource limits for Minikube
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi

@@ -1,0 +1,8 @@
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: at39473-weu-dev-prod
+  namespace: azure-system
+spec:
+  azureName: at39473-weu-dev-prod
+  location: uksouth

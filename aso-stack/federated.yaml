@@ -1,0 +1,47 @@
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: aso-fic-flux-source
+  namespace: azure-system
+spec:
+  azureName: flux-identity
+  owner:
+    name: flux-identity
+  audiences:
+    - api://AzureADTokenExchange
+  issuerFromConfig:
+    name: aks-oidc-config-prod
+    key: issuer-url
+  subject: system:serviceaccount:flux-system:source-controller
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: aso-fic-flux-image
+  namespace: azure-system
+spec:
+  azureName: flux-identity
+  owner:
+    name: flux-identity
+  audiences:
+    - api://AzureADTokenExchange
+  issuerFromConfig:
+    name: aks-oidc-config-prod
+    key: issuer-url
+  subject: system:serviceaccount:flux-system:image-automation-controller
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: aso-fic-external-dns
+  namespace: azure-system
+spec:
+  azureName: external-dns-identity
+  owner:
+    name: external-dns-identity
+  audiences:
+    - api://AzureADTokenExchange
+  issuerFromConfig:
+    name: aks-oidc-config-prod
+    key: issuer-url
+  subject: system:serviceaccount:external-dns:external-dns

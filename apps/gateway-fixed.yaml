@@ -1,0 +1,51 @@
+# 1. Gateway - HTTPS Ingress with TLS
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: main-gateway
+  namespace: aks-istio-system
+  labels:
+    istio-component: gateway
+    deployment-agent: istio-engineer
+    test-scenario: ingress-routing
+spec:
+  selector:
+    istio: aks-istio-ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: davidmarkgardiner-co-uk-tls
+    hosts:
+    - "*.davidmarkgardiner.co.uk"
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*.davidmarkgardiner.co.uk"
+---
+# HTTP to HTTPS redirect VirtualService
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: https-redirect
+  namespace: aks-istio-system
+  labels:
+    istio-component: virtualservice
+    deployment-agent: istio-engineer
+    test-scenario: https-redirect
+spec:
+  hosts:
+  - "*.davidmarkgardiner.co.uk"
+  gateways:
+  - main-gateway
+  http:
+  - match:
+    - port: 80
+    redirect:
+      port: 443
+      scheme: https

@@ -1,0 +1,21 @@
+apiVersion: managedidentity.azure.com/v1api20181130
+kind: UserAssignedIdentity
+metadata:
+  name: $(cluster_config.kubelet_managed_identity_name)
+  namespace: $(cluster_config.namespace)
+  labels:
+    azure-resource: user-assigned-identity
+    azure-location: $(cluster_config.azure_region)
+    managed-by: azure-service-operator
+    istio-enabled: "$(cluster_config.istio_enabled)"
+    validation-mode: dry-run
+spec:
+  location: $(cluster_config.azure_region)
+  azureName: $(cluster_config.kubelet_managed_identity_name)
+  owner:
+    name: $(cluster_config.resource_group_name)
+  tags:
+    environment: $(cluster_config.environment)
+    purpose: aks-kubelet
+    managed-by: aso
+    created-by: claude-code

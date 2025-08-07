@@ -1,0 +1,25 @@
+apiVersion: kubernetesconfiguration.azure.com/v1api20241101
+kind: FluxConfiguration
+metadata:
+  name: aso-flux
+  namespace: azure-system
+spec:
+  azureName: aso-flux
+  gitRepository:
+    provider: Generic
+    repositoryRef:
+      branch: infra
+    url: https://github.com/davidmarkgardiner/claude-aso
+  kustomizations:
+    app:
+      path: ./apps
+      timeoutInSeconds: 600
+      syncIntervalInSeconds: 120
+      prune: true
+      force: true
+  namespace: flux-system
+  owner:
+    group: containerservice.azure.com
+    kind: ManagedCluster
+    name: uk8s-tsshared-weu-gt025-int-prod
+  sourceKind: GitRepository

@@ -5,6 +5,8 @@ manifests/*.yaml
 kubeconfig*.yaml
 *creds*
 azure-creds.json
+creds/*
+
 # Python
 __pycache__/
 *.py[cod]

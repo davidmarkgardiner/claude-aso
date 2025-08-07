@@ -1,0 +1,18 @@
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: dns-zone-contributor
+  namespace: azure-system
+spec:
+  # This resource can be owner by any resource. In this example we've chosen a resource group for simplicity
+  owner:
+    name: at39473-weu-dev-prod
+    group: resources.azure.com
+    kind: ResourceGroup
+  # This is the Principal ID of the AAD identity to which the role will be assigned
+  principalIdFromConfig:
+    name: external-dns-identity-cm
+    key: principalId
+  roleDefinitionReference:
+    # This ARM ID represents "dns zone conrtibutor" - you can read about other built in roles here: https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/befefa01-2a29-4197-83a8-272ff33ce314

@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: ManagedCluster
+      name: $(cluster_config.cluster_name)
+    patch: |-
+      - op: replace
+        path: /spec/agentPoolProfiles/0/count
+        value: 3
+      - op: add
+        path: /spec/agentPoolProfiles/0/minCount
+        value: 3
+      - op: add
+        path: /spec/agentPoolProfiles/0/maxCount
+        value: 10
+
+namespace: azure-system
