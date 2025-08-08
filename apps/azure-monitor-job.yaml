@@ -1,0 +1,204 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: azure-ops
+  labels:
+    deployment-agent: azure-ops
+    component: cluster-management
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enable-monitor-script
+  namespace: azure-ops
+data:
+  enable-monitor.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    echo "Starting AKS Azure Monitor metrics enablement..."
+    
+    # Get cluster info from metadata service or environment
+    CLUSTER_NAME="${CLUSTER_NAME:-}"
+    RESOURCE_GROUP="${RESOURCE_GROUP:-}"
+    SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-133d5755-4074-4d6e-ad38-eb2a6ad12903}"
+    WORKSPACE_RESOURCE_ID="${WORKSPACE_RESOURCE_ID:-/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/aks-cluster/providers/Microsoft.OperationalInsights/workspaces/test-workspace}"
+    
+    # Login using workload identity
+    echo "Authenticating with Azure using workload identity..."
+    az login --identity
+    
+    # Set subscription
+    az account set --subscription "$SUBSCRIPTION_ID"
+    
+    # Discover cluster name if not set
+    if [[ -z "$CLUSTER_NAME" ]]; then
+      echo "Discovering cluster name from current context..."
+      CLUSTER_NAME=$(kubectl config current-context | cut -d'_' -f4 2>/dev/null || echo "")
+      if [[ -z "$CLUSTER_NAME" ]]; then
+        echo "ERROR: Could not determine cluster name. Please set CLUSTER_NAME environment variable."
+        exit 1
+      fi
+    fi
+    
+    # Discover resource group if not set  
+    if [[ -z "$RESOURCE_GROUP" ]]; then
+      echo "Discovering resource group..."
+      RESOURCE_GROUP=$(az aks list --query "[?name=='$CLUSTER_NAME'].resourceGroup" -o tsv | head -1)
+      if [[ -z "$RESOURCE_GROUP" ]]; then
+        echo "ERROR: Could not determine resource group. Please set RESOURCE_GROUP environment variable."
+        exit 1
+      fi
+    fi
+    
+    echo "Cluster: $CLUSTER_NAME"
+    echo "Resource Group: $RESOURCE_GROUP"
+    echo "Workspace Resource ID: $WORKSPACE_RESOURCE_ID"
+    
+    # Enable Azure Monitor metrics
+    echo "Enabling Azure Monitor metrics on AKS cluster..."
+    az aks update \
+      --enable-azure-monitor-metrics \
+      --name "$CLUSTER_NAME" \
+      --resource-group "$RESOURCE_GROUP" \
+      --azure-monitor-workspace-resource-id "$WORKSPACE_RESOURCE_ID"
+    
+    echo "Successfully enabled Azure Monitor metrics on cluster $CLUSTER_NAME"
+    
+    # Verify the configuration
+    echo "Verifying Azure Monitor configuration..."
+    az aks show --name "$CLUSTER_NAME" --resource-group "$RESOURCE_GROUP" \
+      --query "azureMonitorProfile" -o table
+    
+    echo "Job completed successfully!"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: azure-ops-sa
+  namespace: azure-ops
+  labels:
+    azure.workload.identity/use: "true"
+    deployment-agent: azure-ops
+  annotations:
+    azure.workload.identity/client-id: "e651afda-3cfc-431b-ae58-e255232e61c8"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: azure-ops-reader
+  labels:
+    deployment-agent: azure-ops
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: azure-ops-reader-binding
+  labels:
+    deployment-agent: azure-ops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: azure-ops-reader
+subjects:
+- kind: ServiceAccount
+  name: azure-ops-sa
+  namespace: azure-ops
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: enable-azure-monitor-metrics
+  namespace: azure-ops
+  labels:
+    deployment-agent: azure-ops
+    component: cluster-management
+spec:
+  ttlSecondsAfterFinished: 86400  # Clean up after 24 hours
+  template:
+    metadata:
+      labels:
+        azure.workload.identity/use: "true"
+        deployment-agent: azure-ops
+    spec:
+      serviceAccountName: azure-ops-sa
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: azure-cli
+        image: mcr.microsoft.com/azure-cli:2.57.0
+        command: ["/bin/bash"]
+        args: ["/scripts/enable-monitor.sh"]
+        env:
+        - name: CLUSTER_NAME
+          value: ""  # Will be auto-discovered
+        - name: RESOURCE_GROUP  
+          value: ""  # Will be auto-discovered
+        - name: SUBSCRIPTION_ID
+          value: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+        - name: WORKSPACE_RESOURCE_ID
+          value: "/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/aks-cluster/providers/Microsoft.OperationalInsights/workspaces/test-workspace"
+        - name: AZURE_CLIENT_ID
+          value: "e651afda-3cfc-431b-ae58-e255232e61c8"
+        - name: AZURE_TENANT_ID
+          value: "72f988bf-86f1-41af-91ab-2d7cd011db47"
+        - name: AZURE_FEDERATED_TOKEN_FILE
+          value: "/var/run/secrets/azure/tokens/azure-identity-token"
+        - name: AZURE_AUTHORITY_HOST
+          value: "https://login.microsoftonline.com/"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+        - name: tmp
+          mountPath: /tmp
+        - name: azure-identity-token
+          mountPath: /var/run/secrets/azure/tokens
+          readOnly: true
+      volumes:
+      - name: script-volume
+        configMap:
+          name: enable-monitor-script
+          defaultMode: 0755
+      - name: tmp
+        emptyDir: {}
+      - name: azure-identity-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: azure-identity-token
+              expirationSeconds: 3600
+              audience: api://AzureADTokenExchange

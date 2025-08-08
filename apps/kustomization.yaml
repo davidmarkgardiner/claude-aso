@@ -5,6 +5,7 @@ resources:
   # Infrastructure dependencies
   - infrastructure/cert-manager-kustomization.yaml
   - infrastructure/external-dns-kustomization.yaml
+  - infrastructure/azure-ops-kustomization.yaml
   
   # Application dependencies (depends on infrastructure)
   - certificates/cert-issuers-kustomization.yaml
