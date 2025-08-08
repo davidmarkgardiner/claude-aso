@@ -31,11 +31,11 @@ spec:
     global:
       leaderElection:
         namespace: "cert-manager"
-    prometheus:
-      enabled: true
-      servicemonitor:
-        enabled: true
-        prometheusInstance: default
+    # prometheus:
+    #   enabled: true
+    #   servicemonitor:
+    #     enabled: true
+    #     prometheusInstance: default
     securityContext:
       runAsNonRoot: true
       seccompProfile:
