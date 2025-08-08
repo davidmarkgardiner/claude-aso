@@ -21,7 +21,6 @@ spec:
         substituteFrom:
           - kind: ConfigMap
             name: external-dns-identity-cm
-            namespace: azure-system
             optional: false
     istio-app:
       dependsOn: ["app"]

@@ -1,0 +1,447 @@
+---
+# Flagger Canary Configuration for Tenant A (Production)
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: tenant-a-podinfo-progressive
+  namespace: tenant-a
+  labels:
+    deployment-agent: istio-engineer
+    deployment-strategy: progressive
+    environment: production
+spec:
+  # Target deployment to manage
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: podinfo-v1
+  
+  # Deployment strategy
+  progressDeadlineSeconds: 600
+  autoscalerRef:
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    name: podinfo-v1
+  
+  # Service configuration
+  service:
+    name: podinfo-canary
+    port: 9898
+    targetPort: 9898
+    gateways:
+      - aks-istio-system/main-gateway
+    hosts:
+      - podinfo.tenant-a.davidmarkgardiner.co.uk
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,gateway-error
+    headers:
+      request:
+        add:
+          x-canary-deployment: "true"
+          x-deployment-agent: "istio-engineer"
+    
+  # Progressive deployment analysis
+  analysis:
+    # Canary analysis configuration
+    interval: 60s
+    threshold: 10
+    maxWeight: 20
+    stepWeight: 5
+    iterations: 10
+    
+    # Success/failure thresholds
+    match:
+      - headers:
+          x-canary: 
+            exact: "true"
+    
+    # Metrics for decision making
+    metrics:
+      # Success rate (primary metric)
+      - name: request-success-rate
+        templateRef:
+          name: success-rate
+          namespace: flagger-system
+        thresholdRange:
+          min: 99.5
+        interval: 60s
+        
+      # Response time (P99 latency)
+      - name: request-duration-p99
+        templateRef:
+          name: latency-p99
+          namespace: flagger-system
+        thresholdRange:
+          max: 500  # 500ms
+        interval: 60s
+        
+      # Error rate
+      - name: error-rate
+        templateRef:
+          name: error-rate
+          namespace: flagger-system
+        thresholdRange:
+          max: 0.5  # 0.5%
+        interval: 60s
+        
+      # Custom business metrics
+      - name: business-metric
+        templateRef:
+          name: business-kpi
+          namespace: flagger-system
+        thresholdRange:
+          min: 95
+        interval: 30s
+    
+    # Pre-deployment validation webhooks
+    webhooks:
+      # Security validation
+      - name: security-validation
+        type: pre-rollout
+        url: http://security-validator.shared-services.svc.cluster.local:8080/validate
+        timeout: 30s
+        metadata:
+          deployment: "{{ .Name }}"
+          namespace: "{{ .Namespace }}"
+          
+      # Load testing before promotion  
+      - name: load-test-validation
+        type: pre-rollout
+        url: http://flagger-loadtester.istio-testing.svc.cluster.local:80/
+        timeout: 60s
+        metadata:
+          type: bash
+          cmd: |
+            # Run comprehensive load test before allowing traffic
+            fortio load -c 10 -n 100 -qps 50 \
+              -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
+              -H "x-canary: true" \
+              http://podinfo-canary.tenant-a.svc.cluster.local:9898/
+            
+      # Configuration validation
+      - name: istio-config-validation
+        type: pre-rollout  
+        url: http://istio-validator.shared-services.svc.cluster.local:8080/validate-config
+        timeout: 15s
+        
+      # Business approval gate (manual)
+      - name: approval-gate
+        type: confirm-promotion
+        url: http://approval-service.shared-services.svc.cluster.local:8080/approve
+        timeout: 300s  # 5 minute timeout for manual approval
+        
+      # Post-deployment verification
+      - name: post-deployment-test
+        type: post-rollout
+        url: http://flagger-loadtester.istio-testing.svc.cluster.local:80/
+        timeout: 120s
+        metadata:
+          type: bash
+          cmd: |
+            # Verify deployment success with comprehensive testing
+            echo "=== Post-Deployment Verification ==="
+            
+            # Health check
+            curl -f http://podinfo.tenant-a.svc.cluster.local:9898/healthz
+            
+            # Performance baseline
+            fortio load -c 5 -n 50 -qps 10 \
+              http://podinfo.tenant-a.svc.cluster.local:9898/
+            
+            # Security verification
+            curl -f http://security-validator.shared-services.svc.cluster.local:8080/verify-deployment
+            
+      # Rollback notification
+      - name: rollback-notification
+        type: rollback
+        url: http://notification-service.shared-services.svc.cluster.local:8080/notify
+        timeout: 5s
+        metadata:
+          team: platform-team
+          severity: high
+          channel: "#production-alerts"
+
+---
+# Flagger Canary for Tenant B (Development - More Aggressive)
+apiVersion: flagger.app/v1beta1  
+kind: Canary
+metadata:
+  name: tenant-b-podinfo-progressive
+  namespace: tenant-b
+  labels:
+    deployment-agent: istio-engineer
+    deployment-strategy: progressive
+    environment: development
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: podinfo-v2
+    
+  progressDeadlineSeconds: 300  # Faster for development
+  
+  service:
+    name: podinfo-canary
+    port: 9898
+    targetPort: 9898
+    gateways:
+      - aks-istio-system/main-gateway
+    hosts:
+      - podinfo.tenant-b.davidmarkgardiner.co.uk
+  
+  analysis:
+    # More aggressive deployment for development
+    interval: 30s
+    threshold: 5  
+    maxWeight: 50  # Allow more traffic to canary
+    stepWeight: 10 # Bigger steps
+    iterations: 5  # Fewer iterations
+    
+    metrics:
+      - name: request-success-rate
+        templateRef:
+          name: success-rate
+          namespace: flagger-system
+        thresholdRange:
+          min: 95  # Lower threshold for development
+        interval: 30s
+        
+      - name: request-duration-p99
+        templateRef:
+          name: latency-p99
+          namespace: flagger-system
+        thresholdRange:
+          max: 1000  # More lenient for development
+        interval: 30s
+    
+    webhooks:
+      - name: basic-validation
+        type: pre-rollout
+        url: http://flagger-loadtester.istio-testing.svc.cluster.local:80/
+        timeout: 15s
+        metadata:
+          type: bash
+          cmd: "curl -f http://podinfo-canary.tenant-b.svc.cluster.local:9898/healthz"
+
+---
+# Custom Metric Templates for Business KPIs
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: business-kpi
+  namespace: flagger-system
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  provider:
+    type: prometheus
+    address: http://prometheus.shared-services.svc.cluster.local:9090
+  query: |
+    # Business conversion rate metric
+    sum(rate(podinfo_requests_total{namespace="{{ .Namespace }}",deployment=~"{{ .Target }}.*"}[{{ .Interval }}])) /
+    sum(rate(http_requests_total{namespace="{{ .Namespace }}",deployment=~"{{ .Target }}.*"}[{{ .Interval }}])) * 100
+
+---
+# Enhanced Success Rate Template
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: success-rate
+  namespace: flagger-system
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  provider:
+    type: prometheus
+    address: http://prometheus.shared-services.svc.cluster.local:9090
+  query: |
+    sum(
+      rate(
+        istio_requests_total{
+          destination_service_name="{{ .Target }}",
+          destination_service_namespace="{{ .Namespace }}",
+          response_code!~"5.*"
+        }[{{ .Interval }}]
+      )
+    ) /
+    sum(
+      rate(
+        istio_requests_total{
+          destination_service_name="{{ .Target }}",
+          destination_service_namespace="{{ .Namespace }}"
+        }[{{ .Interval }}]
+      )
+    ) * 100
+
+---
+# P99 Latency Template with Istio Metrics
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: latency-p99
+  namespace: flagger-system
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  provider:
+    type: prometheus
+    address: http://prometheus.shared-services.svc.cluster.local:9090
+  query: |
+    histogram_quantile(0.99,
+      sum(
+        rate(
+          istio_request_duration_milliseconds_bucket{
+            destination_service_name="{{ .Target }}",
+            destination_service_namespace="{{ .Namespace }}"
+          }[{{ .Interval }}]
+        )
+      ) by (le)
+    )
+
+---
+# Error Rate Template
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: error-rate
+  namespace: flagger-system
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  provider:
+    type: prometheus
+    address: http://prometheus.shared-services.svc.cluster.local:9090
+  query: |
+    sum(
+      rate(
+        istio_requests_total{
+          destination_service_name="{{ .Target }}",
+          destination_service_namespace="{{ .Namespace }}",
+          response_code=~"5.*"
+        }[{{ .Interval }}]
+      )
+    ) /
+    sum(
+      rate(
+        istio_requests_total{
+          destination_service_name="{{ .Target }}",
+          destination_service_namespace="{{ .Namespace }}"
+        }[{{ .Interval }}]
+      )
+    ) * 100
+
+---
+# Alert Manager Configuration for Canary Failures
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flagger-alerts
+  namespace: flagger-system
+  labels:
+    deployment-agent: istio-engineer
+data:
+  alerts.yaml: |
+    groups:
+    - name: flagger
+      rules:
+      # Canary analysis failure alert
+      - alert: CanaryAnalysisFailed
+        expr: flagger_canary_status == 0
+        for: 1m
+        labels:
+          severity: warning
+          deployment_agent: istio-engineer
+        annotations:
+          summary: "Canary analysis failed for {{ $labels.name }}"
+          description: "Canary {{ $labels.name }} in namespace {{ $labels.namespace }} analysis failed"
+          
+      # Canary stuck alert  
+      - alert: CanaryStuck
+        expr: flagger_canary_status == 1 and increase(flagger_canary_status[30m]) == 0
+        for: 5m
+        labels:
+          severity: critical
+          deployment_agent: istio-engineer
+        annotations:
+          summary: "Canary deployment stuck for {{ $labels.name }}"
+          description: "Canary {{ $labels.name }} has been stuck for more than 30 minutes"
+          
+      # High error rate during canary
+      - alert: CanaryHighErrorRate
+        expr: |
+          sum(rate(istio_requests_total{response_code=~"5.*"}[5m])) /
+          sum(rate(istio_requests_total[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          deployment_agent: istio-engineer
+        annotations:
+          summary: "High error rate during canary deployment"
+          description: "Error rate {{ $value }}% exceeds threshold during canary analysis"
+
+---
+# Notification Provider for Canary Events  
+apiVersion: notification.toolkit.fluxcd.io/v1beta1
+kind: Provider
+metadata:
+  name: canary-notifications
+  namespace: flagger-system
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  type: slack
+  channel: '#canary-deployments'
+  secretRef:
+    name: slack-webhook-secret
+
+---
+# Progressive Deployment Dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: progressive-deployment-dashboard
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    grafana_dashboard: "1"
+data:
+  progressive-deployments.json: |
+    {
+      "dashboard": {
+        "title": "Progressive Deployments - Istio Canaries",
+        "panels": [
+          {
+            "title": "Canary Analysis Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "flagger_canary_status",
+                "legendFormat": "{{ name }} ({{ namespace }})"
+              }
+            ]
+          },
+          {
+            "title": "Canary Success Rate",
+            "type": "graph", 
+            "targets": [
+              {
+                "expr": "sum(rate(istio_requests_total{response_code!~\"5.*\"}[5m])) by (destination_service_name) / sum(rate(istio_requests_total[5m])) by (destination_service_name) * 100",
+                "legendFormat": "{{ destination_service_name }} success rate"
+              }
+            ]
+          },
+          {
+            "title": "Canary Traffic Weight",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "flagger_canary_weight",
+                "legendFormat": "{{ name }} traffic weight %"
+              }
+            ]
+          }
+        ]
+      }
+    }

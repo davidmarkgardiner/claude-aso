@@ -9,7 +9,7 @@ spec:
   chart:
     spec:
       chart: external-dns
-      version: "1.15.0"
+      version: "1.18.0"
       sourceRef:
         kind: HelmRepository
         name: external-dns
@@ -26,9 +26,10 @@ spec:
   targetNamespace: external-dns
   values:
     image:
-      tag: "v0.14.0"
+      tag: "v0.17.0"
     extraArgs:
       - --azure-config-file=/dev/null
+      - --metrics-addr=0.0.0.0:7979
     sources:
       - service
       - ingress
@@ -61,10 +62,43 @@ spec:
         value: wli
       - name: AZURE_CLIENT_ID
         value: "e651afda-3cfc-431b-ae58-e255232e61c8"
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65532
+      runAsGroup: 65532
+      fsGroup: 65532
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 65532
+      runAsGroup: 65532
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
+      seccompProfile:
+        type: RuntimeDefault
     resources:
       limits:
-        memory: "64Mi"
-        cpu: "50m"
+        memory: "128Mi"
+        cpu: "100m"
       requests:
-        memory: "32Mi"
-        cpu: "1m"
+        memory: "64Mi"
+        cpu: "10m"
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: 7979
+      initialDelaySeconds: 30
+      timeoutSeconds: 5
+      periodSeconds: 10
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: 7979
+      initialDelaySeconds: 5
+      timeoutSeconds: 5
+      periodSeconds: 10
+      failureThreshold: 3

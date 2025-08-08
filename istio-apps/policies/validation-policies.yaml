@@ -1,0 +1,260 @@
+---
+# OPA Gatekeeper - Require Istio Sidecar Injection
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: requireistiosidecar
+  labels:
+    deployment-agent: istio-engineer
+    policy-type: security
+spec:
+  crd:
+    spec:
+      names:
+        kind: RequireIstioSidecar
+      validation:
+        properties:
+          exemptNamespaces:
+            type: array
+            items:
+              type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package requireistiosidecar
+        
+        violation[{"msg": msg}] {
+          input.review.object.kind == "Pod"
+          not is_exempt_namespace
+          not has_sidecar_injection
+          msg := sprintf("Pod %v in namespace %v must have istio sidecar injection enabled", [input.review.object.metadata.name, input.review.object.metadata.namespace])
+        }
+        
+        is_exempt_namespace {
+          input.parameters.exemptNamespaces[_] == input.review.object.metadata.namespace
+        }
+        
+        has_sidecar_injection {
+          input.review.object.metadata.annotations["sidecar.istio.io/inject"] == "true"
+        }
+        
+        has_sidecar_injection {
+          input.review.object.metadata.labels["istio-injection"] == "enabled"
+        }
+
+---
+# Constraint - Enforce sidecar injection in tenant namespaces
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RequireIstioSidecar
+metadata:
+  name: tenant-sidecar-required
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["tenant-a", "tenant-b"]
+  parameters:
+    exemptNamespaces: ["kube-system", "flux-system", "aks-istio-system"]
+
+---
+# Validate proper resource limits for GitOps safety
+apiVersion: templates.gatekeeper.sh/v1beta1  
+kind: ConstraintTemplate
+metadata:
+  name: requireresourcelimits
+  labels:
+    deployment-agent: istio-engineer
+    policy-type: resource-management
+spec:
+  crd:
+    spec:
+      names:
+        kind: RequireResourceLimits
+      validation:
+        properties:
+          maxCpu:
+            type: string
+          maxMemory:
+            type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package requireresourcelimits
+        
+        violation[{"msg": msg}] {
+          input.review.object.kind == "Deployment"
+          container := input.review.object.spec.template.spec.containers[_]
+          not container.resources.limits.cpu
+          msg := sprintf("Container %v must specify CPU limits", [container.name])
+        }
+        
+        violation[{"msg": msg}] {
+          input.review.object.kind == "Deployment"
+          container := input.review.object.spec.template.spec.containers[_]
+          not container.resources.limits.memory
+          msg := sprintf("Container %v must specify memory limits", [container.name])
+        }
+
+---
+# Constraint for resource limits
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RequireResourceLimits
+metadata:
+  name: deployment-resource-limits
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+    namespaces: ["tenant-a", "tenant-b", "shared-services"]
+  parameters:
+    maxCpu: "2"
+    maxMemory: "4Gi"
+
+---
+# Validate Istio Configuration Safety
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: validateistioresources
+  labels:
+    deployment-agent: istio-engineer
+    policy-type: istio-validation
+spec:
+  crd:
+    spec:
+      names:
+        kind: ValidateIstioResources
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package validateistioresources
+        
+        # Ensure VirtualServices have timeout configured
+        violation[{"msg": msg}] {
+          input.review.object.kind == "VirtualService"
+          input.review.object.spec.http[_]
+          route := input.review.object.spec.http[_]
+          not route.timeout
+          msg := "VirtualService must specify timeout for GitOps safety"
+        }
+        
+        # Ensure DestinationRules have circuit breaker
+        violation[{"msg": msg}] {
+          input.review.object.kind == "DestinationRule"
+          input.review.object.spec.trafficPolicy
+          not input.review.object.spec.trafficPolicy.outlierDetection
+          msg := "DestinationRule must have outlierDetection for resilience"
+        }
+        
+        # Ensure AuthorizationPolicy has explicit rules
+        violation[{"msg": msg}] {
+          input.review.object.kind == "AuthorizationPolicy"
+          input.review.object.spec.action == "ALLOW"
+          count(input.review.object.spec.rules) == 0
+          msg := "AuthorizationPolicy with ALLOW action must specify explicit rules"
+        }
+
+---
+# Constraint for Istio resource validation
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: ValidateIstioResources
+metadata:
+  name: istio-config-safety
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  match:
+    kinds:
+      - apiGroups: ["networking.istio.io"]
+        kinds: ["VirtualService", "DestinationRule"]
+      - apiGroups: ["security.istio.io"] 
+        kinds: ["AuthorizationPolicy"]
+
+---
+# Security Context Validation for Production
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: requiresecuritycontext
+  labels:
+    deployment-agent: istio-engineer
+    policy-type: security
+spec:
+  crd:
+    spec:
+      names:
+        kind: RequireSecurityContext
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package requiresecuritycontext
+        
+        violation[{"msg": msg}] {
+          input.review.object.kind == "Pod"
+          container := input.review.object.spec.containers[_]
+          not container.securityContext.runAsNonRoot
+          msg := sprintf("Container %v must run as non-root user", [container.name])
+        }
+        
+        violation[{"msg": msg}] {
+          input.review.object.kind == "Pod"
+          container := input.review.object.spec.containers[_]
+          container.securityContext.runAsUser == 0
+          msg := sprintf("Container %v cannot run as root (UID 0)", [container.name])
+        }
+        
+        violation[{"msg": msg}] {
+          input.review.object.kind == "Pod"
+          container := input.review.object.spec.containers[_]
+          not container.securityContext.readOnlyRootFilesystem
+          msg := sprintf("Container %v must have read-only root filesystem", [container.name])
+        }
+
+---
+# Constraint for security contexts in production
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RequireSecurityContext
+metadata:
+  name: tenant-a-security-context
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["tenant-a"]  # Strict for production
+
+---
+# Config Validation Webhook for GitOps
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionWebhook
+metadata:
+  name: istio-gitops-validator
+  labels:
+    deployment-agent: istio-engineer
+webhooks:
+- name: istio-config.validation.io
+  clientConfig:
+    service:
+      name: istio-validator
+      namespace: shared-services
+      path: "/validate"
+  rules:
+  - operations: ["CREATE", "UPDATE"]
+    apiGroups: ["networking.istio.io"]
+    apiVersions: ["v1alpha3", "v1beta1"]
+    resources: ["*"]
+  - operations: ["CREATE", "UPDATE"] 
+    apiGroups: ["security.istio.io"]
+    apiVersions: ["v1beta1"]
+    resources: ["*"]
+  failurePolicy: Fail
+  sideEffects: None
+  admissionReviewVersions: ["v1", "v1beta1"]

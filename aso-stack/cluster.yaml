@@ -48,7 +48,7 @@ spec:
     podCidr: 10.251.128.0/17
     ipFamilies: ["IPv4"]
     loadBalancerSku: standard
-    outboundType: userDefinedRouting
+    outboundType: loadBalancer
   # API Server Access
   apiServerAccessProfile:
     enablePrivateCluster: false

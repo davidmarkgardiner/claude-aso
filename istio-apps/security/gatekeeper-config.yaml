@@ -1,0 +1,387 @@
+---
+# Gatekeeper System Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatekeeper-system-config
+  namespace: gatekeeper-system
+  labels:
+    deployment-agent: istio-engineer
+data:
+  config.yaml: |
+    sync:
+      syncOnly:
+        - group: ""
+          version: "v1"
+          kind: "Pod"
+        - group: "apps" 
+          version: "v1"
+          kind: "Deployment"
+        - group: "networking.istio.io"
+          version: "v1beta1"
+          kind: "VirtualService"
+        - group: "networking.istio.io"
+          version: "v1beta1"
+          kind: "DestinationRule"
+        - group: "networking.istio.io"
+          version: "v1beta1"
+          kind: "Gateway"
+        - group: "security.istio.io"
+          version: "v1beta1"
+          kind: "AuthorizationPolicy"
+        - group: "security.istio.io"
+          version: "v1beta1"
+          kind: "PeerAuthentication"
+    validation:
+      traces:
+        - user:
+            kind:
+              group: "*"
+              version: "*"
+              kind: "*"
+        - kind:
+            group: "networking.istio.io"
+            version: "*" 
+            kind: "*"
+        - kind:
+            group: "security.istio.io"
+            version: "*"
+            kind: "*"
+    match:
+      - excludedNamespaces: ["kube-system", "gatekeeper-system", "flux-system"]
+        processes: ["*"]
+    readiness:
+      statsEnabled: true
+
+---
+# Istio Gateway Security Validation
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: secureiστiogateway
+  labels:
+    deployment-agent: istio-engineer
+    security-domain: networking
+spec:
+  crd:
+    spec:
+      names:
+        kind: SecureIstioGateway
+      validation:
+        properties:
+          requiredTLS:
+            type: boolean
+          allowedHosts:
+            type: array
+            items:
+              type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package secureiστiogateway
+        
+        # Ensure HTTPS is configured for production gateways
+        violation[{"msg": msg}] {
+          input.review.object.kind == "Gateway"
+          server := input.review.object.spec.servers[_]
+          server.port.protocol == "HTTP"
+          not server.tls.httpsRedirect
+          contains(input.review.object.metadata.namespace, "prod")
+          msg := sprintf("Production Gateway %v must redirect HTTP to HTTPS", [input.review.object.metadata.name])
+        }
+        
+        # Ensure TLS is properly configured
+        violation[{"msg": msg}] {
+          input.review.object.kind == "Gateway"
+          server := input.review.object.spec.servers[_]
+          server.port.protocol == "HTTPS"
+          not server.tls.credentialName
+          msg := sprintf("HTTPS Gateway %v must specify TLS credentialName", [input.review.object.metadata.name])
+        }
+        
+        # Validate allowed hosts
+        violation[{"msg": msg}] {
+          input.review.object.kind == "Gateway"
+          input.parameters.allowedHosts
+          server := input.review.object.spec.servers[_]
+          host := server.hosts[_]
+          not allowed_host(host)
+          msg := sprintf("Host %v not in allowed hosts list", [host])
+        }
+        
+        allowed_host(host) {
+          input.parameters.allowedHosts[_] == host
+        }
+        
+        allowed_host(host) {
+          startswith(host, "*.")
+          domain := substring(host, 2, -1)
+          input.parameters.allowedHosts[_] == domain
+        }
+
+---
+# Constraint for Gateway security
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: SecureIstioGateway
+metadata:
+  name: production-gateway-security
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  match:
+    kinds:
+      - apiGroups: ["networking.istio.io"]
+        kinds: ["Gateway"]
+    namespaces: ["aks-istio-system"]
+  parameters:
+    requiredTLS: true
+    allowedHosts:
+      - "davidmarkgardiner.co.uk"
+      - "*.davidmarkgardiner.co.uk"
+      - "*.local"
+
+---
+# Authorization Policy Security Validation  
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: secureauthzpolicy
+  labels:
+    deployment-agent: istio-engineer
+    security-domain: authorization
+spec:
+  crd:
+    spec:
+      names:
+        kind: SecureAuthzPolicy
+      validation:
+        properties:
+          prohibitedPrincipals:
+            type: array
+            items:
+              type: string
+          requireExplicitDeny:
+            type: boolean
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package secureauthzpolicy
+        
+        # Ensure production AuthorizationPolicies don't allow wildcards
+        violation[{"msg": msg}] {
+          input.review.object.kind == "AuthorizationPolicy"
+          contains(input.review.object.metadata.namespace, "tenant-a")
+          rule := input.review.object.spec.rules[_]
+          source := rule.from[_].source
+          source.namespaces[_] == "*"
+          msg := "Production AuthorizationPolicy cannot use wildcard namespaces"
+        }
+        
+        # Ensure explicit principals are used for production
+        violation[{"msg": msg}] {
+          input.review.object.kind == "AuthorizationPolicy" 
+          contains(input.review.object.metadata.namespace, "tenant-a")
+          rule := input.review.object.spec.rules[_]
+          source := rule.from[_].source
+          not source.principals
+          not source.namespaces
+          msg := "Production AuthorizationPolicy must specify explicit principals or namespaces"
+        }
+        
+        # Block prohibited principals
+        violation[{"msg": msg}] {
+          input.review.object.kind == "AuthorizationPolicy"
+          input.parameters.prohibitedPrincipals
+          rule := input.review.object.spec.rules[_]
+          principal := rule.from[_].source.principals[_]
+          prohibited := input.parameters.prohibitedPrincipals[_]
+          contains(principal, prohibited)
+          msg := sprintf("Principal %v contains prohibited pattern %v", [principal, prohibited])
+        }
+        
+        # Require explicit DENY policies for sensitive operations
+        violation[{"msg": msg}] {
+          input.review.object.kind == "AuthorizationPolicy"
+          input.parameters.requireExplicitDeny == true
+          contains(input.review.object.metadata.namespace, "tenant-a")
+          input.review.object.spec.action == "ALLOW"
+          not has_corresponding_deny_policy
+          msg := "Production namespaces should have explicit DENY policies"
+        }
+        
+        has_corresponding_deny_policy {
+          # This would need to be enhanced to check for existing DENY policies
+          # in the same namespace
+          true  # Placeholder - implement actual check
+        }
+
+---
+# Constraint for AuthorizationPolicy security
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: SecureAuthzPolicy
+metadata:
+  name: production-authz-security
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  match:
+    kinds:
+      - apiGroups: ["security.istio.io"]
+        kinds: ["AuthorizationPolicy"]
+    namespaces: ["tenant-a", "shared-services"]
+  parameters:
+    prohibitedPrincipals: ["cluster.local/ns/*/sa/*"]  # Avoid overly broad service accounts
+    requireExplicitDeny: true
+
+---
+# VirtualService Traffic Safety Validation
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: safevirtualservice
+  labels:
+    deployment-agent: istio-engineer
+    security-domain: traffic-management
+spec:
+  crd:
+    spec:
+      names:
+        kind: SafeVirtualService
+      validation:
+        properties:
+          maxRetries:
+            type: integer
+          maxTimeout:
+            type: string
+          requiredCircuitBreaker:
+            type: boolean
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package safevirtualservice
+        
+        # Ensure retries are configured safely
+        violation[{"msg": msg}] {
+          input.review.object.kind == "VirtualService"
+          route := input.review.object.spec.http[_]
+          route.retries.attempts > input.parameters.maxRetries
+          msg := sprintf("VirtualService %v retry attempts %v exceeds maximum %v", [
+            input.review.object.metadata.name, 
+            route.retries.attempts, 
+            input.parameters.maxRetries
+          ])
+        }
+        
+        # Ensure timeouts are reasonable
+        violation[{"msg": msg}] {
+          input.review.object.kind == "VirtualService"
+          route := input.review.object.spec.http[_] 
+          route.timeout
+          timeout_seconds := parse_timeout(route.timeout)
+          max_timeout_seconds := parse_timeout(input.parameters.maxTimeout)
+          timeout_seconds > max_timeout_seconds
+          msg := sprintf("VirtualService %v timeout %v exceeds maximum %v", [
+            input.review.object.metadata.name,
+            route.timeout,
+            input.parameters.maxTimeout
+          ])
+        }
+        
+        # Ensure fault injection percentages are safe for production
+        violation[{"msg": msg}] {
+          input.review.object.kind == "VirtualService"
+          contains(input.review.object.metadata.namespace, "tenant-a")
+          route := input.review.object.spec.http[_]
+          route.fault.delay.percentage.value > 1.0
+          msg := sprintf("Production VirtualService %v fault injection percentage too high", [input.review.object.metadata.name])
+        }
+        
+        parse_timeout(timeout_str) = seconds {
+          endswith(timeout_str, "s")
+          seconds := to_number(substring(timeout_str, 0, count(timeout_str) - 1))
+        }
+        
+        parse_timeout(timeout_str) = seconds {
+          endswith(timeout_str, "ms") 
+          milliseconds := to_number(substring(timeout_str, 0, count(timeout_str) - 2))
+          seconds := milliseconds / 1000
+        }
+
+---
+# Constraint for VirtualService safety
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: SafeVirtualService
+metadata:
+  name: traffic-safety-limits
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  match:
+    kinds:
+      - apiGroups: ["networking.istio.io"]
+        kinds: ["VirtualService"]
+  parameters:
+    maxRetries: 5
+    maxTimeout: "60s"
+    requiredCircuitBreaker: true
+
+---
+# Mutation Webhook for adding security defaults
+apiVersion: mutations.gatekeeper.sh/v1beta1
+kind: Assign
+metadata:
+  name: add-security-labels
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  applyTo:
+  - groups: ["networking.istio.io"]
+    kinds: ["Gateway", "VirtualService", "DestinationRule"]
+    versions: ["v1alpha3", "v1beta1"]
+  - groups: ["security.istio.io"] 
+    kinds: ["AuthorizationPolicy", "PeerAuthentication"]
+    versions: ["v1beta1"]
+  match:
+    scope: Namespaced
+    kinds:
+    - apiGroups: ["networking.istio.io", "security.istio.io"]
+      kinds: ["*"]
+  location: "metadata.labels.\"security-reviewed\""
+  parameters:
+    assign:
+      value: "pending"
+
+---
+# Mutation for adding Istio injection labels
+apiVersion: mutations.gatekeeper.sh/v1beta1
+kind: Assign
+metadata:
+  name: add-istio-injection
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  applyTo:
+  - groups: [""]
+    kinds: ["Pod"]
+    versions: ["v1"]
+  match:
+    scope: Namespaced
+    namespaces: ["tenant-a", "tenant-b", "shared-services"]
+    excludedNamespaces: ["kube-system", "flux-system", "gatekeeper-system"]
+  location: "metadata.labels.\"sidecar.istio.io/inject\""
+  parameters:
+    assign:
+      value: "true"
+
+---
+# External Data Provider for runtime validation
+apiVersion: externaldata.gatekeeper.sh/v1beta1
+kind: Provider
+metadata:
+  name: istio-runtime-validator
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  url: http://istio-validator.shared-services.svc.cluster.local:8080/validate
+  timeout: 10
+  insecureTLSSkipVerify: false

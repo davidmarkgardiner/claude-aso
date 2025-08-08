@@ -6,7 +6,7 @@ metadata:
   namespace: azure-system
 spec:
   azureName: dns
-  location: uksouth
+  location: westeurope
 ---
 apiVersion: network.azure.com/v1api20220701
 kind: DnsZone
