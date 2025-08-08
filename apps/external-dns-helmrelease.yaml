@@ -27,7 +27,6 @@ spec:
   values:
     image:
       tag: "v0.18.0"
-    extraArgs: []
     sources:
       - service
       - ingress
@@ -42,7 +41,8 @@ spec:
       aadClientId: "e651afda-3cfc-431b-ae58-e255232e61c8"
       useWorkloadIdentityExtension: true
       useManagedIdentityExtension: false
-      azureConfigFile: ""
+    extraArgs:
+      - --azure-config-file=""
     txtOwnerId: external-dns
     interval: 1m
     logLevel: info
