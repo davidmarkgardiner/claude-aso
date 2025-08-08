@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    azure.workload.identity/use: "true"
+  annotations:
+    azure.workload.identity/client-id: "1bc849b8-d08e-4bb9-8e7d-11c04f3e310c"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-dns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns
+rules:
+- apiGroups: [""]
+  resources: ["services","endpoints","pods"]
+  verbs: ["get","watch","list"]
+- apiGroups: ["extensions","networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get","watch","list"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["list","watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns
+subjects:
+- kind: ServiceAccount
+  name: external-dns
+  namespace: external-dns
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: external-dns
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: external-dns
+  template:
+    metadata:
+      labels:
+        app: external-dns
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: external-dns
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: external-dns
+        image: registry.k8s.io/external-dns/external-dns:v0.18.0
+        args:
+        - --source=service
+        - --source=ingress
+        - --domain-filter=davidmarkgardiner.co.uk
+        - --provider=azure
+        - --azure-resource-group=dns
+        - --azure-subscription-id=133d5755-4074-4d6e-ad38-eb2a6ad12903
+        - --txt-owner-id=external-dns
+        env:
+        - name: AZURE_CLIENT_ID
+          value: "1bc849b8-d08e-4bb9-8e7d-11c04f3e310c"
+        - name: AZURE_TENANT_ID
+          value: "72f988bf-86f1-41af-91ab-2d7cd011db47"
+        - name: AZURE_SUBSCRIPTION_ID
+          value: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+        - name: AZURE_AUTHORITY_HOST
+          value: "https://login.microsoftonline.com/"
+        - name: AZURE_FEDERATED_TOKEN_FILE
+          value: "/var/run/secrets/azure/tokens/azure-identity-token"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: azure-identity-token
+          mountPath: /var/run/secrets/azure/tokens
+          readOnly: true
+      volumes:
+      - name: azure-identity-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: azure-identity-token
+              audience: api://AzureADTokenExchange
+              expirationSeconds: 3600
