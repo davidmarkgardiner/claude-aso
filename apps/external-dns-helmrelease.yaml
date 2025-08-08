@@ -89,7 +89,7 @@ spec:
     livenessProbe:
       httpGet:
         path: /healthz
-        port: "7979"
+        port: http-metrics
       initialDelaySeconds: 30
       timeoutSeconds: 5
       periodSeconds: 10
@@ -97,7 +97,7 @@ spec:
     readinessProbe:
       httpGet:
         path: /healthz
-        port: "7979"
+        port: http-metrics
       initialDelaySeconds: 5
       timeoutSeconds: 5
       periodSeconds: 10
