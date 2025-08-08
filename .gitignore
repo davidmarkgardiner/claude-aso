@@ -145,3 +145,5 @@ deploy-aks-scripts/v3.sh
 .env.hooks
 .mcp.json
 .cursor/mcp.json
+uk8s-tsshared-weu-gt025-int-prod
+scan-results/*

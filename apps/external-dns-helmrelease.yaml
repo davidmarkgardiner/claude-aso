@@ -1,10 +1,11 @@
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: external-dns
   namespace: flux-system
 spec:
   interval: 15m
+  timeout: 1m
   chart:
     spec:
       chart: external-dns
@@ -16,6 +17,12 @@ spec:
       interval: 15m
   install:
     createNamespace: true
+    remediation:
+      retries: 3
+  test:
+    enable: true
+  rollback:
+    cleanupOnFail: true
   targetNamespace: external-dns
   values:
     image:
@@ -52,8 +59,8 @@ spec:
         value: "e651afda-3cfc-431b-ae58-e255232e61c8"
     resources:
       limits:
-        memory: "128Mi"
-        cpu: "100m"
-      requests:
         memory: "64Mi"
         cpu: "50m"
+      requests:
+        memory: "32Mi"
+        cpu: "10m"

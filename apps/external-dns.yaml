@@ -15,7 +15,7 @@ metadata:
     azure.workload.identity/use: "true"
     deployment-agent: istio-engineer
   annotations:
-    azure.workload.identity/client-id: "e651afda-3cfc-431b-ae58-e255232e61c8"
+    azure.workload.identity/client-id: "${clientId}"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -58,7 +58,7 @@ spec:
         - name: AZURE_AUTH_METHOD
           value: wli
         - name: AZURE_CLIENT_ID
-          value: "e651afda-3cfc-431b-ae58-e255232e61c8"
+          value: "${clientId}"
         resources:
           limits:
             memory: "128Mi"

@@ -3,11 +3,10 @@ kind: Kustomization
 resources:
   - resourcegroup.yaml
   - identity.yaml
-  - roleassignment.yaml 
+  # - roleassignment.yaml 
   - cluster.yaml
   - federated.yaml
   - extension.yaml
   - fluxconfiguration.yaml
-  # - managedidenoty.yaml
-  # - federated.yaml
+
 

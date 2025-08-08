@@ -45,3 +45,19 @@ spec:
     name: aks-oidc-config-prod
     key: issuer-url
   subject: system:serviceaccount:external-dns:external-dns
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: aso-fic-cert-manager
+  namespace: azure-system
+spec:
+  azureName: cert-manager-identity
+  owner:
+    name: cert-manager-identity
+  audiences:
+    - api://AzureADTokenExchange
+  issuerFromConfig:
+    name: aks-oidc-config-prod
+    key: issuer-url
+  subject: system:serviceaccount:cert-manager:cert-manager

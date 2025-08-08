@@ -36,7 +36,7 @@ spec:
     adminGroupObjectIDs:
     - 80f7067f-5b5b-4e80-84ae-af0d59b4e439
   enableRBAC: true
-  disableLocalAccounts: true
+  disableLocalAccounts: false
   # Network Profile
   networkProfile:
     networkPlugin: azure
@@ -51,9 +51,7 @@ spec:
     outboundType: userDefinedRouting
   # API Server Access
   apiServerAccessProfile:
-    enablePrivateCluster: true
-    enablePrivateClusterPublicFQDN: true
-    privateDNSZone: none
+    enablePrivateCluster: false
     disableRunCommand: true
   agentPoolProfiles:
   - name: systempool
@@ -62,7 +60,7 @@ spec:
     mode: System
     count: 1
     enableAutoScaling: false
-    vmSize: Standard_D4s_v3
+    vmSize: Standard_D8s_v3
     availabilityZones: ["1"]
     osDiskType: Managed
     osDiskSizeGB: 128
