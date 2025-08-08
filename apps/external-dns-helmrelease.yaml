@@ -29,7 +29,6 @@ spec:
       tag: "v0.17.0"
     extraArgs:
       - --azure-config-file=/dev/null
-      - --metrics-bind-addr=0.0.0.0:7979
     sources:
       - service
       - ingress
