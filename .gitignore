@@ -147,3 +147,4 @@ deploy-aks-scripts/v3.sh
 .cursor/mcp.json
 uk8s-tsshared-weu-gt025-int-prod
 scan-results/*
+.claude/agents

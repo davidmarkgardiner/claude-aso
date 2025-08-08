@@ -63,4 +63,4 @@ spec:
         cpu: "50m"
       requests:
         memory: "32Mi"
-        cpu: "10m"
+        cpu: "1m"
