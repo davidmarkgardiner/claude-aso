@@ -1,0 +1,233 @@
+---
+# Tenant A Sidecar - Strict production isolation
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: tenant-a-isolation
+  namespace: tenant-a
+  labels:
+    istio-component: sidecar
+    deployment-agent: istio-engineer
+    test-scenario: namespace-isolation
+    tenant: tenant-a
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  ingress:
+  - port:
+      number: 9898
+      protocol: HTTP
+      name: http
+    defaultEndpoint: 127.0.0.1:9898
+    captureMode: IPTABLES
+  - port:
+      number: 9999
+      protocol: GRPC
+      name: grpc
+    defaultEndpoint: 127.0.0.1:9999
+    captureMode: IPTABLES
+  egress:
+  # Same namespace access
+  - hosts:
+    - "./podinfo.tenant-a.svc.cluster.local"
+    - "./*"
+  # Istio control plane access (AKS addon)
+  - hosts:
+    - "aks-istio-system/*"
+  # Shared services access (monitoring, logging)
+  - hosts:
+    - "shared-services/prometheus.shared-services.svc.cluster.local"
+    - "shared-services/grafana.shared-services.svc.cluster.local"
+    - "shared-services/jaeger-query.shared-services.svc.cluster.local"
+  # External services for production
+  - hosts:
+    - "external-services/httpbin.org"
+    - "external-services/jsonplaceholder.typicode.com"
+    - "external-services/api.github.com"
+  # Azure services
+  - hosts:
+    - "external-services/*.ods.opinsights.azure.com"
+    - "external-services/*.monitoring.azure.com"
+  # DNS and NTP
+  - hosts:
+    - "external-services/dns.google"
+    - "external-services/time.google.com"
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY
+---
+# Tenant B Sidecar - Relaxed development isolation
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: tenant-b-isolation
+  namespace: tenant-b
+  labels:
+    istio-component: sidecar
+    deployment-agent: istio-engineer
+    test-scenario: development-isolation
+    tenant: tenant-b
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  ingress:
+  - port:
+      number: 9898
+      protocol: HTTP
+      name: http
+    defaultEndpoint: 127.0.0.1:9898
+  egress:
+  # Same namespace
+  - hosts:
+    - "./*"
+  # Istio control plane
+  - hosts:
+    - "aks-istio-system/*"
+  # Shared services
+  - hosts:
+    - "shared-services/*"
+  # Testing namespace for development
+  - hosts:
+    - "istio-testing/*"
+  # External services - more permissive for development
+  - hosts:
+    - "external-services/*"
+  # Allow some cross-tenant communication for development
+  - hosts:
+    - "tenant-a/podinfo.tenant-a.svc.cluster.local"
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY
+---
+# Shared Services Sidecar - Infrastructure services
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: shared-services-isolation
+  namespace: shared-services
+  labels:
+    istio-component: sidecar
+    deployment-agent: istio-engineer
+    test-scenario: infrastructure-isolation
+    tenant: shared
+spec:
+  ingress:
+  - port:
+      number: 9090
+      protocol: HTTP
+      name: prometheus
+    defaultEndpoint: 127.0.0.1:9090
+  - port:
+      number: 3000
+      protocol: HTTP
+      name: grafana
+    defaultEndpoint: 127.0.0.1:3000
+  - port:
+      number: 16686
+      protocol: HTTP
+      name: jaeger
+    defaultEndpoint: 127.0.0.1:16686
+  egress:
+  # Same namespace
+  - hosts:
+    - "./*"
+  # Istio control plane
+  - hosts:
+    - "aks-istio-system/*"
+  # All tenant namespaces for monitoring
+  - hosts:
+    - "tenant-a/*"
+    - "tenant-b/*"
+    - "istio-testing/*"
+  # External monitoring and logging services
+  - hosts:
+    - "external-services/*.ods.opinsights.azure.com"
+    - "external-services/*.monitoring.azure.com"
+    - "external-services/telemetry.istio.io"
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY
+---
+# External Services Sidecar - Gateway for external integrations
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: external-services-isolation
+  namespace: external-services
+  labels:
+    istio-component: sidecar
+    deployment-agent: istio-engineer
+    test-scenario: external-gateway
+    tenant: external
+spec:
+  egress:
+  # Same namespace
+  - hosts:
+    - "./*"
+  # Istio control plane
+  - hosts:
+    - "aks-istio-system/*"
+  # All external services defined in ServiceEntry
+  - hosts:
+    - "external-services/httpbin.org"
+    - "external-services/jsonplaceholder.typicode.com"
+    - "external-services/api.github.com"
+    - "external-services/registry-1.docker.io"
+    - "external-services/*.azure.com"
+    - "external-services/*.letsencrypt.org"
+    - "external-services/telemetry.istio.io"
+    - "external-services/dns.google"
+    - "external-services/time.google.com"
+  outboundTrafficPolicy:
+    mode: ALLOW_ANY  # More permissive for external gateway
+---
+# Testing Sidecar - Permissive for chaos engineering
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: testing-isolation
+  namespace: istio-testing
+  labels:
+    istio-component: sidecar
+    deployment-agent: istio-engineer
+    test-scenario: testing-permissive
+    tenant: testing
+spec:
+  egress:
+  # Same namespace
+  - hosts:
+    - "./*"
+  # Istio control plane
+  - hosts:
+    - "aks-istio-system/*"
+  # All tenant namespaces for testing
+  - hosts:
+    - "tenant-a/*"
+    - "tenant-b/*"
+    - "shared-services/*"
+    - "external-services/*"
+  outboundTrafficPolicy:
+    mode: ALLOW_ANY  # Most permissive for testing scenarios
+---
+# Default Sidecar for unspecified workloads
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default
+  namespace: aks-istio-system
+  labels:
+    istio-component: sidecar
+    deployment-agent: istio-engineer
+    test-scenario: default-isolation
+spec:
+  egress:
+  # Istio control plane
+  - hosts:
+    - "aks-istio-system/*"
+  # Basic Kubernetes services
+  - hosts:
+    - "kube-system/*"
+  # Default namespace
+  - hosts:
+    - "default/*"
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY

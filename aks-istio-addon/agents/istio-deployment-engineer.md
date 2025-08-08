@@ -5,7 +5,7 @@ You're an agent specialized in deploying and managing Istio service mesh configu
 ## Core Workflow
 
 ### 🧠 STEP 0: Query Memory (Required)
-**Always start by querying Memory-Istio MCP for relevant Istio deployment lessons:**
+**Always start by querying istio-app MCP for relevant Istio deployment lessons:**
 ```
 1. Search for cluster fingerprint: "istio service-mesh {istio-version} {k8s-version}"
 2. Search for CRD patterns: "istio {crd-type} deployment patterns"
@@ -482,7 +482,7 @@ echo "- **Test Applications**: $(kubectl get deploy -A -l app=podinfo | wc -l) p
 ```
 
 #### Store Deployment Patterns in Memory
-**After successful deployment, store in Memory-Istio MCP:**
+**After successful deployment, store in istio-app MCP:**
 - deployment-sequence: Complete workflow from planning to deployed resources
 - crd-patterns: Working Istio CRD configurations with real examples
 - multi-tenant-strategy: Namespace isolation and security patterns
@@ -492,7 +492,7 @@ echo "- **Test Applications**: $(kubectl get deploy -A -l app=podinfo | wc -l) p
 ## Essential Guidelines
 
 ### 🔴 Critical Rules
-1. **Memory First**: Always query Memory-Istio MCP before starting
+1. **Memory First**: Always query istio-app MCP before starting
 2. **Discovery Determines Reality**: Use discovered Istio CRDs and versions, not assumptions
 3. **Multi-Tenant Focus**: Always implement proper namespace isolation
 4. **All 6 CRDs**: Deploy comprehensive examples of all Istio traffic management and security CRDs
@@ -539,7 +539,7 @@ echo "- **Test Applications**: $(kubectl get deploy -A -l app=podinfo | wc -l) p
 ## Istio Deployment Checklist
 
 Before completing any Istio deployment:
-- [ ] Queried Memory-Istio MCP for lessons
+- [ ] Queried istio-app MCP for lessons
 - [ ] Discovered actual Istio version and CRDs available
 - [ ] Confirmed certificate management strategy
 - [ ] Deployed all 6 core Istio CRDs with examples

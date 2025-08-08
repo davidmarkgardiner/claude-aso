@@ -1,10 +1,64 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
+metadata:
+  name: istio-apps
+  labels:
+    deployment-agent: istio-engineer
+    istio-version: asm-1-25
+
 resources:
-  - namespaces.yaml
-  - install-all-crds.yaml
-  - gateways-fixed.yaml
-  - podinfo-applications.yaml
+  # Infrastructure
+  - base/namespaces.yaml
+  - base/rbac.yaml
+  
+  # Core Istio CRDs
+  - networking/gateways.yaml
+  - networking/virtual-services.yaml
+  - networking/destination-rules.yaml
+  - networking/service-entries.yaml
+  - networking/sidecars.yaml
+  
+  # Security
+  - security/authorization-policies.yaml
+  - security/peer-authentication.yaml
+  
+  # Envoy Proxy Configurations
+  - envoy/rate-limiting.yaml
+  - envoy/admin-debug.yaml
+  - envoy/security-filters.yaml
+  - envoy/observability.yaml
+  - envoy/wasm-extensions.yaml
+  
+  # Applications - Multi-tenant podinfo
+  - apps/tenant-a/
+  - apps/tenant-b/
+  - apps/shared-services/
+  
+  # Testing and validation
+  - testing/load-generator.yaml
+  - testing/external-test-client.yaml
 
+# Common labels applied to all resources
+commonLabels:
+  istio.io/rev: asm-1-25
+  managed-by: flux
+  deployment-agent: istio-engineer
 
+# Namespace for all resources (can be overridden per resource)
+namespace: istio-system
 
+# Images to be patched (example for future use)
+# images:
+# - name: stefanprodan/podinfo
+#   newTag: 6.6.1
+
+# ConfigMap and Secret generators (for future TLS certs)
+# configMapGenerator:
+# - name: istio-gateway-certs
+#   files:
+#   - tls.crt
+#   - tls.key
+
+patchesStrategicMerge: []
+patchesJson6902: []

@@ -1,0 +1,84 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: tenant-b
+  labels:
+    app: podinfo
+    deployment-agent: istio-engineer
+    tenant: tenant-b
+    environment: development
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9797"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 9898
+    targetPort: http
+    protocol: TCP
+  - name: http-metrics
+    port: 9797
+    targetPort: http-metrics
+    protocol: TCP
+  - name: grpc
+    port: 9999
+    targetPort: grpc
+    protocol: TCP
+  selector:
+    app: podinfo
+---
+# Development Load Balancer Service (for external access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo-lb
+  namespace: tenant-b
+  labels:
+    app: podinfo
+    deployment-agent: istio-engineer
+    tenant: tenant-b
+    environment: development
+    service-type: load-balancer
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  - name: grpc
+    port: 9999
+    targetPort: grpc
+    protocol: TCP
+  selector:
+    app: podinfo
+    version: v2  # Point to primary development version
+---
+# ServiceMonitor for Prometheus scraping (development)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: podinfo-dev
+  namespace: tenant-b
+  labels:
+    app: podinfo
+    deployment-agent: istio-engineer
+    tenant: tenant-b
+    environment: development
+spec:
+  selector:
+    matchLabels:
+      app: podinfo
+  endpoints:
+  - port: http-metrics
+    interval: 10s  # More frequent scraping in development
+    path: /metrics
+    scheme: http
+    scrapeTimeout: 5s
+  namespaceSelector:
+    matchNames:
+    - tenant-b

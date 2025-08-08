@@ -1,0 +1,60 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: tenant-a-apps
+  labels:
+    tenant: tenant-a
+    deployment-agent: istio-engineer
+
+resources:
+  - podinfo-v1.yaml
+  - podinfo-v2.yaml
+  - podinfo-service.yaml
+  - redis.yaml
+
+namespace: tenant-a
+
+commonLabels:
+  tenant: tenant-a
+  managed-by: flux
+  deployment-agent: istio-engineer
+
+images:
+- name: stefanprodan/podinfo
+  newTag: 6.6.0
+- name: redis
+  newTag: 7-alpine
+
+replicas:
+- name: podinfo-v1
+  count: 3
+- name: podinfo-v2
+  count: 1
+- name: redis
+  count: 1
+
+configMapGenerator:
+- name: podinfo-config
+  literals:
+  - PODINFO_LEVEL=info
+  - PODINFO_COLOR=#34577c
+  - PODINFO_MESSAGE="Production Podinfo - Tenant A"
+  - PODINFO_BACKEND_URL=http://redis.tenant-a.svc.cluster.local:6379
+
+patchesStrategicMerge:
+- pod-security-context.yaml
+
+patchesJson6902:
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: podinfo-v1
+  patch: |-
+    - op: add
+      path: /spec/template/spec/securityContext
+      value:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001

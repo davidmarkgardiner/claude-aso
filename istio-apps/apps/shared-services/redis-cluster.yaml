@@ -1,0 +1,123 @@
+---
+# Shared Redis for caching across tenants
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster
+  namespace: shared-services
+  labels:
+    app: redis-cluster
+    component: cache
+    deployment-agent: istio-engineer
+spec:
+  serviceName: redis-cluster
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis-cluster
+  template:
+    metadata:
+      labels:
+        app: redis-cluster
+        component: cache
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      serviceAccountName: istio-shared-services
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - name: redis
+          containerPort: 6379
+        - name: cluster-bus
+          containerPort: 16379
+        command:
+        - redis-server
+        args:
+        - --cluster-enabled
+        - "yes"
+        - --cluster-config-file
+        - /data/nodes.conf
+        - --cluster-node-timeout
+        - "5000"
+        - --appendonly
+        - "yes"
+        - --maxmemory
+        - "256mb"
+        - --maxmemory-policy
+        - "allkeys-lru"
+        - --protected-mode
+        - "no"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+---
+# Redis Cluster Service (Headless)
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster
+  namespace: shared-services
+  labels:
+    app: redis-cluster
+    component: cache
+    deployment-agent: istio-engineer
+spec:
+  clusterIP: None
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  - name: cluster-bus
+    port: 16379
+    targetPort: cluster-bus
+  selector:
+    app: redis-cluster
+---
+# Redis Cluster Client Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: shared-services
+  labels:
+    app: redis-cluster
+    component: cache
+    deployment-agent: istio-engineer
+spec:
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  selector:
+    app: redis-cluster

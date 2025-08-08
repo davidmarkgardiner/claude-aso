@@ -1,0 +1,274 @@
+---
+# Envoy Admin Interface Configuration for Debugging
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: admin-interface-config
+  namespace: aks-istio-system
+  labels:
+    envoy-component: admin-debugging
+    deployment-agent: istio-engineer
+    test-scenario: envoy-debugging
+spec:
+  configPatches:
+  # Configure admin interface for all sidecars
+  - applyTo: BOOTSTRAP
+    patch:
+      operation: MERGE
+      value:
+        admin:
+          access_log_path: /dev/stdout
+          address:
+            socket_address:
+              address: 127.0.0.1
+              port_value: 15000
+          profile_path: /var/log/envoy/envoy.prof
+        stats_config:
+          stats_tags:
+          - tag_name: workload_name
+            regex: "^workload\\.(.+?)\\."
+          - tag_name: workload_namespace
+            regex: "^workload\\.(.+?)\\.(.+?)\\."
+          - tag_name: request_protocol
+            regex: "^request_protocol\\.(.+?)\\."
+        watchdog:
+          megamiss_timeout: 60s
+          miss_timeout: 60s
+          multikill_timeout: 60s
+---
+# Enhanced Logging Configuration
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: enhanced-logging-config
+  namespace: tenant-a
+  labels:
+    envoy-component: enhanced-logging
+    deployment-agent: istio-engineer
+    tenant: tenant-a
+    test-scenario: production-logging
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  configPatches:
+  - applyTo: NETWORK_FILTER
+    match:
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: MERGE
+      value:
+        typed_config:
+          access_log:
+          - name: envoy.access_loggers.stdout
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+              log_format:
+                text_format_source:
+                  inline_string: |
+                    [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+                    %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT%
+                    %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%"
+                    "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%"
+                    outbound|%UPSTREAM_CLUSTER% tenant-a production
+          - name: envoy.access_loggers.file
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
+              path: /var/log/envoy/access.log
+              format: |
+                {
+                  "timestamp": "%START_TIME%",
+                  "method": "%REQ(:METHOD)%",
+                  "path": "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%",
+                  "protocol": "%PROTOCOL%",
+                  "response_code": "%RESPONSE_CODE%",
+                  "response_flags": "%RESPONSE_FLAGS%",
+                  "bytes_received": "%BYTES_RECEIVED%",
+                  "bytes_sent": "%BYTES_SENT%",
+                  "duration": "%DURATION%",
+                  "upstream_service_time": "%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%",
+                  "x_forwarded_for": "%REQ(X-FORWARDED-FOR)%",
+                  "user_agent": "%REQ(USER-AGENT)%",
+                  "request_id": "%REQ(X-REQUEST-ID)%",
+                  "authority": "%REQ(:AUTHORITY)%",
+                  "upstream_host": "%UPSTREAM_HOST%",
+                  "upstream_cluster": "%UPSTREAM_CLUSTER%",
+                  "tenant": "tenant-a",
+                  "environment": "production"
+                }
+---
+# Development Debugging Configuration
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: development-debug-config
+  namespace: tenant-b
+  labels:
+    envoy-component: development-debugging
+    deployment-agent: istio-engineer
+    tenant: tenant-b
+    test-scenario: development-debugging
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  configPatches:
+  # Enable debug logging for development
+  - applyTo: BOOTSTRAP
+    patch:
+      operation: MERGE
+      value:
+        hidden_envoy_deprecated_dynamic_stats: true
+        stats_config:
+          histogram_bucket_settings:
+          - match:
+              prefix: "http"
+            buckets: [0.5, 1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000, 300000, 600000, 1800000, 3600000]
+        admin:
+          access_log_path: /dev/stdout
+          address:
+            socket_address:
+              address: 0.0.0.0  # More permissive for development
+              port_value: 15000
+---
+# Cluster Discovery Debug Configuration
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: cluster-discovery-debug
+  namespace: shared-services
+  labels:
+    envoy-component: cluster-discovery-debug
+    deployment-agent: istio-engineer
+    tenant: shared
+    test-scenario: service-discovery-debugging
+spec:
+  workloadSelector:
+    labels:
+      app: prometheus
+  configPatches:
+  - applyTo: BOOTSTRAP
+    patch:
+      operation: MERGE
+      value:
+        dynamic_resources:
+          ads_config:
+            transport_api_version: V3
+            api_type: GRPC
+            grpc_services:
+            - envoy_grpc:
+                cluster_name: xds-grpc
+        node:
+          metadata:
+            PILOT_ENABLE_CDS_CACHE: true
+            PILOT_ENABLE_CROSS_CLUSTER_WORKLOAD_ENTRY: true
+            BOOTSTRAP_XDS_AGENT: true
+---
+# Fault Injection Debug Configuration
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: fault-injection-debug
+  namespace: istio-testing
+  labels:
+    envoy-component: fault-injection-debug
+    deployment-agent: istio-engineer
+    tenant: testing
+    test-scenario: chaos-engineering-debug
+spec:
+  workloadSelector:
+    labels:
+      app: chaos-engineering
+  configPatches:
+  # Add fault injection filter with detailed logging
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.fault
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.fault.v3.HTTPFault
+          abort:
+            percentage:
+              numerator: 10
+              denominator: HUNDRED
+            http_status: 503
+          delay:
+            percentage:
+              numerator: 15
+              denominator: HUNDRED
+            fixed_delay: 2s
+          response_rate_limit:
+            percentage:
+              numerator: 5
+              denominator: HUNDRED
+            fixed_limit:
+              limit_kbps: 10
+          headers:
+          - name: x-envoy-fault-delay-request
+            exact_match: "true"
+          - name: x-envoy-fault-abort-request  
+            exact_match: "true"
+---
+# Performance Profiling Configuration
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: performance-profiling
+  namespace: aks-istio-system
+  labels:
+    envoy-component: performance-profiling
+    deployment-agent: istio-engineer
+    test-scenario: performance-debugging
+spec:
+  configPatches:
+  - applyTo: BOOTSTRAP
+    patch:
+      operation: MERGE
+      value:
+        admin:
+          access_log_path: /dev/stdout
+          address:
+            socket_address:
+              address: 127.0.0.1
+              port_value: 15000
+          profile_path: /tmp/envoy.prof
+        stats_config:
+          stats_tags:
+          - tag_name: reporter
+            regex: "reporter=(.+?);"
+          - tag_name: source_namespace
+            regex: "source_namespace=(.+?);"
+          - tag_name: source_workload
+            regex: "source_workload=(.+?);"
+          - tag_name: destination_namespace
+            regex: "destination_namespace=(.+?);"
+          - tag_name: destination_workload
+            regex: "destination_workload=(.+?);"
+        overload_manager:
+          refresh_interval: 0.25s
+          resource_monitors:
+          - name: "envoy.resource_monitors.fixed_heap"
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.resource_monitors.fixed_heap.v3.FixedHeapConfig
+              max_heap_size_bytes: 2147483648
+          actions:
+          - name: "envoy.overload_actions.shrink_heap"
+            triggers:
+            - name: "envoy.resource_monitors.fixed_heap"
+              threshold:
+                value: 0.95
+          - name: "envoy.overload_actions.stop_accepting_requests"
+            triggers:
+            - name: "envoy.resource_monitors.fixed_heap"
+              threshold:
+                value: 0.98

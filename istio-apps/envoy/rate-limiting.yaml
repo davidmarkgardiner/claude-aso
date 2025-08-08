@@ -1,0 +1,245 @@
+---
+# Rate Limiting EnvoyFilter for Tenant A Production
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: rate-limit-tenant-a
+  namespace: tenant-a
+  labels:
+    envoy-component: rate-limiting
+    deployment-agent: istio-engineer
+    tenant: tenant-a
+    test-scenario: production-rate-limiting
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  configPatches:
+  # Add rate limit filter to HTTP filter chain
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.local_ratelimit
+        typed_config:
+          "@type": type.googleapis.com/udpa.type.v1.TypedStruct
+          type_url: type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+          value:
+            stat_prefix: local_rate_limiter
+            token_bucket:
+              max_tokens: 100
+              tokens_per_fill: 100
+              fill_interval: 60s
+            filter_enabled:
+              runtime_key: local_rate_limit_enabled
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            filter_enforced:
+              runtime_key: local_rate_limit_enforced
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            response_headers_to_add:
+            - append: false
+              header:
+                key: x-local-rate-limit
+                value: 'true'
+            local_rate_limit_per_downstream_connection: false
+---
+# Global Rate Limiting EnvoyFilter for Ingress Gateway
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: global-rate-limit-gateway
+  namespace: aks-istio-system
+  labels:
+    envoy-component: global-rate-limiting
+    deployment-agent: istio-engineer
+    test-scenario: ingress-rate-limiting
+spec:
+  workloadSelector:
+    labels:
+      istio: aks-istio-ingressgateway-internal
+  configPatches:
+  # Add global rate limit filter
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.ratelimit
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
+          domain: istio-gateway
+          enable_x_ratelimit_headers: DRAFT_VERSION_03
+          rate_limit_service:
+            grpc_service:
+              envoy_grpc:
+                cluster_name: rate-limit-cluster
+            transport_api_version: V3
+          request_type: external
+---
+# Adaptive Rate Limiting EnvoyFilter (Circuit Breaker Integration)
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: adaptive-rate-limit-tenant-b
+  namespace: tenant-b
+  labels:
+    envoy-component: adaptive-rate-limiting
+    deployment-agent: istio-engineer
+    tenant: tenant-b
+    test-scenario: development-adaptive-limiting
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  configPatches:
+  # Add adaptive rate limiting based on response codes
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.adaptive_concurrency
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.adaptive_concurrency.v3.AdaptiveConcurrency
+          gradient_controller_config:
+            sample_aggregate_percentile:
+              value: 50.0
+            concurrency_limit_params:
+              concurrency_update_interval: 0.1s
+              max_concurrency_limit: 1000
+            min_rtt_calc_params:
+              jitter:
+                value: 15.0
+              interval: 30s
+              request_count: 50
+              min_concurrency: 3
+---
+# Custom Headers Rate Limiting EnvoyFilter
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: header-based-rate-limit
+  namespace: istio-testing
+  labels:
+    envoy-component: header-rate-limiting
+    deployment-agent: istio-engineer
+    tenant: testing
+    test-scenario: custom-header-limiting
+spec:
+  workloadSelector:
+    labels:
+      app: load-generator
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_OUTBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.local_ratelimit
+        typed_config:
+          "@type": type.googleapis.com/udpa.type.v1.TypedStruct
+          type_url: type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+          value:
+            stat_prefix: header_rate_limiter
+            token_bucket:
+              max_tokens: 50
+              tokens_per_fill: 10
+              fill_interval: 1s
+            filter_enabled:
+              runtime_key: header_rate_limit_enabled
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            filter_enforced:
+              runtime_key: header_rate_limit_enforced
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            descriptors:
+            - entries:
+              - key: header_match
+                value: load_test
+              token_bucket:
+                max_tokens: 20
+                tokens_per_fill: 5
+                fill_interval: 1s
+---
+# JWT Rate Limiting EnvoyFilter
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: jwt-rate-limit
+  namespace: shared-services
+  labels:
+    envoy-component: jwt-rate-limiting
+    deployment-agent: istio-engineer
+    tenant: shared
+    test-scenario: authenticated-user-limiting
+spec:
+  workloadSelector:
+    labels:
+      app: prometheus
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.local_ratelimit
+        typed_config:
+          "@type": type.googleapis.com/udpa.type.v1.TypedStruct
+          type_url: type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+          value:
+            stat_prefix: jwt_rate_limiter
+            token_bucket:
+              max_tokens: 200
+              tokens_per_fill: 50
+              fill_interval: 60s
+            filter_enabled:
+              runtime_key: jwt_rate_limit_enabled
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            filter_enforced:
+              runtime_key: jwt_rate_limit_enforced
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            descriptors:
+            - entries:
+              - key: jwt_claim
+                value: sub
+              token_bucket:
+                max_tokens: 100
+                tokens_per_fill: 25
+                fill_interval: 60s

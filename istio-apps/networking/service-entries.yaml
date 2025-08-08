@@ -1,0 +1,213 @@
+---
+# HTTPBin External Service - Testing and validation
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: httpbin-external
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: external-http-testing
+spec:
+  hosts:
+  - httpbin.org
+  ports:
+  - number: 80
+    name: http
+    protocol: HTTP
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# JSONPlaceholder API - External REST API testing
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: jsonplaceholder-api
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: external-api-integration
+spec:
+  hosts:
+  - jsonplaceholder.typicode.com
+  ports:
+  - number: 80
+    name: http
+    protocol: HTTP
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# GitHub API - For CI/CD integrations
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: github-api
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: ci-cd-integration
+spec:
+  hosts:
+  - api.github.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# Docker Hub - For container image pulls
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: dockerhub-registry
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: container-registry
+spec:
+  hosts:
+  - registry-1.docker.io
+  - index.docker.io
+  - dseasb33srnrn.cloudfront.net
+  - production.cloudflare.docker.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# Azure Monitor - For metrics and logging
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: azure-monitor
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: azure-integration
+spec:
+  hosts:
+  - "*.ods.opinsights.azure.com"
+  - "*.oms.opinsights.azure.com"
+  - "*.monitoring.azure.com"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# Let's Encrypt ACME - For certificate challenges
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: letsencrypt-acme
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: certificate-management
+spec:
+  hosts:
+  - acme-v02.api.letsencrypt.org
+  - acme-staging-v02.api.letsencrypt.org
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# Istio telemetry endpoints
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: istio-telemetry
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: istio-telemetry
+spec:
+  hosts:
+  - telemetry.istio.io
+  - www.googletagmanager.com
+  - www.google-analytics.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  - number: 80
+    name: http
+    protocol: HTTP
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# NTP Time servers - For time synchronization
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: ntp-servers
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: time-synchronization
+spec:
+  hosts:
+  - pool.ntp.org
+  - time.nist.gov
+  - time.google.com
+  ports:
+  - number: 123
+    name: ntp
+    protocol: UDP
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# DNS Resolution Services
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: dns-services
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: dns-resolution
+spec:
+  hosts:
+  - dns.google
+  - cloudflare-dns.com
+  - "1.1.1.1"
+  - "8.8.8.8"
+  addresses:
+  - 1.1.1.1
+  - 1.0.0.1
+  - 8.8.8.8
+  - 8.8.4.4
+  ports:
+  - number: 53
+    name: dns
+    protocol: UDP
+  - number: 853
+    name: dns-tls
+    protocol: TCP
+  - number: 443
+    name: dns-https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: STATIC

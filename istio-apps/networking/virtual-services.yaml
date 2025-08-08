@@ -1,0 +1,186 @@
+---
+# Tenant A VirtualService - Production with canary deployment
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: tenant-a-podinfo
+  namespace: tenant-a
+  labels:
+    istio-component: virtualservice
+    deployment-agent: istio-engineer
+    test-scenario: canary-deployment
+    tenant: tenant-a
+spec:
+  hosts:
+  - podinfo.tenant-a.davidmarkgardiner.co.uk
+  - podinfo.tenant-a.svc.cluster.local
+  gateways:
+  - aks-istio-system/main-gateway
+  - mesh  # Internal mesh traffic
+  http:
+  # Canary deployment: Route canary header to v2
+  - match:
+    - headers:
+        canary:
+          exact: "true"
+    route:
+    - destination:
+        host: podinfo.tenant-a.svc.cluster.local
+        subset: v2
+    fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 100ms
+  # A/B Testing: Route based on user agent
+  - match:
+    - headers:
+        user-agent:
+          regex: ".*Mobile.*"
+    route:
+    - destination:
+        host: podinfo.tenant-a.svc.cluster.local
+        subset: v2
+      weight: 50
+    - destination:
+        host: podinfo.tenant-a.svc.cluster.local
+        subset: v1
+      weight: 50
+  # Default route: 90% v1, 10% v2
+  - route:
+    - destination:
+        host: podinfo.tenant-a.svc.cluster.local
+        subset: v1
+      weight: 90
+    - destination:
+        host: podinfo.tenant-a.svc.cluster.local
+        subset: v2
+      weight: 10
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,gateway-error,connect-failure,refused-stream
+---
+# Tenant B VirtualService - Development with full v2
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: tenant-b-podinfo
+  namespace: tenant-b
+  labels:
+    istio-component: virtualservice
+    deployment-agent: istio-engineer
+    test-scenario: blue-green-deployment
+    tenant: tenant-b
+spec:
+  hosts:
+  - podinfo.tenant-b.davidmarkgardiner.co.uk
+  - podinfo.tenant-b.svc.cluster.local
+  gateways:
+  - aks-istio-system/main-gateway
+  - mesh
+  http:
+  # Development: Route to v2 by default, v1 with specific header
+  - match:
+    - headers:
+        version:
+          exact: "v1"
+    route:
+    - destination:
+        host: podinfo.tenant-b.svc.cluster.local
+        subset: v1
+  # Default to v2 for development
+  - route:
+    - destination:
+        host: podinfo.tenant-b.svc.cluster.local
+        subset: v2
+    timeout: 15s
+---
+# Shared Services VirtualService - Monitoring and common services
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: shared-services-monitoring
+  namespace: shared-services
+  labels:
+    istio-component: virtualservice
+    deployment-agent: istio-engineer
+    test-scenario: shared-infrastructure
+    tenant: shared
+spec:
+  hosts:
+  - monitoring.shared-services.davidmarkgardiner.co.uk
+  gateways:
+  - aks-istio-system/main-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/prometheus"
+    route:
+    - destination:
+        host: prometheus.shared-services.svc.cluster.local
+        port:
+          number: 9090
+  - match:
+    - uri:
+        prefix: "/grafana"
+    route:
+    - destination:
+        host: grafana.shared-services.svc.cluster.local
+        port:
+          number: 3000
+  - match:
+    - uri:
+        prefix: "/jaeger"
+    route:
+    - destination:
+        host: jaeger-query.shared-services.svc.cluster.local
+        port:
+          number: 16686
+---
+# Testing VirtualService - Chaos engineering and load testing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: testing-services
+  namespace: istio-testing
+  labels:
+    istio-component: virtualservice
+    deployment-agent: istio-engineer
+    test-scenario: chaos-testing
+    tenant: testing
+spec:
+  hosts:
+  - chaos.istio-testing.davidmarkgardiner.co.uk
+  - load.istio-testing.davidmarkgardiner.co.uk
+  gateways:
+  - aks-istio-system/main-gateway
+  http:
+  # Chaos testing endpoints
+  - match:
+    - uri:
+        prefix: "/chaos"
+    route:
+    - destination:
+        host: chaos-engineering.istio-testing.svc.cluster.local
+        port:
+          number: 8080
+    fault:
+      abort:
+        percentage:
+          value: 5.0
+        httpStatus: 500
+      delay:
+        percentage:
+          value: 10.0
+        fixedDelay: 2s
+  # Load testing endpoints
+  - match:
+    - uri:
+        prefix: "/load"
+    route:
+    - destination:
+        host: load-generator.istio-testing.svc.cluster.local
+        port:
+          number: 8080

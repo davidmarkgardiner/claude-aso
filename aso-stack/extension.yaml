@@ -15,7 +15,7 @@ spec:
     name: uk8s-tsshared-weu-gt025-int-prod
   scope:
     cluster:
-      releaseNamespace: azure-system
+      releaseNamespace: flux-system
   configurationSettings:
     multiTenancy.enforce: "false"
     image-automation-controller.enabled: "true"

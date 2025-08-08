@@ -40,7 +40,7 @@ metadata:
     deployment-agent: istio-engineer
     component: cert-management
 spec:
-  secretName: davidmarkgardiner-co-uk-tls
+  secretName: davidmarkgardiner-co-uk-tls  # pragma: allowlist secret
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer

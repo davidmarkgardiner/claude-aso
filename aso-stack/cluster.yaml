@@ -110,29 +110,22 @@ spec:
     azureKeyvaultSecretsProvider:
       enabled: true
       config:
-        enableSecretRotation: "true"
+        enableSecretRotation: "true"  # pragma: allowlist secret
         rotationPollInterval: "30m"
     azurepolicy:
       enabled: true
       config:
         version: "v2"
-    # omsagent:
-    #   enabled: true
-    #   config:
-    #     reference:
-    #     - armId: ${log_analytics_workspace_resource_id}
   # Monitoring and Metrics
-  azureMonitorProfile:
-    metrics:
-      enabled: true
-      kubeStateMetrics:
-        metricLabelsAllowlist: "namespaces=[owner, swID]"
-        # metricAnnotationsAllowList: "pods=[k8s-annotation-1,k8s-annotation-n]"
-    # Container Insights Configuration
-    containerInsights:
-      enabled: false
-      # logAnalyticsWorkspaceResourceId:
-      #   armId: /subscriptions/-a78a-4d21-b39e-/resourceGroups/RG-WEU-DEV- -DEMO/providers/microsoft.monitor/accounts/cirruspl-akscore-demo
+  # azureMonitorProfile:
+  #   metrics:
+  #     enabled: false
+  #     kubeStateMetrics:
+  #       metricLabelsAllowlist: "namespaces=[owner, swID]"
+  #       metricAnnotationsAllowList: "pods=[k8s-annotation-1,k8s-annotation-n]"
+  #   # Container Insights Configuration
+  #   containerInsights:
+  #     enabled: false
   # Cluster SKU and Support
   sku:
     name: Base

@@ -75,11 +75,18 @@ feat: add user authentication system
 # 1. Check status
 git status
 
+# secret scanner
+./scripts/scan-secrets.sh
+
+IMPORTANT! stop is secrets detected
 # 2. Review changes
 git diff
 
 # 3. Stage files
 git add .
+
+
+
 
 # 4. Commit with good message
 git commit -m "fix: resolve login validation bug

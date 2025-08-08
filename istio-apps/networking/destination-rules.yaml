@@ -1,0 +1,208 @@
+---
+# Tenant A DestinationRule - Production with circuit breakers
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: tenant-a-podinfo
+  namespace: tenant-a
+  labels:
+    istio-component: destinationrule
+    deployment-agent: istio-engineer
+    test-scenario: circuit-breaker
+    tenant: tenant-a
+spec:
+  host: podinfo.tenant-a.svc.cluster.local
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 10
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+        maxRetries: 3
+        connectTimeout: 30s
+        h2UpgradePolicy: UPGRADE
+    outlierDetection:
+      consecutiveGatewayErrors: 3
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+      splitExternalLocalOriginErrors: false
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 50
+        http:
+          http1MaxPendingRequests: 5
+  - name: v2
+    labels:
+      version: v2
+    trafficPolicy:
+      loadBalancer:
+        simple: ROUND_ROBIN
+      connectionPool:
+        tcp:
+          maxConnections: 20
+        http:
+          http1MaxPendingRequests: 3
+          maxRequestsPerConnection: 1
+---
+# Tenant B DestinationRule - Development with relaxed policies
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: tenant-b-podinfo
+  namespace: tenant-b
+  labels:
+    istio-component: destinationrule
+    deployment-agent: istio-engineer
+    test-scenario: development-policies
+    tenant: tenant-b
+spec:
+  host: podinfo.tenant-b.svc.cluster.local
+  trafficPolicy:
+    loadBalancer:
+      simple: RANDOM
+    connectionPool:
+      tcp:
+        maxConnections: 200
+      http:
+        http1MaxPendingRequests: 20
+        maxRequestsPerConnection: 10
+        connectTimeout: 60s
+    outlierDetection:
+      consecutiveGatewayErrors: 10
+      consecutive5xxErrors: 10
+      interval: 60s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+    trafficPolicy:
+      loadBalancer:
+        simple: PASSTHROUGH
+---
+# Shared Services DestinationRule - Infrastructure services
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: shared-services-monitoring
+  namespace: shared-services
+  labels:
+    istio-component: destinationrule
+    deployment-agent: istio-engineer
+    test-scenario: infrastructure-policies
+    tenant: shared
+spec:
+  host: "*.shared-services.svc.cluster.local"
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+    connectionPool:
+      tcp:
+        maxConnections: 50
+      http:
+        http1MaxPendingRequests: 10
+        maxRequestsPerConnection: 1
+        connectTimeout: 10s
+    outlierDetection:
+      consecutiveGatewayErrors: 2
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 10s
+      maxEjectionPercent: 10
+---
+# Prometheus specific DestinationRule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: prometheus
+  namespace: shared-services
+  labels:
+    istio-component: destinationrule
+    deployment-agent: istio-engineer
+    test-scenario: metrics-collection
+    tenant: shared
+spec:
+  host: prometheus.shared-services.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 10
+      http:
+        http1MaxPendingRequests: 5
+        maxRequestsPerConnection: 1
+        connectTimeout: 5s
+        idleTimeout: 60s
+---
+# External Services DestinationRule for TLS origination
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: external-apis-tls
+  namespace: external-services
+  labels:
+    istio-component: destinationrule
+    deployment-agent: istio-engineer
+    test-scenario: external-tls
+    tenant: external
+spec:
+  host: "*.typicode.com"
+  trafficPolicy:
+    portLevelSettings:
+    - port:
+        number: 443
+      tls:
+        mode: SIMPLE
+        sni: jsonplaceholder.typicode.com
+    - port:
+        number: 80
+      connectionPool:
+        tcp:
+          maxConnections: 5
+        http:
+          http1MaxPendingRequests: 2
+---
+# Testing DestinationRule - Chaos engineering
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: testing-chaos
+  namespace: istio-testing
+  labels:
+    istio-component: destinationrule
+    deployment-agent: istio-engineer
+    test-scenario: chaos-policies
+    tenant: testing
+spec:
+  host: "*.istio-testing.svc.cluster.local"
+  trafficPolicy:
+    loadBalancer:
+      simple: RANDOM
+    connectionPool:
+      tcp:
+        maxConnections: 5
+      http:
+        http1MaxPendingRequests: 1
+        maxRequestsPerConnection: 1
+        connectTimeout: 1s
+    outlierDetection:
+      consecutiveGatewayErrors: 1
+      consecutive5xxErrors: 1
+      interval: 5s
+      baseEjectionTime: 5s
+      maxEjectionPercent: 90

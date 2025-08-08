@@ -1,0 +1,87 @@
+---
+# Main HTTPS Gateway for all tenants
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: main-gateway
+  namespace: aks-istio-system
+  labels:
+    istio-component: gateway
+    deployment-agent: istio-engineer
+    test-scenario: ingress-routing
+spec:
+  selector:
+    istio: aks-istio-ingressgateway-internal
+  servers:
+  # HTTPS termination with cert-manager integration
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: davidmarkgardiner-tls-cert  # cert-manager will create this secret
+    hosts:
+    - "podinfo.tenant-a.davidmarkgardiner.co.uk"
+    - "podinfo.tenant-b.davidmarkgardiner.co.uk"
+    - "monitoring.shared-services.davidmarkgardiner.co.uk"
+    - "*.istio-testing.davidmarkgardiner.co.uk"
+  # HTTP redirect to HTTPS
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "podinfo.tenant-a.davidmarkgardiner.co.uk"
+    - "podinfo.tenant-b.davidmarkgardiner.co.uk"
+    - "monitoring.shared-services.davidmarkgardiner.co.uk"
+    - "*.istio-testing.davidmarkgardiner.co.uk"
+    tls:
+      httpsRedirect: true
+---
+# Internal mesh gateway for east-west traffic
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: mesh-gateway
+  namespace: aks-istio-system
+  labels:
+    istio-component: gateway
+    deployment-agent: istio-engineer
+    test-scenario: mesh-routing
+spec:
+  selector:
+    istio: eastwestgateway  # If east-west gateway is deployed
+  servers:
+  - port:
+      number: 15443
+      name: tls
+      protocol: TLS
+    tls:
+      mode: ISTIO_MUTUAL
+    hosts:
+    - "*.local"
+---
+# Development Gateway (HTTP only for testing)
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: dev-gateway
+  namespace: aks-istio-system
+  labels:
+    istio-component: gateway
+    deployment-agent: istio-engineer
+    test-scenario: development-testing
+    environment: development
+spec:
+  selector:
+    istio: aks-istio-ingressgateway-internal
+  servers:
+  - port:
+      number: 8080
+      name: http-dev
+      protocol: HTTP
+    hosts:
+    - "dev.tenant-a.local"
+    - "dev.tenant-b.local"
+    - "test.istio-testing.local"

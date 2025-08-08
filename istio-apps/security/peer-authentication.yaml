@@ -1,0 +1,153 @@
+---
+# Global mTLS policy - Strict mode for production
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: aks-istio-system
+  labels:
+    istio-component: peerauthentication
+    deployment-agent: istio-engineer
+    test-scenario: global-mtls
+spec:
+  mtls:
+    mode: STRICT
+---
+# Tenant A mTLS policy - Strict production security
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: tenant-a-mtls
+  namespace: tenant-a
+  labels:
+    istio-component: peerauthentication
+    deployment-agent: istio-engineer
+    test-scenario: production-mtls
+    tenant: tenant-a
+spec:
+  selector:
+    matchLabels:
+      app: podinfo
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    9898:
+      mode: STRICT
+    9999:
+      mode: STRICT
+---
+# Tenant B mTLS policy - Permissive for development
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: tenant-b-mtls
+  namespace: tenant-b
+  labels:
+    istio-component: peerauthentication
+    deployment-agent: istio-engineer
+    test-scenario: development-mtls
+    tenant: tenant-b
+spec:
+  selector:
+    matchLabels:
+      app: podinfo
+  mtls:
+    mode: PERMISSIVE  # Allows both mTLS and plain text for development
+  portLevelMtls:
+    9898:
+      mode: PERMISSIVE
+---
+# Shared Services mTLS policy - Strict for infrastructure
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: shared-services-mtls
+  namespace: shared-services
+  labels:
+    istio-component: peerauthentication
+    deployment-agent: istio-engineer
+    test-scenario: infrastructure-mtls
+    tenant: shared
+spec:
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    9090:  # Prometheus
+      mode: STRICT
+    3000:  # Grafana
+      mode: STRICT
+    16686: # Jaeger
+      mode: STRICT
+---
+# External Services mTLS policy - Disable for external traffic
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: external-services-mtls
+  namespace: external-services
+  labels:
+    istio-component: peerauthentication
+    deployment-agent: istio-engineer
+    test-scenario: external-mtls-disable
+    tenant: external
+spec:
+  mtls:
+    mode: DISABLE  # No mTLS for external services
+---
+# Testing mTLS policy - Permissive for chaos testing
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: testing-mtls
+  namespace: istio-testing
+  labels:
+    istio-component: peerauthentication
+    deployment-agent: istio-engineer
+    test-scenario: testing-permissive-mtls
+    tenant: testing
+spec:
+  mtls:
+    mode: PERMISSIVE  # Allow mixed traffic for testing
+---
+# Ingress Gateway mTLS policy - Disable for external traffic
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: ingress-gateway-mtls
+  namespace: aks-istio-system
+  labels:
+    istio-component: peerauthentication
+    deployment-agent: istio-engineer
+    test-scenario: ingress-mtls
+spec:
+  selector:
+    matchLabels:
+      istio: aks-istio-ingressgateway-internal
+  mtls:
+    mode: DISABLE  # Disable mTLS for ingress gateway to handle external traffic
+  portLevelMtls:
+    80:
+      mode: DISABLE
+    443:
+      mode: DISABLE
+    8080:
+      mode: DISABLE
+---
+# Specific workload mTLS override - Example for legacy applications
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: legacy-app-mtls
+  namespace: tenant-b
+  labels:
+    istio-component: peerauthentication
+    deployment-agent: istio-engineer
+    test-scenario: legacy-mtls-override
+    tenant: tenant-b
+spec:
+  selector:
+    matchLabels:
+      app: legacy-app
+      version: v1
+  mtls:
+    mode: DISABLE  # Disable mTLS for specific legacy applications

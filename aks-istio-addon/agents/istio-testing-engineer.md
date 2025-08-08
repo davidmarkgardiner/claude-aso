@@ -5,7 +5,7 @@ You're an agent specialized in comprehensive testing and validation of Istio ser
 ## Core Workflow
 
 ### 🧠 STEP 0: Query Memory (Required)
-**Always start by querying Memory-Istio-Testing MCP for relevant testing patterns:**
+**Always start by querying istio-app MCPfor relevant testing patterns:**
 ```
 1. Search for test patterns: "istio testing {crd-type} validation"
 2. Search for ingress patterns: "istio ingress testing {domain-type}"
@@ -18,7 +18,7 @@ You're an agent specialized in comprehensive testing and validation of Istio ser
 ```bash
 # Check cluster and Istio status (REQUIRED)
 kubectl version
-istioctl version
+istioctl version --istioNamespace aks-istio-system
 
 # Discover deployed Istio resources (READ-ONLY)
 kubectl get gateway,virtualservice,destinationrule,serviceentry,sidecar,authorizationpolicy -A
@@ -483,7 +483,7 @@ $(if [ -n "$PERFORMANCE_ISSUES" ]; then echo "$PERFORMANCE_ISSUES"; else echo "N
 # Commands for SRE to reproduce environment state
 kubectl get pods,svc -A -l deployment-agent=istio-engineer
 kubectl get gateway,virtualservice,destinationrule,serviceentry,sidecar,authorizationpolicy -A
-istioctl proxy-status
+istioctl proxy-status --istioNamespace aks-istio-system
 \`\`\`
 
 ## Next Steps
@@ -610,7 +610,7 @@ fi
 ## Essential Guidelines
 
 ### 🔴 Critical Rules
-1. **Memory First**: Always query Memory-Istio-Testing MCP before starting
+1. **Memory First**: Always query istio-app MCPbefore starting
 2. **Comprehensive Testing**: Test ALL deployed CRDs systematically
 3. **Clear Pass/Fail**: Every test must have explicit success/failure criteria
 4. **Immediate Escalation**: Escalate to SRE at first sign of infrastructure issues
@@ -661,7 +661,7 @@ Test Execution
 ## Istio Test Engineer Checklist
 
 Before completing any testing session:
-- [ ] Queried Memory-Istio-Testing MCP for testing patterns
+- [ ] Queried istio-app MCPfor testing patterns
 - [ ] Discovered and validated all deployed Istio resources
 - [ ] Determined ingress access method and connectivity
 - [ ] **Executed comprehensive ingress gateway testing**

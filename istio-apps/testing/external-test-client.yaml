@@ -1,0 +1,173 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-test-client
+  namespace: istio-testing
+  labels:
+    app: external-test-client
+    component: testing
+    deployment-agent: istio-engineer
+    test-scenario: external-connectivity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: external-test-client
+  template:
+    metadata:
+      labels:
+        app: external-test-client
+        component: testing
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: test-client
+        image: curlimages/curl:8.4.0
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting external connectivity tests..."
+          while true; do
+            echo "=== Testing External Services ==="
+            
+            echo "Testing HTTPBin..."
+            curl -s -o /dev/null -w "HTTPBin: %{http_code} %{time_total}s\n" \
+                 http://httpbin.org/headers || echo "HTTPBin: FAILED"
+            
+            echo "Testing JSONPlaceholder..."
+            curl -s -o /dev/null -w "JSONPlaceholder: %{http_code} %{time_total}s\n" \
+                 https://jsonplaceholder.typicode.com/posts/1 || echo "JSONPlaceholder: FAILED"
+                 
+            echo "Testing GitHub API..."
+            curl -s -o /dev/null -w "GitHub API: %{http_code} %{time_total}s\n" \
+                 https://api.github.com/user || echo "GitHub API: FAILED"
+            
+            echo "=== Testing Internal Services ==="
+            
+            echo "Testing Tenant A podinfo..."
+            curl -s -o /dev/null -w "Tenant A: %{http_code} %{time_total}s\n" \
+                 http://podinfo.tenant-a.svc.cluster.local:9898/ || echo "Tenant A: FAILED"
+            
+            echo "Testing Tenant B podinfo..."
+            curl -s -o /dev/null -w "Tenant B: %{http_code} %{time_total}s\n" \
+                 http://podinfo.tenant-b.svc.cluster.local:9898/ || echo "Tenant B: FAILED"
+                 
+            echo "Testing Shared Services Redis..."
+            nc -z redis.shared-services.svc.cluster.local 6379 && echo "Shared Redis: OK" || echo "Shared Redis: FAILED"
+            
+            echo "=== Testing Cross-Tenant Access (Should be blocked) ==="
+            
+            echo "Tenant A -> Tenant B (should fail)..."
+            timeout 5 curl -s http://podinfo.tenant-b.svc.cluster.local:9898/ && echo "Cross-tenant: ALLOWED (SECURITY ISSUE!)" || echo "Cross-tenant: BLOCKED (OK)"
+            
+            echo "=== Testing Service Mesh Features ==="
+            
+            echo "Testing circuit breaker (generating load)..."
+            for i in $(seq 1 20); do
+              curl -s -o /dev/null http://podinfo.tenant-a.svc.cluster.local:9898/delay/2 &
+            done
+            wait
+            
+            echo "Testing retry policies..."
+            curl -s -o /dev/null -w "Retry test: %{http_code} %{time_total}s\n" \
+                 http://podinfo.tenant-a.svc.cluster.local:9898/status/503 || echo "Retry test: Handled"
+            
+            echo "Test cycle completed. Waiting 60 seconds..."
+            sleep 60
+          done
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+      restartPolicy: Always
+---
+# Debug Pod for manual testing
+apiVersion: v1
+kind: Pod
+metadata:
+  name: debug-client
+  namespace: istio-testing
+  labels:
+    app: debug-client
+    component: testing
+    deployment-agent: istio-engineer
+    test-scenario: manual-debugging
+  annotations:
+    sidecar.istio.io/inject: "true"
+spec:
+  containers:
+  - name: debug
+    image: nicolaka/netshoot:v0.11
+    command: ["/bin/bash"]
+    args:
+    - -c
+    - |
+      echo "Debug client ready. Use kubectl exec to connect."
+      echo "Available tools: curl, dig, nslookup, ping, netstat, ss, tcpdump, nmap"
+      echo "Test commands:"
+      echo "  curl http://podinfo.tenant-a.svc.cluster.local:9898/"
+      echo "  curl http://podinfo.tenant-b.svc.cluster.local:9898/"
+      echo "  curl http://httpbin.org/headers"
+      echo "  dig podinfo.tenant-a.svc.cluster.local"
+      echo "  nmap -p 9898 podinfo.tenant-a.svc.cluster.local"
+      sleep infinity
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "10m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+  restartPolicy: Always
+---
+# Performance Testing Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: performance-test
+  namespace: istio-testing
+  labels:
+    app: performance-test
+    component: testing
+    deployment-agent: istio-engineer
+    test-scenario: performance-baseline
+spec:
+  template:
+    metadata:
+      labels:
+        app: performance-test
+        component: testing
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: performance-test
+        image: fortio/fortio:1.60.3
+        command: ["fortio"]
+        args:
+        - "load"
+        - "-c"
+        - "10"
+        - "-qps"
+        - "100"
+        - "-t"
+        - "5m"
+        - "-a"
+        - "-r"
+        - "0.0001"
+        - "http://podinfo.tenant-a.svc.cluster.local:9898/"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+  backoffLimit: 2

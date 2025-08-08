@@ -1,0 +1,110 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo-v1
+  namespace: tenant-b
+  labels:
+    app: podinfo
+    version: v1
+    deployment-agent: istio-engineer
+    test-scenario: development-baseline
+    tenant: tenant-b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: podinfo
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: podinfo
+        version: v1
+        tenant: tenant-b
+        environment: development
+      annotations:
+        sidecar.istio.io/inject: "true"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9797"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: istio-tenant-b
+      containers:
+      - name: podinfo
+        image: stefanprodan/podinfo:6.6.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 9898
+          protocol: TCP
+        - name: http-metrics
+          containerPort: 9797
+          protocol: TCP
+        - name: grpc
+          containerPort: 9999
+          protocol: TCP
+        command:
+        - ./podinfo
+        - --port=9898
+        - --port-metrics=9797
+        - --grpc-port=9999
+        - --grpc-service-name=podinfo
+        - --level=debug
+        - --random-delay=true
+        - --random-error=false
+        env:
+        - name: PODINFO_UI_COLOR
+          value: "#00d2ff"  # Cyan for development v1
+        - name: PODINFO_UI_MESSAGE
+          value: "Development Podinfo V1 - Tenant B"
+        - name: PODINFO_BACKEND_URL
+          value: "http://redis.tenant-b.svc.cluster.local:6379"
+        - name: PODINFO_CACHE_SERVER
+          value: "redis://redis.tenant-b.svc.cluster.local:6379"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"  # Higher limits for development
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 5  # More tolerant in development
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: http
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 5
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always

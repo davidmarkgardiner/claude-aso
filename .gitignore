@@ -142,3 +142,6 @@ aks-istio-addon/readme.md
 aso-production-stack/03-aks-production-cluster.yaml
 deploy-aks-scripts/deploy-aks.sh
 deploy-aks-scripts/v3.sh
+.env.hooks
+.mcp.json
+.cursor/mcp.json

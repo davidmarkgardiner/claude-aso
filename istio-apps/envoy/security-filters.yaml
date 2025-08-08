@@ -1,0 +1,377 @@
+---
+# Web Application Firewall (WAF) EnvoyFilter
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: waf-security-filter
+  namespace: tenant-a
+  labels:
+    envoy-component: web-application-firewall
+    deployment-agent: istio-engineer
+    tenant: tenant-a
+    test-scenario: production-waf
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  configPatches:
+  # Add RBAC filter for additional security
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.rbac
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
+          rules:
+            action: ALLOW
+            policies:
+              "allow-health-checks":
+                permissions:
+                - and_rules:
+                    rules:
+                    - header:
+                        name: ":path"
+                        string_match:
+                          prefix: "/health"
+                    - header:
+                        name: ":method"
+                        string_match:
+                          exact: "GET"
+                principals:
+                - any: true
+              "allow-metrics":
+                permissions:
+                - and_rules:
+                    rules:
+                    - header:
+                        name: ":path"
+                        string_match:
+                          prefix: "/metrics"
+                    - header:
+                        name: ":method"
+                        string_match:
+                          exact: "GET"
+                principals:
+                - authenticated:
+                    principal_name:
+                      exact: "cluster.local/ns/shared-services/sa/prometheus"
+              "block-suspicious-paths":
+                permissions:
+                - not_rule:
+                    or_rules:
+                      rules:
+                      - header:
+                          name: ":path"
+                          string_match:
+                            contains: "../"
+                      - header:
+                          name: ":path"
+                          string_match:
+                            contains: "/.."
+                      - header:
+                          name: ":path"
+                          string_match:
+                            contains: ".php"
+                      - header:
+                          name: ":path"
+                          string_match:
+                            contains: ".jsp"
+                      - header:
+                          name: ":path"
+                          string_match:
+                            contains: "admin"
+                      - header:
+                          name: ":path"
+                          string_match:
+                            contains: "wp-"
+                principals:
+                - any: true
+---
+# JWT Authentication EnvoyFilter
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: jwt-authentication
+  namespace: shared-services
+  labels:
+    envoy-component: jwt-authentication
+    deployment-agent: istio-engineer
+    tenant: shared
+    test-scenario: jwt-auth-security
+spec:
+  workloadSelector:
+    labels:
+      app: grafana
+  configPatches:
+  # Add JWT authentication filter
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.jwt_authn
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+          providers:
+            istio-jwt-provider:
+              issuer: "https://davidmarkgardiner.co.uk"
+              audiences:
+              - "grafana.shared-services"
+              - "monitoring.shared-services"
+              remote_jwks:
+                http_uri:
+                  uri: "https://davidmarkgardiner.co.uk/.well-known/jwks.json"
+                  cluster: jwks-cluster
+                  timeout: 5s
+                cache_duration: 300s
+              payload_in_metadata: "jwt_payload"
+          rules:
+          - match:
+              prefix: "/api"
+            requires:
+              provider_name: "istio-jwt-provider"
+          - match:
+              prefix: "/grafana"
+            requires:
+              provider_name: "istio-jwt-provider"
+---
+# IP Allow/Deny List EnvoyFilter
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ip-allowlist-security
+  namespace: aks-istio-system
+  labels:
+    envoy-component: ip-security
+    deployment-agent: istio-engineer
+    test-scenario: ip-based-security
+spec:
+  workloadSelector:
+    labels:
+      istio: aks-istio-ingressgateway-internal
+  configPatches:
+  # Add IP allowlist/denylist filter
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.rbac
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
+          rules:
+            action: ALLOW
+            policies:
+              "allow-internal-ips":
+                permissions:
+                - any: true
+                principals:
+                - source_ip:
+                    address_prefix: "10.0.0.0"
+                    prefix_len: 8
+                - source_ip:
+                    address_prefix: "172.16.0.0"
+                    prefix_len: 12
+                - source_ip:
+                    address_prefix: "192.168.0.0"
+                    prefix_len: 16
+              "allow-azure-ips":
+                permissions:
+                - any: true
+                principals:
+                - source_ip:
+                    address_prefix: "20.0.0.0"
+                    prefix_len: 8
+                - source_ip:
+                    address_prefix: "13.0.0.0"
+                    prefix_len: 8
+              "deny-suspicious-ips":
+                permissions:
+                - any: true
+                principals:
+                - not_rule:
+                    or_rules:
+                      rules:
+                      - source_ip:
+                          address_prefix: "1.1.1.1"
+                          prefix_len: 32
+                      - source_ip:
+                          address_prefix: "8.8.8.8"
+                          prefix_len: 32
+---
+# Request Header Security EnvoyFilter
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: request-header-security
+  namespace: tenant-b
+  labels:
+    envoy-component: header-security
+    deployment-agent: istio-engineer
+    tenant: tenant-b
+    test-scenario: header-based-security
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  configPatches:
+  # Add header manipulation and security
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.lua
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+          inline_code: |
+            function envoy_on_request(request_handle)
+              -- Security header validation
+              local user_agent = request_handle:headers():get("user-agent")
+              local x_forwarded_for = request_handle:headers():get("x-forwarded-for")
+              local content_type = request_handle:headers():get("content-type")
+              
+              -- Block suspicious user agents
+              if user_agent and (
+                string.find(user_agent, "sqlmap") or 
+                string.find(user_agent, "nikto") or 
+                string.find(user_agent, "nmap") or
+                string.find(user_agent, "masscan") or
+                string.find(user_agent, "gobuster")
+              ) then
+                request_handle:respond(
+                  {[":status"] = "403"},
+                  "Forbidden: Suspicious User-Agent detected"
+                )
+                return
+              end
+              
+              -- Validate Content-Type for POST/PUT requests
+              local method = request_handle:headers():get(":method")
+              if (method == "POST" or method == "PUT") and content_type then
+                if not (
+                  string.find(content_type, "application/json") or
+                  string.find(content_type, "application/x-www-form-urlencoded") or
+                  string.find(content_type, "multipart/form-data")
+                ) then
+                  request_handle:logWarn("Suspicious Content-Type: " .. content_type)
+                end
+              end
+              
+              -- Add security headers
+              request_handle:headers():add("x-security-filter", "envoy-lua")
+              request_handle:headers():add("x-tenant", "tenant-b")
+              request_handle:headers():add("x-environment", "development")
+            end
+            
+            function envoy_on_response(response_handle)
+              -- Add security response headers
+              response_handle:headers():add("x-content-type-options", "nosniff")
+              response_handle:headers():add("x-frame-options", "DENY")
+              response_handle:headers():add("x-xss-protection", "1; mode=block")
+              response_handle:headers():add("referrer-policy", "strict-origin-when-cross-origin")
+              response_handle:headers():add("permissions-policy", "geolocation=(), microphone=(), camera=()")
+              
+              -- Remove server information
+              response_handle:headers():remove("server")
+              response_handle:headers():remove("x-powered-by")
+            end
+---
+# CORS Security EnvoyFilter
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: cors-security
+  namespace: aks-istio-system
+  labels:
+    envoy-component: cors-security
+    deployment-agent: istio-engineer
+    test-scenario: cross-origin-security
+spec:
+  workloadSelector:
+    labels:
+      istio: aks-istio-ingressgateway-internal
+  configPatches:
+  # Add CORS filter with strict policies
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.cors
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
+          allow_origin_string_match:
+          - exact: "https://davidmarkgardiner.co.uk"
+          - exact: "https://www.davidmarkgardiner.co.uk"
+          - prefix: "https://"
+            suffix: ".davidmarkgardiner.co.uk"
+          allow_methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH"
+          allow_headers: "accept,authorization,cache-control,content-type,x-requested-with,x-tenant,x-canary"
+          expose_headers: "x-request-id,x-envoy-upstream-service-time,x-ratelimit-remaining"
+          max_age: "86400"
+          allow_credentials: true
+---
+# DDoS Protection EnvoyFilter
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ddos-protection
+  namespace: aks-istio-system
+  labels:
+    envoy-component: ddos-protection
+    deployment-agent: istio-engineer
+    test-scenario: ddos-mitigation
+spec:
+  workloadSelector:
+    labels:
+      istio: aks-istio-ingressgateway-internal
+  configPatches:
+  # Add connection limit filter
+  - applyTo: NETWORK_FILTER
+    match:
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.network.local_ratelimit
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.local_ratelimit.v3.LocalRateLimit
+          stat_prefix: ddos_protection
+          token_bucket:
+            max_tokens: 1000
+            tokens_per_fill: 100
+            fill_interval: 1s
+          runtime_enabled:
+            runtime_key: ddos_protection_enabled
+            default_value: true

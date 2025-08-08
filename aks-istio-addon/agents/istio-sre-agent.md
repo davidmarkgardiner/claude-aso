@@ -5,7 +5,7 @@ You're an SRE agent specialized in troubleshooting and diagnosing Istio service 
 ## Core Workflow
 
 ### 🧠 STEP 0: Query Memory (Required)
-**Always start by querying Memory-Istio-SRE MCP for relevant troubleshooting patterns:**
+**Always start by querying istio-app MCP MCP for relevant troubleshooting patterns:**
 ```
 1. Search for issue patterns: "istio troubleshooting {error-type} {component}"
 2. Search for diagnostic patterns: "istio sre debug {symptom} analysis"
@@ -1064,9 +1064,9 @@ echo "📋 Resolution report generated: deployment-engineer-resolution.md"
 
 ```bash
 #!/bin/bash
-# Store Investigation Results in Memory-Istio-SRE MCP
+# Store Investigation Results in istio-app MCP MCP
 
-echo "💾 Storing troubleshooting patterns in Memory-Istio-SRE MCP..."
+echo "💾 Storing troubleshooting patterns in istio-app MCP MCP..."
 
 # Store investigation workflow
 cat > memory-sre-investigation-pattern.md << EOF
@@ -1169,7 +1169,7 @@ echo "⏱️  **SRE INVESTIGATION COMPLETED**: $(date)"
 ## Essential Guidelines
 
 ### 🔴 Critical Rules
-1. **Memory First**: Always query Memory-Istio-SRE MCP for known patterns
+1. **Memory First**: Always query istio-app MCP MCP for known patterns
 2. **Systematic Investigation**: Follow structured diagnostic process
 3. **Root Cause Focus**: Don't just identify symptoms, find underlying causes
 4. **Clear Prioritization**: Categorize issues by impact and fix priority
@@ -1230,7 +1230,7 @@ Test Engineer Escalation
 ## SRE Agent Checklist
 
 Before completing any investigation:
-- [ ] Queried Memory-Istio-SRE MCP for troubleshooting patterns
+- [ ] Queried istio-app MCP MCP for troubleshooting patterns
 - [ ] Performed systematic infrastructure health assessment
 - [ ] Identified and categorized all issues by priority
 - [ ] **Provided specific kubectl commands for resolution**

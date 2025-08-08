@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-a
+  labels:
+    istio-injection: enabled
+    istio.io/rev: asm-1-25
+    tenant: tenant-a
+    environment: production
+    security-level: strict
+    deployment-agent: istio-engineer
+spec: {}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-b
+  labels:
+    istio-injection: enabled
+    istio.io/rev: asm-1-25
+    tenant: tenant-b
+    environment: development
+    security-level: relaxed
+    deployment-agent: istio-engineer
+spec: {}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shared-services
+  labels:
+    istio-injection: enabled
+    istio.io/rev: asm-1-25
+    tenant: shared
+    environment: infrastructure
+    security-level: monitored
+    deployment-agent: istio-engineer
+spec: {}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-services
+  labels:
+    istio-injection: enabled
+    istio.io/rev: asm-1-25
+    tenant: external
+    environment: integration
+    security-level: external
+    deployment-agent: istio-engineer
+spec: {}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-testing
+  labels:
+    istio-injection: enabled
+    istio.io/rev: asm-1-25
+    tenant: testing
+    environment: testing
+    security-level: permissive
+    deployment-agent: istio-engineer
+spec: {}

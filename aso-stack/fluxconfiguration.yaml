@@ -18,6 +18,7 @@ spec:
       prune: true
       force: true
     istio-app:
+      dependsOn: ["app"]
       path: ./istio-apps
       timeoutInSeconds: 600
       syncIntervalInSeconds: 120
