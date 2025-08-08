@@ -40,6 +40,8 @@ spec:
       subscriptionId: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
       aadClientId: "e651afda-3cfc-431b-ae58-e255232e61c8"
       useWorkloadIdentityExtension: true
+      useManagedIdentityExtension: false
+      azureConfigFile: ""
     txtOwnerId: external-dns
     interval: 1m
     logLevel: info
