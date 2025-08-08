@@ -27,8 +27,7 @@ spec:
   values:
     image:
       tag: "v0.18.0"
-    extraArgs:
-      - --azure-config-file=/dev/null
+    extraArgs: []
     sources:
       - service
       - ingress
