@@ -16,14 +16,13 @@ spec:
         namespace: flux-system
       interval: 15m
   install:
-    createNamespace: true
     remediation:
       retries: 3
   test:
     enable: true
   rollback:
     cleanupOnFail: true
-  targetNamespace: external-dns
+  targetNamespace: default
   values:
     image:
       tag: "v0.18.0"
@@ -32,17 +31,20 @@ spec:
       - ingress
     domainFilters:
       - davidmarkgardiner.co.uk
-    provider: azure
-    azure:
-      resourceGroup: dns
-      subscriptionId: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
-      useWorkloadIdentityExtension: false
-      useManagedIdentityExtension: true
-    extraArgs: []
-    txtOwnerId: external-dns
+    provider:
+      name: azure
+    txtPrefix: externaldns-
     interval: 1m
     logLevel: info
     policy: sync
+    extraVolumes:
+      - name: azure-config-file
+        secret:  # pragma: allowlist secret
+          secretName: azure-config-file  # pragma: allowlist secret
+    extraVolumeMounts:
+      - name: azure-config-file
+        mountPath: /etc/kubernetes
+        readOnly: true
     serviceAccount:
       create: true
     securityContext:
