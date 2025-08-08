@@ -148,9 +148,9 @@ spec:
         args: ["/scripts/enable-monitor.sh"]
         env:
         - name: CLUSTER_NAME
-          value: ""  # Will be auto-discovered
+          value: "uk8s-tsshared-weu-gt025-int-prod"
         - name: RESOURCE_GROUP  
-          value: ""  # Will be auto-discovered
+          value: "at39473-weu-dev-prod"
         - name: SUBSCRIPTION_ID
           value: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
         - name: WORKSPACE_RESOURCE_ID
