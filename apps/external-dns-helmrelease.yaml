@@ -5,7 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 15m
-  timeout: 1m
+  timeout: 5m
   chart:
     spec:
       chart: external-dns
@@ -30,36 +30,21 @@ spec:
     sources:
       - service
       - ingress
-      - istio-gateway
-      - istio-virtualservice
     domainFilters:
       - davidmarkgardiner.co.uk
     provider: azure
     azure:
       resourceGroup: dns
       subscriptionId: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
-      aadClientId: "e651afda-3cfc-431b-ae58-e255232e61c8"
-      useWorkloadIdentityExtension: true
-      useManagedIdentityExtension: false
-    extraArgs:
-      - --azure-config-file=""
+      useWorkloadIdentityExtension: false
+      useManagedIdentityExtension: true
+    extraArgs: []
     txtOwnerId: external-dns
     interval: 1m
     logLevel: info
     policy: sync
     serviceAccount:
       create: true
-      annotations:
-        azure.workload.identity/client-id: "e651afda-3cfc-431b-ae58-e255232e61c8"
-      labels:
-        azure.workload.identity/use: "true"
-    podLabels:
-      azure.workload.identity/use: "true"
-    env:
-      - name: AZURE_AUTH_METHOD
-        value: wli
-      - name: AZURE_CLIENT_ID
-        value: "e651afda-3cfc-431b-ae58-e255232e61c8"
     securityContext:
       runAsNonRoot: true
       runAsUser: 65532

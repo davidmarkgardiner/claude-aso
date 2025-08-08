@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-dns-basic
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns-basic
+  namespace: external-dns-basic
+spec:
+  selector:
+    matchLabels:
+      app: external-dns-basic
+  template:
+    metadata:
+      labels:
+        app: external-dns-basic
+    spec:
+      serviceAccountName: external-dns-basic
+      containers:
+      - name: external-dns
+        image: registry.k8s.io/external-dns/external-dns:v0.18.0
+        args:
+        - --source=service
+        - --source=ingress
+        - --domain-filter=davidmarkgardiner.co.uk
+        - --provider=azure
+        - --azure-resource-group=dns
+        - --azure-subscription-id=133d5755-4074-4d6e-ad38-eb2a6ad12903
+        - --txt-owner-id=external-dns-basic
+        - --interval=30s
+        - --log-level=debug
+        - --dry-run=false
+        env:
+        - name: AZURE_AUTH_METHOD
+          value: msi
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+          requests:
+            memory: "64Mi"
+            cpu: "10m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns-basic
+  namespace: external-dns-basic
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns-basic
+rules:
+- apiGroups: [""]
+  resources: ["services","endpoints","pods"]
+  verbs: ["get","watch","list"]
+- apiGroups: ["extensions","networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get","watch","list"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["list","watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-basic-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns-basic
+subjects:
+- kind: ServiceAccount
+  name: external-dns-basic
+  namespace: external-dns-basic
