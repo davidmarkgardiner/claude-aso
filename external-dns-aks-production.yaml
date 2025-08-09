@@ -1,0 +1,198 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-dns
+  labels:
+    name: external-dns
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+  namespace: external-dns
+  annotations:
+    azure.workload.identity/client-id: "024244f9-7bb4-426a-932a-4ceec47026a6"
+  labels:
+    azure.workload.identity/use: "true"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns
+rules:
+- apiGroups: [""]
+  resources: ["services","endpoints","pods","nodes"]
+  verbs: ["get","watch","list"]
+- apiGroups: ["extensions","networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get","watch","list"]
+- apiGroups: ["discovery.k8s.io"]
+  resources: ["endpointslices"]
+  verbs: ["get","watch","list"]
+# Istio Gateway and VirtualService permissions
+- apiGroups: ["networking.istio.io"]
+  resources: ["gateways","virtualservices"]
+  verbs: ["get","watch","list"]
+# Gateway API permissions (if using Gateway API)
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources: ["gateways","httproutes","grpcroutes","tlsroutes","tcproutes","udproutes"]
+  verbs: ["get","watch","list"]
+# DNS Endpoint CRD permissions
+- apiGroups: ["externaldns.k8s.io"]
+  resources: ["dnsendpoints"]
+  verbs: ["get","watch","list","create","update","patch","delete"]
+- apiGroups: ["externaldns.k8s.io"]
+  resources: ["dnsendpoints/status"]
+  verbs: ["get","update","patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns
+subjects:
+- kind: ServiceAccount
+  name: external-dns
+  namespace: external-dns
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    app: external-dns
+    version: v0.18.0
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: external-dns
+  template:
+    metadata:
+      labels:
+        app: external-dns
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: external-dns
+      containers:
+      - name: external-dns
+        image: registry.k8s.io/external-dns/external-dns:v0.18.0
+        args:
+        - --source=service
+        - --source=ingress
+        - --source=istio-gateway
+        - --source=istio-virtualservice
+        - --domain-filter=davidmarkgardiner.co.uk
+        - --provider=azure
+        - --azure-resource-group=dns
+        - --azure-subscription-id=$(AZURE_SUBSCRIPTION_ID)
+        - --azure-config-file=
+        - --txt-prefix=externaldns-
+        - --txt-owner-id=uk8s-tsshared-weu-gt025-int-prod
+        - --interval=1m
+        - --log-level=info
+        - --policy=sync
+        - --registry=txt
+        - --txt-cache-interval=1h
+        - --events
+        - --metrics-address=0.0.0.0:7979
+        env:
+        - name: AZURE_AUTH_METHOD
+          value: wli
+        - name: AZURE_SUBSCRIPTION_ID
+          value: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+        - name: AZURE_CLIENT_ID
+          value: "024244f9-7bb4-426a-932a-4ceec47026a6"
+        ports:
+        - name: http
+          containerPort: 7979
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      - key: "kubernetes.azure.com/scalesetpriority"
+        operator: "Equal"
+        value: "spot"
+        effect: "NoSchedule"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    app: external-dns
+spec:
+  selector:
+    app: external-dns
+  ports:
+  - name: http
+    port: 7979
+    targetPort: http
+    protocol: TCP
+  type: ClusterIP
+---
+# ServiceMonitor for Prometheus monitoring (optional)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    app: external-dns
+spec:
+  selector:
+    matchLabels:
+      app: external-dns
+  endpoints:
+  - port: http
+    interval: 30s
+    path: /metrics

@@ -29,7 +29,7 @@ spec:
       syncIntervalInSeconds: 120
       prune: true
       force: true
-  namespace: flux-system
+  namespace: azure-system
   owner:
     group: containerservice.azure.com
     kind: ManagedCluster

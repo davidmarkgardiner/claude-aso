@@ -1,0 +1,57 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-dns01-production
+  namespace: cert-manager
+spec:
+  acme:
+    # ACME server URL for Let's Encrypt production
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Email address for ACME registration
+    email: david@davidmarkgardiner.co.uk
+    # Name of the secret to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-dns01-production
+    # DNS01 solver configuration using Azure DNS
+    solvers:
+    - dns01:
+        azureDNS:
+          subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+          resourceGroupName: "dns"
+          hostedZoneName: "davidmarkgardiner.co.uk"
+          # Use workload identity for authentication
+          managedIdentity:
+            clientID: "024244f9-7bb4-426a-932a-4ceec47026a6"
+      selector:
+        dnsNames:
+        - "davidmarkgardiner.co.uk"
+        - "*.davidmarkgardiner.co.uk"
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-dns01-staging
+  namespace: cert-manager
+spec:
+  acme:
+    # ACME server URL for Let's Encrypt staging
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    # Email address for ACME registration
+    email: david@davidmarkgardiner.co.uk
+    # Name of the secret to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-dns01-staging
+    # DNS01 solver configuration using Azure DNS
+    solvers:
+    - dns01:
+        azureDNS:
+          subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+          resourceGroupName: "dns"
+          hostedZoneName: "davidmarkgardiner.co.uk"
+          # Use workload identity for authentication
+          managedIdentity:
+            clientID: "024244f9-7bb4-426a-932a-4ceec47026a6"
+      selector:
+        dnsNames:
+        - "davidmarkgardiner.co.uk"
+        - "*.davidmarkgardiner.co.uk"
