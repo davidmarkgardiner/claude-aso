@@ -1,0 +1,36 @@
+# Test certificate using DNS-01 solver
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: test-dns01-cert
+  namespace: default
+  labels:
+    deployment-agent: cert-manager-engineer
+    component: cert-testing
+spec:
+  secretName: test-dns01-cert-tls
+  issuerRef:
+    name: letsencrypt-staging-dns01
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+  - test-dns01.davidmarkgardiner.co.uk
+---
+# Test certificate using DNS-01 solver for wildcard
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: test-wildcard-cert
+  namespace: default
+  labels:
+    deployment-agent: cert-manager-engineer
+    component: cert-testing
+spec:
+  secretName: test-wildcard-cert-tls
+  issuerRef:
+    name: letsencrypt-staging-dns01
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+  - "*.test.davidmarkgardiner.co.uk"

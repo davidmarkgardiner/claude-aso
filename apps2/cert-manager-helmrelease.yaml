@@ -31,6 +31,14 @@ spec:
     global:
       leaderElection:
         namespace: "cert-manager"
+    # Azure Workload Identity integration
+    serviceAccount:
+      annotations:
+        azure.workload.identity/client-id: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
+      labels:
+        azure.workload.identity/use: "true"
+    podLabels:
+      azure.workload.identity/use: "true"
     # prometheus:
     #   enabled: true
     #   servicemonitor:

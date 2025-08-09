@@ -148,3 +148,12 @@ deploy-aks-scripts/v3.sh
 uk8s-tsshared-weu-gt025-int-prod
 scan-results/*
 .claude/agents
+memory-app.json
+memory-aso.json
+memory-certmanager.json
+memory-db.json
+memory-externaldns.json
+memory-app.json
+memory-db.json
+aks-kubeconfig
+aks-admin-kubeconfig
