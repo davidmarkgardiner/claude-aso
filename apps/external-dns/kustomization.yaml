@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - identity-configmap.yaml
   - serviceaccount.yaml
   - clusterrole.yaml
   - clusterrolebinding.yaml
