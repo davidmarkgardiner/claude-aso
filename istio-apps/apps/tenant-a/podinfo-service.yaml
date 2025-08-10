@@ -54,26 +54,27 @@ spec:
     protocol: TCP
   selector:
     app: podinfo
----
-# ServiceMonitor for Prometheus scraping (if Prometheus Operator is used)
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: podinfo
-  namespace: tenant-a
-  labels:
-    app: podinfo
-    deployment-agent: istio-engineer
-    tenant: tenant-a
-spec:
-  selector:
-    matchLabels:
-      app: podinfo
-  endpoints:
-  - port: http-metrics
-    interval: 30s
-    path: /metrics
-    scheme: http
-  namespaceSelector:
-    matchNames:
-    - tenant-a
+# ---
+# # ServiceMonitor for Prometheus scraping (if Prometheus Operator is used)
+# # Commented out - requires Prometheus operator to be installed first
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   name: podinfo
+#   namespace: tenant-a
+#   labels:
+#     app: podinfo
+#     deployment-agent: istio-engineer
+#     tenant: tenant-a
+# spec:
+#   selector:
+#     matchLabels:
+#       app: podinfo
+#   endpoints:
+#   - port: http-metrics
+#     interval: 30s
+#     path: /metrics
+#     scheme: http
+#   namespaceSelector:
+#     matchNames:
+#     - tenant-a

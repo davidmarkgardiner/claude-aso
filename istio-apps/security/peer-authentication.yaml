@@ -31,9 +31,9 @@ spec:
   mtls:
     mode: STRICT
   portLevelMtls:
-    9898:
+    "9898":
       mode: STRICT
-    9999:
+    "9999":
       mode: STRICT
 ---
 # Tenant B mTLS policy - Permissive for development
@@ -54,7 +54,7 @@ spec:
   mtls:
     mode: PERMISSIVE  # Allows both mTLS and plain text for development
   portLevelMtls:
-    9898:
+    "9898":
       mode: PERMISSIVE
 ---
 # Shared Services mTLS policy - Strict for infrastructure
@@ -72,11 +72,11 @@ spec:
   mtls:
     mode: STRICT
   portLevelMtls:
-    9090:  # Prometheus
+    "9090":  # Prometheus
       mode: STRICT
-    3000:  # Grafana
+    "3000":  # Grafana
       mode: STRICT
-    16686: # Jaeger
+    "16686": # Jaeger
       mode: STRICT
 ---
 # External Services mTLS policy - Disable for external traffic
@@ -126,11 +126,11 @@ spec:
   mtls:
     mode: DISABLE  # Disable mTLS for ingress gateway to handle external traffic
   portLevelMtls:
-    80:
+    "80":
       mode: DISABLE
-    443:
+    "443":
       mode: DISABLE
-    8080:
+    "8080":
       mode: DISABLE
 ---
 # Specific workload mTLS override - Example for legacy applications

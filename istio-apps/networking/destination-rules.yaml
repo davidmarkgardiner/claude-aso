@@ -18,14 +18,13 @@ spec:
     connectionPool:
       tcp:
         maxConnections: 100
+        connectTimeout: 30s
       http:
         http1MaxPendingRequests: 10
         http2MaxRequests: 100
         maxRequestsPerConnection: 2
         maxRetries: 3
         h2UpgradePolicy: UPGRADE
-      tcp:
-        connectTimeout: 30s
     outlierDetection:
       consecutiveGatewayErrors: 3
       consecutive5xxErrors: 5

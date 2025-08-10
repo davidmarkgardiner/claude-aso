@@ -57,28 +57,29 @@ spec:
   selector:
     app: podinfo
     version: v2  # Point to primary development version
----
-# ServiceMonitor for Prometheus scraping (development)
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: podinfo-dev
-  namespace: tenant-b
-  labels:
-    app: podinfo
-    deployment-agent: istio-engineer
-    tenant: tenant-b
-    environment: development
-spec:
-  selector:
-    matchLabels:
-      app: podinfo
-  endpoints:
-  - port: http-metrics
-    interval: 10s  # More frequent scraping in development
-    path: /metrics
-    scheme: http
-    scrapeTimeout: 5s
-  namespaceSelector:
-    matchNames:
-    - tenant-b
+# ---
+# # ServiceMonitor for Prometheus scraping (development)
+# # Commented out - requires Prometheus operator to be installed first
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   name: podinfo-dev
+#   namespace: tenant-b
+#   labels:
+#     app: podinfo
+#     deployment-agent: istio-engineer
+#     tenant: tenant-b
+#     environment: development
+# spec:
+#   selector:
+#     matchLabels:
+#       app: podinfo
+#   endpoints:
+#   - port: http-metrics
+#     interval: 10s  # More frequent scraping in development
+#     path: /metrics
+#     scheme: http
+#     scrapeTimeout: 5s
+#   namespaceSelector:
+#     matchNames:
+#     - tenant-b
