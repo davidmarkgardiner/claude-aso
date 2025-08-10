@@ -61,3 +61,19 @@ spec:
     name: aks-oidc-config-prod
     key: issuer-url
   subject: system:serviceaccount:cert-manager:cert-manager
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: aso-fic-workload-identity
+  namespace: azure-system
+spec:
+  azureName: aso-workload-identity-fic
+  owner:
+    name: aso-workload-identity
+  audiences:
+    - api://AzureADTokenExchange
+  issuerFromConfig:
+    name: aks-oidc-config-prod
+    key: issuer-url
+  subject: system:serviceaccount:azureserviceoperator-system:azureserviceoperator-default
