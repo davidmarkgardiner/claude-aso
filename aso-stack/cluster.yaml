@@ -114,7 +114,7 @@ spec:
       enabled: true
       config:
         version: "v2"
-  Monitoring and Metrics
+  # Monitoring and Metrics
   # azureMonitorProfile:
   #   metrics:
   #     enabled: true
