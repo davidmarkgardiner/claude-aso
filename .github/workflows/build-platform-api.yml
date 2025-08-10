@@ -2,7 +2,6 @@ name: Build and Push Platform API
 
 on:
   push:
-    branches: [ main, experiment/test-cluster-build ]
     paths: [ 'platform-api/**' ]
   pull_request:
     branches: [ main ]
