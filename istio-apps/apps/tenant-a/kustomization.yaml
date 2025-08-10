@@ -36,6 +36,4 @@ configMapGenerator:
   - PODINFO_MESSAGE="Production Podinfo - Tenant A"
   - PODINFO_BACKEND_URL=http://redis.tenant-a.svc.cluster.local:6379
 
-patchesStrategicMerge: []
-
-patchesJson6902: []
+patches: []

@@ -35,61 +35,78 @@ The Platform API has been successfully tested with AKS cluster integration:
 
 ## Implementation Roadmap 🚀
 
-### Phase 1: Managed Identity Setup
+### Phase 1: Managed Identity Setup (using ASO)
 
 #### 1.1 Create Platform API Managed Identity
-```bash
-# Create the managed identity for Platform API
-PLATFORM_IDENTITY_NAME="platform-api-identity"
-RESOURCE_GROUP="at39473-weu-dev-prod"
-
-az identity create \
-  --name $PLATFORM_IDENTITY_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --location uksouth
+```yaml
+# aso-stack/platform/platform-identity.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: platform-api-identity
+  namespace: azure-system
+spec:
+  azureName: platform-api-identity
+  location: uksouth
+  owner:
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
 ```
 
 #### 1.2 Configure Workload Identity Federation
-```bash
-# Get the identity details
-PLATFORM_IDENTITY_CLIENT_ID=$(az identity show \
-  --name $PLATFORM_IDENTITY_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --query clientId -o tsv)
-
-PLATFORM_IDENTITY_PRINCIPAL_ID=$(az identity show \
-  --name $PLATFORM_IDENTITY_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --query principalId -o tsv)
-
-# Create federated credential for the Platform API service account
-az identity federated-credential create \
-  --name "platform-api-federated-credential" \
-  --identity-name $PLATFORM_IDENTITY_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --issuer "https://uk8s-tsshared-weu-gt025-int-prodk8s-cvtz403w.hcp.uksouth.azmk8s.io/" \
-  --subject "system:serviceaccount:platform-system:platform-api" \
-  --audience api://AzureADTokenExchange
+```yaml
+# aso-stack/platform/platform-federated-credential.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: platform-api-federated-credential
+  namespace: azure-system
+spec:
+  azureName: platform-api-federated-credential
+  audience: api://AzureADTokenExchange
+  issuer: https://uk8s-tsshared-weu-gt025-int-prodk8s-cvtz403w.hcp.uksouth.azmk8s.io/
+  subject: system:serviceaccount:platform-system:platform-api
+  owner:
+    name: platform-api-identity
 ```
 
-### Phase 2: AKS Cluster RBAC Setup
+Apply the ASO manifests:
+```bash
+kubectl apply -f aso-stack/platform/platform-identity.yaml
+kubectl apply -f aso-stack/platform/platform-federated-credential.yaml
+```
+
+### Phase 2: AKS Cluster RBAC Setup (using ASO)
 
 #### 2.1 Assign Cluster Admin Role to Platform API Identity
-```bash
-# Assign Azure Kubernetes Service RBAC Cluster Admin role
-az role assignment create \
-  --assignee $PLATFORM_IDENTITY_CLIENT_ID \
-  --role "Azure Kubernetes Service RBAC Cluster Admin" \
-  --scope /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+```yaml
+# aso-stack/platform/platform-cluster-rbac.yaml
+apiVersion: authorization.azure.com/v1api20200801preview
+kind: RoleAssignment
+metadata:
+  name: platform-api-cluster-admin
+  namespace: azure-system
+spec:
+  principalId: $(platform-api-identity.status.principalId)
+  principalType: ServicePrincipal
+  roleDefinitionId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b # AKS RBAC Cluster Admin
+  scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+  owner:
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
 ```
 
-#### 2.2 Remove Development User Permissions
+#### 2.2 Remove Development User Permissions (using ASO)
+Note: To remove existing role assignments using ASO, we would need to identify and delete the corresponding RoleAssignment resource. For cleanup of manually created assignments:
 ```bash
-# Remove the development user cluster admin role (security cleanup)
+# Manual cleanup (run once during migration)
 az role assignment delete \
   --assignee "1e63547c-4443-4bbf-8a3c-49f790cdd7c4" \
   --role "Azure Kubernetes Service RBAC Cluster Admin" \
   --scope /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+```
+
+Apply the ASO RBAC assignment:
+```bash
+kubectl apply -f aso-stack/platform/platform-cluster-rbac.yaml
 ```
 
 ### Phase 3: Platform API Kubernetes Deployment
@@ -165,21 +182,22 @@ spec:
 
 #### 4.1 Create ASO RoleAssignment Template
 ```yaml
-# namespace-rbac-template.yaml
-apiVersion: authorization.azure.com/v1beta20200801preview
+# aso-stack/platform/namespace-rbac-template.yaml
+apiVersion: authorization.azure.com/v1api20200801preview
 kind: RoleAssignment
 metadata:
   name: "{{ .namespaceName }}-admin-assignment"
-  namespace: platform-system
+  namespace: azure-system  # ASO resources in azure-system namespace
 spec:
-  properties:
-    principalId: "{{ .teamPrincipalId }}"
-    principalType: Group
-    roleDefinitionId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b # AKS RBAC Admin
-    scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod/namespaces/{{ .namespaceName }}
+  principalId: "{{ .teamPrincipalId }}"
+  principalType: Group
+  roleDefinitionId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b # AKS RBAC Admin
+  scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod/namespaces/{{ .namespaceName }}
+  owner:
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
 ```
 
-#### 4.2 Enhanced Platform API Namespace Creation Logic
+#### 4.2 Enhanced Platform API Namespace Creation Logic (ASO-enabled)
 ```typescript
 // Enhanced namespace creation with ASO RBAC
 async function createNamespaceWithRBAC(request: NamespaceRequest): Promise<NamespaceResponse> {
@@ -201,12 +219,25 @@ async function createNamespaceWithRBAC(request: NamespaceRequest): Promise<Names
     });
 
     // 2. Create ASO RoleAssignment for namespace-scoped admin access
-    const roleAssignment = await createRoleAssignment({
-        namespaceName: request.name,
-        teamPrincipalId: await getTeamPrincipalId(request.team),
-        roleDefinitionId: AKS_RBAC_ADMIN_ROLE_ID,
-        scope: `${AKS_CLUSTER_SCOPE}/namespaces/${request.name}`
-    });
+    const roleAssignmentManifest = {
+        apiVersion: 'authorization.azure.com/v1api20200801preview',
+        kind: 'RoleAssignment',
+        metadata: {
+            name: `${request.name}-admin-assignment`,
+            namespace: 'azure-system'
+        },
+        spec: {
+            principalId: await getTeamPrincipalId(request.team),
+            principalType: 'Group',
+            roleDefinitionId: '/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b',
+            scope: `/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod/namespaces/${request.name}`,
+            owner: {
+                armId: '/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod'
+            }
+        }
+    };
+
+    const roleAssignment = await k8sClient.createCustomObject(roleAssignmentManifest);
 
     // 3. Create resource quotas and network policies
     await applyResourceQuota(request.name, request.resourceTier);
@@ -292,21 +323,25 @@ kubectl auth can-i "*" --as="azure:team-member@company.com" -n other-team-prod
 4. **Compliance**: All access auditable and traceable
 5. **Maintainability**: Infrastructure as Code for all RBAC configurations
 
-## Files to Create
+## Files to Create (ASO-based Infrastructure)
 
-1. `aso-stack/platform/identity.yaml` - Platform API Managed Identity
-2. `aso-stack/platform/rbac.yaml` - ASO RoleAssignment templates
-3. `apps/platform-api/` - Kubernetes manifests for Platform API deployment
-4. `platform-api/src/services/rbacService.ts` - Enhanced RBAC management logic
+1. `aso-stack/platform/platform-identity.yaml` - Platform API Managed Identity (ASO)
+2. `aso-stack/platform/platform-federated-credential.yaml` - Workload Identity Federation (ASO)
+3. `aso-stack/platform/platform-cluster-rbac.yaml` - Cluster Admin Role Assignment (ASO)
+4. `aso-stack/platform/namespace-rbac-template.yaml` - Namespace RBAC template (ASO)
+5. `apps/platform-api/` - Kubernetes manifests for Platform API deployment
+6. `platform-api/src/services/rbacService.ts` - Enhanced RBAC management logic with ASO integration
 
-## Next Action Items ✅
+## Next Action Items ✅ (ASO-first approach)
 
-- [ ] Create Platform API Managed Identity  
-- [ ] Configure Workload Identity Federation
-- [ ] Deploy Platform API to AKS cluster
-- [ ] Implement ASO-based namespace RBAC
-- [ ] Create integration tests
-- [ ] Migrate from development to production RBAC model
+- [ ] Create Platform API Managed Identity using ASO (`platform-identity.yaml`)
+- [ ] Configure Workload Identity Federation using ASO (`platform-federated-credential.yaml`)
+- [ ] Create Cluster RBAC assignment using ASO (`platform-cluster-rbac.yaml`)
+- [ ] Deploy Platform API to AKS cluster with Workload Identity
+- [ ] Implement ASO-based namespace RBAC templates
+- [ ] Update Platform API to create ASO RoleAssignment resources
+- [ ] Create integration tests for ASO-managed RBAC
+- [ ] Migrate from development to production RBAC model with full ASO automation
 
 ---
 

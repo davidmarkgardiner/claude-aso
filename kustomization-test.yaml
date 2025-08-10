@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - istio-apps/base/namespaces.yaml
+  - istio-apps/base/rbac.yaml
+  - istio-apps/networking/gateways.yaml
+  - istio-apps/networking/virtual-services.yaml
+  - istio-apps/networking/destination-rules.yaml
+
+labels:
+- includeSelectors: false
+  pairs:
+    test: true
