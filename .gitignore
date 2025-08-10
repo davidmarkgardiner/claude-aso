@@ -158,3 +158,5 @@ memory-db.json
 aks-kubeconfig
 aks-admin-kubeconfig
 istio-app.json
+aks-admin
+platform-aks-kubeconfig

@@ -22,13 +22,13 @@ commonLabels:
 
 images:
 - name: prom/prometheus
-  newTag: v2.48.0
+  newTag: "v2.48.0"
 - name: grafana/grafana
-  newTag: 10.2.0
+  newTag: "10.2.0"
 - name: jaegertracing/all-in-one
-  newTag: 1.51
+  newTag: "1.51"
 - name: redis
-  newTag: 7-alpine
+  newTag: "7-alpine"
 
 replicas:
 - name: prometheus
