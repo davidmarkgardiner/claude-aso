@@ -1,0 +1,59 @@
+# This is a template for creating namespace-scoped RBAC assignments
+# The Platform API will use this template to generate ASO RoleAssignment resources
+# for each namespace, substituting the variables as needed.
+
+apiVersion: authorization.azure.com/v1api20200801preview
+kind: RoleAssignment
+metadata:
+  name: "{{ .namespaceName }}-{{ .teamName }}-admin"
+  namespace: azure-system  # ASO resources must be in azure-system namespace
+  labels:
+    platform.io/managed: "true"
+    platform.io/namespace: "{{ .namespaceName }}"
+    platform.io/team: "{{ .teamName }}"
+    platform.io/environment: "{{ .environment }}"
+    platform.io/component: "namespace-rbac"
+    platform.io/created-by: "platform-api"
+  annotations:
+    platform.io/created-at: "{{ .createdAt }}"
+    platform.io/role-definition: "{{ .roleDefinition }}"
+    platform.io/principal-type: "{{ .principalType }}"
+spec:
+  # Team's Azure AD principal ID (User or Group)
+  principalId: "{{ .teamPrincipalId }}"
+  principalType: "{{ .principalType }}"  # User or Group
+  # Role definition ID for the specified AKS RBAC role
+  roleDefinitionId: "{{ .roleDefinitionId }}"
+  # Scope: specific namespace within the AKS cluster
+  scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod/namespaces/{{ .namespaceName }}
+  owner:
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+  description: "Platform-generated RBAC assignment for {{ .teamName }} team access to {{ .namespaceName }} namespace"
+
+---
+# Example of how this template would be instantiated:
+#
+# apiVersion: authorization.azure.com/v1api20200801preview
+# kind: RoleAssignment
+# metadata:
+#   name: "test-team-dev-test-team-admin"
+#   namespace: azure-system
+#   labels:
+#     platform.io/managed: "true"
+#     platform.io/namespace: "test-team-dev"
+#     platform.io/team: "test-team"
+#     platform.io/environment: "development"
+#     platform.io/component: "namespace-rbac"
+#     platform.io/created-by: "platform-api"
+#   annotations:
+#     platform.io/created-at: "2025-01-10T15:30:00Z"
+#     platform.io/role-definition: "aks-rbac-admin"
+#     platform.io/principal-type: "Group"
+# spec:
+#   principalId: "12345678-1234-1234-1234-123456789012"
+#   principalType: "Group"
+#   roleDefinitionId: "/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/3498e952-d568-435e-9b2c-8d77e338d7f7"
+#   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod/namespaces/test-team-dev
+#   owner:
+#     armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+#   description: "Platform-generated RBAC assignment for test-team team access to test-team-dev namespace"

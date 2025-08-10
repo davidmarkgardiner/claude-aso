@@ -8,6 +8,5 @@ resources:
   - federated.yaml
   - extension.yaml
   - fluxconfiguration.yaml
-  # - aso-deployment.yaml
 
 

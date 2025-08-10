@@ -55,3 +55,23 @@ spec:
   roleDefinitionReference:
     # This ARM ID represents "User Access Administrator" - required for ASO to manage RBAC
     armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/18d7d88d-d35e-4fb5-a5c3-7773c20a72d9
+---
+apiVersion: authorization.azure.com/v1api20200801preview
+kind: RoleAssignment
+metadata:
+  name: platform-api-cluster-admin
+  namespace: azure-system
+spec:
+  # AKS cluster needs permissions to manage RBAC for Platform API
+  owner:
+    name: at39473-weu-dev-prod
+    group: resources.azure.com
+    kind: ResourceGroup
+  # This is the Principal ID of the Platform API managed identity
+  principalIdFromConfig:
+    name: platform-api-identity-cm
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    # This ARM ID represents "Azure Kubernetes Service RBAC Cluster Admin" role
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b

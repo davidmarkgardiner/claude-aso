@@ -1,6 +1,7 @@
 import * as k8s from '@kubernetes/client-node';
 import { logger } from '../utils/logger';
 import { config } from '../config/config';
+import { getManagedIdentityAuthService } from './managedIdentityAuth';
 
 export class KubernetesClient {
   private kubeConfig: k8s.KubeConfig;

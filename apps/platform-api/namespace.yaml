@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-system
+  labels:
+    name: platform-system
+    platform.io/managed: "true"
+    platform.io/component: "platform-system"
+    istio-injection: enabled  # Enable Istio sidecar injection
+  annotations:
+    platform.io/description: "Platform engineering system namespace for namespace-as-a-service API"
+    platform.io/created-by: "platform-ops"

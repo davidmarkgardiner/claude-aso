@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-api-config
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+data:
+  NODE_ENV: "production"
+  KUBE_CONTEXT: "current"
+  KUBE_NAMESPACE: "default"
+  # JWT Configuration
+  JWT_ISSUER: "platform-api"
+  JWT_AUDIENCE: "platform-users"
+  JWT_EXPIRES_IN: "24h"
+  # CORS Configuration
+  CORS_ORIGINS: "http://localhost:3000,http://localhost:7007,https://platform.cluster.local"
+  # Platform Configuration
+  PLATFORM_DEFAULT_TIER: "small"
+  PLATFORM_MAX_NAMESPACES_PER_TEAM: "10"
+  PLATFORM_ALLOWED_FEATURES: "istio-injection,monitoring-enhanced,backup-enabled,gpu-access,database-access,external-ingress"
+  PLATFORM_COST_TRACKING: "true"
+  PLATFORM_AUDIT_RETENTION_DAYS: "90"
+  # Rate Limiting Configuration
+  RATE_LIMIT_WINDOW_MS: "900000"  # 15 minutes
+  RATE_LIMIT_MAX_REQUESTS: "100"
+  RATE_LIMIT_SKIP_SUCCESS: "false"
+  # Logging Configuration
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"

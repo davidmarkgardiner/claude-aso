@@ -1,0 +1,20 @@
+apiVersion: authorization.azure.com/v1api20200801preview
+kind: RoleAssignment
+metadata:
+  name: platform-api-cluster-admin
+  namespace: azure-system
+  labels:
+    platform.io/managed: "true"
+    platform.io/component: "platform-api"
+    platform.io/environment: "production"
+    platform.io/rbac-type: "cluster-admin"
+spec:
+  # Reference to the platform API managed identity's principal ID
+  principalId: "$(platform-api-identity-cm:principalId)"
+  principalType: ServicePrincipal
+  # AKS RBAC Cluster Admin role definition ID
+  roleDefinitionId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b
+  # Scope: entire AKS cluster
+  scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+  owner:
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
