@@ -45,9 +45,9 @@ spec:
         - name: AZURE_USE_WORKLOAD_IDENTITY_EXTENSION
           value: "true"
         - name: AZURE_CLIENT_ID
-          value: "721782e9-90d6-4563-8e92-a0889337243e"
+          value: "${clientId}"
         - name: AZURE_TENANT_ID
-          value: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
+          value: "${tenantId}"
         - name: AZURE_SUBSCRIPTION_ID
           value: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
         ports:

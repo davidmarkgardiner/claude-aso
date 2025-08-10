@@ -25,7 +25,7 @@ spec:
     serviceAccount:
       create: true
       annotations:
-        azure.workload.identity/client-id: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
+        azure.workload.identity/client-id: "${clientId}"
       labels:
         azure.workload.identity/use: "true"
 
@@ -51,7 +51,7 @@ spec:
       serviceAccount:
         create: true
         annotations:
-          azure.workload.identity/client-id: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
+          azure.workload.identity/client-id: "${clientId}"
         labels:
           azure.workload.identity/use: "true"
       
@@ -71,7 +71,7 @@ spec:
       serviceAccount:
         create: true
         annotations:
-          azure.workload.identity/client-id: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
+          azure.workload.identity/client-id: "${clientId}"
         labels:
           azure.workload.identity/use: "true"
       
@@ -91,7 +91,7 @@ spec:
       serviceAccount:
         create: true
         annotations:
-          azure.workload.identity/client-id: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
+          azure.workload.identity/client-id: "${clientId}"
         labels:
           azure.workload.identity/use: "true"
       

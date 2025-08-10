@@ -8,11 +8,11 @@ spec:
   gitRepository:
     provider: Generic
     repositoryRef:
-      branch: infra
+      branch: test-cluster-build
     url: https://github.com/davidmarkgardiner/claude-aso
   kustomizations:
-    apps:
-      path: ./apps
+    external-dns:
+      path: ./apps/external-dns
       timeoutInSeconds: 600
       syncIntervalInSeconds: 120
       prune: true
@@ -22,6 +22,24 @@ spec:
           - kind: ConfigMap
             name: external-dns-identity-cm
             optional: false
+    cert-manager:
+      path: ./apps/cert-manager
+      timeoutInSeconds: 600
+      syncIntervalInSeconds: 120
+      prune: true
+      force: true
+      postBuild:
+        substituteFrom:
+          - kind: ConfigMap
+            name: cert-manager-identity-cm
+            optional: false
+    apps:
+      dependsOn: ["external-dns", "cert-manager"]
+      path: ./apps
+      timeoutInSeconds: 600
+      syncIntervalInSeconds: 120
+      prune: true
+      force: true
     istio-app:
       dependsOn: ["apps"]
       path: ./istio-apps
