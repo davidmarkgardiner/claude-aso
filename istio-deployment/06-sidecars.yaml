@@ -1,0 +1,102 @@
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default-sidecar
+  namespace: istio-demo
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  ingress:
+  - port:
+      number: 9898
+      protocol: HTTP
+      name: http
+    defaultEndpoint: 127.0.0.1:9898
+  egress:
+  - port:
+      number: 443
+      protocol: HTTPS
+    hosts:
+    - "*/httpbin.org"
+  - hosts:
+    - "./*"
+    - "aks-istio-system/*"
+    - "aks-istio-ingress/*"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default-sidecar
+  namespace: istio-staging
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  ingress:
+  - port:
+      number: 9898
+      protocol: HTTP
+      name: http
+    defaultEndpoint: 127.0.0.1:9898
+  egress:
+  - port:
+      number: 443
+      protocol: HTTPS
+    hosts:
+    - "*/jsonplaceholder.typicode.com"
+  - hosts:
+    - "./*"
+    - "aks-istio-system/*"
+    - "aks-istio-ingress/*"
+    - "istio-demo/*"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default-sidecar
+  namespace: istio-production
+spec:
+  workloadSelector:
+    labels:
+      app: podinfo
+  ingress:
+  - port:
+      number: 9898
+      protocol: HTTP
+      name: http
+    defaultEndpoint: 127.0.0.1:9898
+  egress:
+  - port:
+      number: 443
+      protocol: HTTPS
+    hosts:
+    - "*/login.microsoftonline.com"
+    - "*/management.azure.com"
+    - "*/monitoring.azure.com"
+  - port:
+      number: 5432
+      protocol: TCP
+    hosts:
+    - "*/postgres.example.com"
+  - hosts:
+    - "./*"
+    - "aks-istio-system/*"
+    - "aks-istio-ingress/*"
+---
+# Global sidecar for istio-system namespace
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: istio-system-sidecar
+  namespace: aks-istio-system
+spec:
+  egress:
+  - hosts:
+    - "./*"
+    - "istio-demo/*"
+    - "istio-staging/*"
+    - "istio-production/*"
+    - "aks-istio-ingress/*"
+    - "*/*.local"

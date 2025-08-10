@@ -1,0 +1,493 @@
+# Recovery Services Vault for backup and disaster recovery
+apiVersion: recoveryservices.azure.com/v1api20230201
+kind: Vault
+metadata:
+  name: aks-prod-backup-vault
+  namespace: azure-system
+  labels:
+    component: backup-recovery
+    tier: production
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    # Enhanced security features
+    securitySettings:
+      immutabilitySettings:
+        state: Unlocked  # Can be set to Locked for immutable backups
+      softDeleteSettings:
+        softDeleteState: Enabled
+        softDeleteRetentionPeriod: 30  # Days
+    
+    # Encryption settings
+    encryption:
+      keyVaultProperties:
+        keyUri: https://aks-prod-keyvault.vault.azure.net/keys/backup-encryption-key
+      kekIdentity:
+        userAssignedIdentity: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ManagedIdentity/userAssignedIdentities/backup-identity
+      infrastructureEncryption: Enabled
+    
+    # Cross-region restore
+    restoreSettings:
+      crossRegionRestore: Enabled
+  
+  sku:
+    name: Standard  # Standard tier supports cross-region restore
+    tier: Standard
+  
+  tags:
+    environment: production
+    backup-tier: enterprise
+    cross-region-restore: enabled
+    soft-delete: enabled
+
+---
+# Managed Identity for backup vault encryption
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: backup-identity
+  namespace: azure-system
+  labels:
+    component: security
+    usage: backup-encryption
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  tags:
+    purpose: backup-vault-encryption
+
+---
+# Key Vault access for backup identity
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: backup-keyvault-access
+  namespace: azure-system
+spec:
+  owner:
+    name: aks-prod-keyvault
+    group: keyvault.azure.com
+    kind: Vault
+  principalIdFromConfig:
+    name: backup-identity-cm
+    key: principalId
+  roleDefinitionReference:
+    # Key Vault Crypto Service Encryption User
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/e147488a-f6f5-4113-8e2d-b22465e65bf6
+
+---
+# Backup Policy for Virtual Machines
+apiVersion: recoveryservices.azure.com/v1api20230201
+kind: BackupPolicy
+metadata:
+  name: vm-backup-policy
+  namespace: azure-system
+  labels:
+    component: backup-policies
+    resource-type: virtual-machines
+spec:
+  owner:
+    name: aks-prod-backup-vault
+    group: recoveryservices.azure.com
+    kind: Vault
+  properties:
+    backupManagementType: AzureIaasVM
+    # Schedule configuration
+    schedulePolicy:
+      schedulePolicyType: SimpleSchedulePolicy
+      scheduleRunFrequency: Daily
+      scheduleRunTimes:
+        - "2024-01-01T02:00:00Z"  # Daily at 2 AM
+      scheduleWeeklyFrequency: 0
+    
+    # Retention policy
+    retentionPolicy:
+      retentionPolicyType: LongTermRetentionPolicy
+      dailySchedule:
+        retentionTimes:
+          - "2024-01-01T02:00:00Z"
+        retentionDuration:
+          count: 30
+          durationType: Days
+      weeklySchedule:
+        daysOfTheWeek:
+          - Monday
+        retentionTimes:
+          - "2024-01-01T02:00:00Z"
+        retentionDuration:
+          count: 12
+          durationType: Weeks
+      monthlySchedule:
+        retentionScheduleFormatType: Daily
+        retentionScheduleDaily:
+          daysOfTheMonth:
+            - date: 1
+              isLast: false
+        retentionTimes:
+          - "2024-01-01T02:00:00Z"
+        retentionDuration:
+          count: 12
+          durationType: Months
+      yearlySchedule:
+        retentionScheduleFormatType: Daily
+        monthsOfYear:
+          - January
+        retentionScheduleDaily:
+          daysOfTheMonth:
+            - date: 1
+              isLast: false
+        retentionTimes:
+          - "2024-01-01T02:00:00Z"
+        retentionDuration:
+          count: 7
+          durationType: Years
+    
+    # Enhanced policy features
+    instantRpRetentionRangeInDays: 2  # Instant restore points
+    timeZone: "GMT Standard Time"
+  tags:
+    policy-type: enhanced
+    retention-years: "7"
+    instant-restore: enabled
+
+---
+# Backup Policy for File Shares
+apiVersion: recoveryservices.azure.com/v1api20230201
+kind: BackupPolicy
+metadata:
+  name: fileshare-backup-policy
+  namespace: azure-system
+  labels:
+    component: backup-policies
+    resource-type: file-shares
+spec:
+  owner:
+    name: aks-prod-backup-vault
+    group: recoveryservices.azure.com
+    kind: Vault
+  properties:
+    backupManagementType: AzureStorage
+    workLoadType: AzureFileShare
+    
+    # Schedule configuration for file shares
+    schedulePolicy:
+      schedulePolicyType: SimpleSchedulePolicy
+      scheduleRunFrequency: Daily
+      scheduleRunTimes:
+        - "2024-01-01T01:00:00Z"  # Daily at 1 AM
+    
+    # Retention policy for file shares
+    retentionPolicy:
+      retentionPolicyType: LongTermRetentionPolicy
+      dailySchedule:
+        retentionTimes:
+          - "2024-01-01T01:00:00Z"
+        retentionDuration:
+          count: 30
+          durationType: Days
+      weeklySchedule:
+        daysOfTheWeek:
+          - Sunday
+        retentionTimes:
+          - "2024-01-01T01:00:00Z"
+        retentionDuration:
+          count: 12
+          durationType: Weeks
+      monthlySchedule:
+        retentionScheduleFormatType: Daily
+        retentionScheduleDaily:
+          daysOfTheMonth:
+            - date: 1
+              isLast: false
+        retentionTimes:
+          - "2024-01-01T01:00:00Z"
+        retentionDuration:
+          count: 12
+          durationType: Months
+    
+    timeZone: "GMT Standard Time"
+  tags:
+    resource-type: azure-file-share
+    schedule: daily
+
+---
+# Site Recovery Vault for DR (separate vault recommended)
+apiVersion: recoveryservices.azure.com/v1api20230201
+kind: Vault
+metadata:
+  name: aks-prod-dr-vault
+  namespace: azure-system
+  labels:
+    component: disaster-recovery
+    tier: production
+    purpose: site-recovery
+spec:
+  location: ukwest  # Different region for DR
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    # Enhanced security for DR
+    securitySettings:
+      immutabilitySettings:
+        state: Unlocked
+      softDeleteSettings:
+        softDeleteState: Enabled
+        softDeleteRetentionPeriod: 30
+  
+  sku:
+    name: Standard
+    tier: Standard
+  
+  tags:
+    environment: production
+    purpose: disaster-recovery
+    region: secondary
+
+---
+# Storage Account for backup storage (secondary region)
+apiVersion: storage.azure.com/v1api20230101
+kind: StorageAccount
+metadata:
+  name: aksdrbackupukw001
+  namespace: azure-system
+  labels:
+    component: backup-storage
+    region: secondary
+spec:
+  location: ukwest
+  owner:
+    name: at39473-weu-dev-prod
+  kind: StorageV2
+  sku:
+    name: Standard_GRS  # Geo-redundant storage for DR
+  properties:
+    # Security settings
+    allowBlobPublicAccess: false
+    minimumTlsVersion: TLS1_2
+    supportsHttpsTrafficOnly: true
+    
+    # Network restrictions
+    networkAcls:
+      defaultAction: Deny
+      bypass: AzureServices
+    
+    # Encryption
+    encryption:
+      services:
+        blob:
+          enabled: true
+        file:
+          enabled: true
+      keySource: Microsoft.Storage
+    
+    accessTier: Cool  # Cost-effective for backup storage
+  tags:
+    purpose: backup-storage
+    region: disaster-recovery
+    geo-redundant: enabled
+
+---
+# Automation Account for backup automation
+apiVersion: automation.azure.com/v1api20201301
+kind: AutomationAccount
+metadata:
+  name: aks-backup-automation
+  namespace: azure-system
+  labels:
+    component: backup-automation
+    purpose: scheduled-tasks
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    # Use system-assigned managed identity
+    identity:
+      type: SystemAssigned
+    
+    # Disable local authentication
+    disableLocalAuth: true
+    
+    # Enable encryption
+    encryption:
+      keySource: Microsoft.Automation
+      keyVaultProperties:
+        keyName: automation-encryption-key
+        keyVaultUri: https://aks-prod-keyvault.vault.azure.net
+        keyVersion: ""
+  
+  sku:
+    name: Basic
+    capacity: 1
+  
+  tags:
+    automation-type: backup-management
+    identity: system-assigned
+
+---
+# Runbook for automated backup verification
+apiVersion: automation.azure.com/v1api20201301
+kind: Runbook
+metadata:
+  name: verify-backup-integrity
+  namespace: azure-system
+  labels:
+    component: backup-automation
+    purpose: verification
+spec:
+  owner:
+    name: aks-backup-automation
+    group: automation.azure.com
+    kind: AutomationAccount
+  properties:
+    runbookType: PowerShell
+    description: "Automated backup integrity verification"
+    publishContentLink:
+      uri: "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/quickstarts/microsoft.automation/automation-account-runbook/backup-verification.ps1"
+      version: "1.0.0.0"
+  tags:
+    schedule: daily
+    purpose: integrity-check
+
+---
+# Schedule for backup verification runbook
+apiVersion: automation.azure.com/v1api20201301
+kind: Schedule
+metadata:
+  name: daily-backup-verification
+  namespace: azure-system
+  labels:
+    component: automation-schedule
+spec:
+  owner:
+    name: aks-backup-automation
+    group: automation.azure.com
+    kind: AutomationAccount
+  properties:
+    description: "Daily backup verification schedule"
+    frequency: Day
+    interval: 1
+    startTime: "2024-01-01T03:00:00+00:00"  # 3 AM daily
+    timeZone: "GMT Standard Time"
+    advancedSchedule:
+      weekDays: []
+      monthDays: []
+      monthlyOccurrences: []
+  tags:
+    frequency: daily
+    start-time: "03:00"
+
+---
+# Job Schedule to link runbook with schedule
+apiVersion: automation.azure.com/v1api20201301
+kind: JobSchedule
+metadata:
+  name: backup-verification-job-schedule
+  namespace: azure-system
+spec:
+  owner:
+    name: aks-backup-automation
+    group: automation.azure.com
+    kind: AutomationAccount
+  properties:
+    runbook:
+      name: verify-backup-integrity
+    schedule:
+      name: daily-backup-verification
+    parameters: {}
+  tags:
+    job-type: backup-verification
+
+---
+# Alert Rule for backup failures
+apiVersion: insights.azure.com/v1api20230101
+kind: ScheduledQueryRule
+metadata:
+  name: backup-failure-alert
+  namespace: azure-system
+  labels:
+    component: backup-monitoring
+    alert-type: failure
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    description: "Alert when backup jobs fail"
+    severity: 1  # Error
+    enabled: true
+    evaluationFrequency: PT15M  # Check every 15 minutes
+    windowSize: PT1H           # Look back 1 hour
+    
+    criteria:
+      allOf:
+        - query: |
+            CoreAzureBackup
+            | where TimeGenerated > ago(1h)
+            | where OperationName == "Backup" 
+            | where BackupItemType == "VM"
+            | where JobStatus == "Failed"
+            | summarize FailedJobs = count() by bin(TimeGenerated, 15m)
+            | where FailedJobs > 0
+        - threshold: 0
+        - operator: GreaterThan
+        - timeAggregation: Count
+        - failingPeriods:
+            minFailingPeriodsToAlert: 1
+            numberOfEvaluationPeriods: 1
+    
+    scopes:
+      - /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+    
+    actions:
+      actionGroups:
+        - /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/microsoft.insights/actionGroups/aks-production-alerts
+
+---
+# RBAC for backup automation account
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: backup-automation-contributor
+  namespace: azure-system
+spec:
+  # Scope to the resource group
+  scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
+  principalIdFromConfig:
+    name: aks-backup-automation-cm
+    key: principalId
+  roleDefinitionReference:
+    # Backup Contributor role
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/5e467623-bb1f-42f4-a55d-6e525e11384b
+
+---
+# Diagnostic Settings for Recovery Vault
+apiVersion: insights.azure.com/v1api20230101
+kind: DiagnosticSetting
+metadata:
+  name: backup-vault-diagnostics
+  namespace: azure-system
+spec:
+  resourceUri: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.RecoveryServices/vaults/aks-prod-backup-vault
+  workspaceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+  properties:
+    logs:
+      - category: CoreAzureBackup
+        enabled: true
+      - category: AddonAzureBackupJobs
+        enabled: true
+      - category: AddonAzureBackupAlerts
+        enabled: true
+      - category: AddonAzureBackupPolicy
+        enabled: true
+      - category: AddonAzureBackupStorage
+        enabled: true
+      - category: AddonAzureBackupProtectedInstance
+        enabled: true
+    metrics:
+      - category: Health
+        enabled: true

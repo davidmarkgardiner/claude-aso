@@ -1,0 +1,88 @@
+# Storage Account for persistent volumes and backup
+apiVersion: storage.azure.com/v1api20230101
+kind: StorageAccount
+metadata:
+  name: aksprodstorageaccount
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  kind: StorageV2
+  sku:
+    name: Standard_LRS
+  accessTier: Hot
+  # Security configurations
+  minimumTlsVersion: TLS1_2
+  allowBlobPublicAccess: false
+  enableHttpsTrafficOnly: true
+  allowSharedKeyAccess: false
+  # Network restrictions
+  networkRuleSet:
+    defaultAction: Deny
+    bypass:
+      - AzureServices
+      - Logging
+      - Metrics
+    ipRules:
+      - value: "0.0.0.0/0"  # Replace with your IP ranges
+        action: Allow
+  # Advanced threat protection
+  enableNfsV3: false
+  enableAdvancedThreatProtection: true
+  tags:
+    environment: production
+    managedBy: aso
+    purpose: persistent-volumes
+---
+# Container Registry for private images
+apiVersion: containerregistry.azure.com/v1api20230701
+kind: Registry
+metadata:
+  name: aksprodcontainerregistry
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  sku:
+    name: Standard
+  # Security settings
+  adminUserEnabled: false
+  # Network restrictions
+  networkRuleSet:
+    defaultAction: Deny
+    publicNetworkAccess: Enabled
+  policies:
+    quarantinePolicy:
+      status: Enabled
+    trustPolicy:
+      type: Notary
+      status: Enabled
+    retentionPolicy:
+      status: Enabled
+      days: 30
+  # Enable vulnerability scanning
+  anonymousPullEnabled: false
+  dataEndpointEnabled: false
+  tags:
+    environment: production
+    managedBy: aso
+---
+# Role assignment for AKS to pull from ACR
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: aks-acr-pull-role
+  namespace: azure-system
+spec:
+  owner:
+    name: aksprodcontainerregistry
+    group: containerregistry.azure.com
+    kind: Registry
+  principalIdFromConfig:
+    name: external-dns-identity-cm
+    key: principalId
+  roleDefinitionReference:
+    # AcrPull role
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d

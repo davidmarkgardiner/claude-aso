@@ -24,9 +24,11 @@ resources:
   - networking/service-entries.yaml
   - networking/sidecars.yaml
   
-  # Security
+  # Security Enhancements
   - security/authorization-policies.yaml
   - security/peer-authentication.yaml
+  - security/certificate-management.yaml
+  - security/mtls-strict-enforcement.yaml
   
   # Progressive Deployment
   - progressive-deployment/flagger-config.yaml
@@ -43,10 +45,23 @@ resources:
   - apps/tenant-b/
   - apps/shared-services/
   
-  # Testing and validation
+  # Enhanced Observability & Monitoring
+  - observability/advanced-monitoring.yaml
+  
+  # Performance Optimization
+  - performance/resource-optimization.yaml
+  
+  # Disaster Recovery & Multi-Region
+  - disaster-recovery/multi-region-setup.yaml
+  
+  # Comprehensive Testing
   - testing/load-generator.yaml
   - testing/external-test-client.yaml
   - testing/gitops-test-suite.yaml
+  - testing/comprehensive-test-suite.yaml
+  
+  # Compliance & Governance
+  - governance/compliance-framework.yaml
 
 # Common labels applied to all resources
 commonLabels:

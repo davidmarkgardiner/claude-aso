@@ -1,0 +1,84 @@
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: httpbin-external
+  namespace: istio-demo
+spec:
+  hosts:
+  - httpbin.org
+  ports:
+  - number: 80
+    name: http
+    protocol: HTTP
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: jsonplaceholder-external
+  namespace: istio-staging
+spec:
+  hosts:
+  - jsonplaceholder.typicode.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: azure-monitoring
+  namespace: istio-production
+spec:
+  hosts:
+  - login.microsoftonline.com
+  - management.azure.com
+  - monitoring.azure.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# ServiceEntry for database connection (simulated external database)
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: postgres-external
+  namespace: istio-production
+spec:
+  hosts:
+  - postgres.example.com
+  ports:
+  - number: 5432
+    name: postgres
+    protocol: TCP
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# DestinationRule for external postgres with TLS
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: postgres-external-dr
+  namespace: istio-production
+spec:
+  host: postgres.example.com
+  trafficPolicy:
+    tls:
+      mode: SIMPLE
+    connectionPool:
+      tcp:
+        maxConnections: 5
+        connectTimeout: 10s
+      http:
+        http1MaxPendingRequests: 5

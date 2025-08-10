@@ -1,0 +1,143 @@
+# PostgreSQL Flexible Server for application databases
+apiVersion: dbforpostgresql.azure.com/v1api20221201
+kind: FlexibleServer
+metadata:
+  name: aks-prod-postgres
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  # Server configuration
+  sku:
+    name: Standard_B2s
+    tier: Burstable
+  version: "15"
+  # Storage configuration
+  storage:
+    storageSizeGB: 128
+    autoGrow: Enabled
+  # Backup configuration
+  backup:
+    backupRetentionDays: 35
+    geoRedundantBackup: Disabled
+  # High availability (for production)
+  highAvailability:
+    mode: Disabled  # Enable for production: ZoneRedundant or SameZone
+  # Network configuration
+  network:
+    # Delegate to subnet for VNet integration
+    delegatedSubnetResourceReference:
+      armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/aks-nodes-subnet
+    # Private DNS zone for name resolution
+    privateDnsZoneResourceReference:
+      armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/privateDnsZones/postgres.database.azure.com
+  # Administrator credentials (should be stored in Key Vault)
+  administratorLogin: adminuser
+  administratorLoginPassword: "TempPassword123!"  # Use Key Vault reference in production
+  # Server parameters
+  configurations:
+    - name: log_connections
+      value: "on"
+    - name: log_disconnections
+      value: "on"
+    - name: log_checkpoints
+      value: "on"
+  tags:
+    environment: production
+    managedBy: aso
+    service: database
+---
+# Private DNS Zone for PostgreSQL
+apiVersion: network.azure.com/v1api20220701
+kind: PrivateDnsZone
+metadata:
+  name: postgres-dns-zone
+  namespace: azure-system
+spec:
+  zoneName: postgres.database.azure.com
+  owner:
+    name: at39473-weu-dev-prod
+  tags:
+    environment: production
+    managedBy: aso
+---
+# VNet Link for Private DNS Zone
+apiVersion: network.azure.com/v1api20220701
+kind: PrivateDnsZoneVirtualNetworkLink
+metadata:
+  name: postgres-vnet-link
+  namespace: azure-system
+spec:
+  owner:
+    name: postgres-dns-zone
+    group: network.azure.com
+    kind: PrivateDnsZone
+  virtualNetworkReference:
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet
+  registrationEnabled: false
+  tags:
+    environment: production
+    managedBy: aso
+---
+# CosmosDB Account for NoSQL workloads
+apiVersion: documentdb.azure.com/v1api20231115
+kind: DatabaseAccount
+metadata:
+  name: aks-prod-cosmosdb
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  # Database configuration
+  databaseAccountOfferType: Standard
+  kind: GlobalDocumentDB
+  # Consistency levels
+  consistencyPolicy:
+    defaultConsistencyLevel: Session
+  # Multi-region configuration
+  locations:
+    - locationName: uksouth
+      failoverPriority: 0
+      isZoneRedundant: false
+  # Network configuration
+  publicNetworkAccess: Disabled
+  networkAclBypass: AzureServices
+  # Backup configuration
+  backupPolicy:
+    type: Periodic
+    periodicModeProperties:
+      backupIntervalInMinutes: 240
+      backupRetentionIntervalInHours: 720  # 30 days
+      backupStorageRedundancy: Local
+  # Security features
+  enableFreeTier: false
+  enableAnalyticalStorage: false
+  enableAutomaticFailover: true
+  enableMultipleWriteLocations: false
+  tags:
+    environment: production
+    managedBy: aso
+    service: nosql-database
+---
+# Private endpoint for CosmosDB
+apiVersion: network.azure.com/v1api20220701
+kind: PrivateEndpoint
+metadata:
+  name: cosmosdb-private-endpoint
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  subnetReference:
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/private-endpoints-subnet
+  privateLinkServiceConnections:
+    - name: cosmosdb-connection
+      privateLinkServiceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.DocumentDB/databaseAccounts/aks-prod-cosmosdb
+      groupIds:
+        - Sql
+  tags:
+    environment: production
+    managedBy: aso

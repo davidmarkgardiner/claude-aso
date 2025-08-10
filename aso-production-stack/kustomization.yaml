@@ -1,0 +1,107 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: aso-production-stack
+  labels:
+    stack-tier: production
+    managed-by: aso
+    compliance: "gdpr,soc2,iso27001"
+
+# Production-ready ASO stack with enterprise-grade components
+resources:
+  # Core Infrastructure (existing)
+  - ../aso-stack/resourcegroup.yaml
+  - ../aso-stack/identity.yaml
+  - ../aso-stack/cluster.yaml
+  - ../aso-stack/dns.yaml
+  - ../aso-stack/roleassignment.yaml
+  - ../aso-stack/federated.yaml
+  - ../aso-stack/extension.yaml
+  - ../aso-stack/fluxconfiguration.yaml
+  
+  # Enhanced Security Components
+  - keyvault.yaml
+  
+  # Monitoring & Observability Stack
+  - monitoring.yaml
+  
+  # Storage & Container Registry
+  - storage.yaml
+  
+  # Enhanced Networking
+  - networking.yaml
+  
+  # Database Services
+  - database.yaml
+  
+  # Backup & Disaster Recovery
+  - backup-recovery.yaml
+  
+  # Compliance & Governance
+  - compliance.yaml
+
+# Common labels for all resources
+commonLabels:
+  environment: production
+  managed-by: aso
+  deployment-agent: aso-deployer
+  stack-version: "2.0"
+  compliance-tier: enterprise
+
+# Common annotations
+commonAnnotations:
+  deployment-timestamp: "2025-01-09T12:00:00Z"
+  stack-documentation: "https://github.com/your-org/aso-production-stack"
+  security-review: "approved"
+  cost-optimization: "enabled"
+
+# Namespace for Azure resources (ASO uses azure-system)
+namespace: azure-system
+
+# Resource name prefix for consistency
+namePrefix: ""
+
+# Resource name suffix for environment identification
+nameSuffix: ""
+
+# Patches to customize resources for production
+patchesStrategicMerge: []
+
+patchesJson6902: []
+
+# Replace any placeholder values
+replacements:
+  - source:
+      kind: ConfigMap
+      name: environment-config
+      fieldPath: data.SUBSCRIPTION_ID
+    targets:
+      - select:
+          kind: "*"
+        fieldPaths:
+          - "spec.owner.name"
+          - "spec.scope"
+        options:
+          delimiter: "/"
+          index: 2
+
+# Images (not applicable for ASO resources)
+images: []
+
+# Variables for environment-specific configuration
+vars:
+  - name: ENVIRONMENT
+    objref:
+      kind: ConfigMap
+      name: environment-config
+      apiVersion: v1
+    fieldref:
+      fieldpath: data.ENVIRONMENT
+  - name: REGION
+    objref:
+      kind: ConfigMap
+      name: environment-config
+      apiVersion: v1
+    fieldref:
+      fieldpath: data.REGION

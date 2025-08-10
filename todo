@@ -1,0 +1,7 @@
+Ask the platform RBAC specialist to integrate the ASO RBAC solution with the platform API.            
+
+Get in the habit of creating git branches so we can roll back. 
+
+Split up the cluster with the DNS server manager and then deploy the UI. Basically, it can create namespaces on itself. 
+
+Work with UX designer to make the frontend more user-friendly. 

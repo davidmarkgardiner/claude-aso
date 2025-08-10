@@ -1,0 +1,239 @@
+# Azure Key Vault for centralized secrets management
+apiVersion: keyvault.azure.com/v1api20230701
+kind: Vault
+metadata:
+  name: aks-prod-keyvault
+  namespace: azure-system
+  labels:
+    component: security
+    tier: production
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    # Enable RBAC instead of access policies for better security
+    enableRbacAuthorization: true
+    
+    # Soft delete protection (required for production)
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 90
+    
+    # Purge protection prevents permanent deletion
+    enablePurgeProtection: true
+    
+    # Network access restrictions
+    networkAcls:
+      defaultAction: Deny
+      bypass: AzureServices
+      # Allow access from AKS subnet and management IPs
+      ipRules:
+        - value: "10.0.0.0/16"  # AKS cluster CIDR
+        - value: "20.90.132.0/24"  # Azure services range
+    
+    # Enable for Azure services integration
+    enabledForDeployment: true
+    enabledForTemplateDeployment: true
+    enabledForDiskEncryption: true
+    
+    # Tenant ID for RBAC
+    tenantId: 550cfcda-8a2d-452c-ba71-d6bc6bf5bb31
+  
+  sku:
+    family: A
+    name: standard  # Use premium for HSM-backed keys if needed
+  
+  tags:
+    environment: production
+    cost-center: infra
+    backup-required: "true"
+    compliance: "gdpr,soc2"
+
+---
+# Private Endpoint for Key Vault (secure access)
+apiVersion: network.azure.com/v1api20220701
+kind: PrivateEndpoint
+metadata:
+  name: keyvault-private-endpoint
+  namespace: azure-system
+  labels:
+    component: security-networking
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    subnet:
+      # Reference to AKS cluster subnet
+      armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-vnet/subnets/default
+    privateLinkServiceConnections:
+      - name: keyvault-connection
+        properties:
+          privateLinkServiceId:
+            armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.KeyVault/vaults/aks-prod-keyvault
+          groupIds:
+            - vault
+
+---
+# Key Vault Secrets Officer role for cert-manager identity
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: keyvault-secrets-officer-cert-manager
+  namespace: azure-system
+  labels:
+    component: rbac
+    identity: cert-manager
+spec:
+  owner:
+    name: aks-prod-keyvault
+    group: keyvault.azure.com
+    kind: Vault
+  principalIdFromConfig:
+    name: cert-manager-identity-cm
+    key: principalId
+  roleDefinitionReference:
+    # Key Vault Secrets Officer - can manage secrets
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b86a8fe4-44ce-4948-aee5-eccb2c155cd7
+
+---
+# Key Vault Secrets User role for external-dns identity
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: keyvault-secrets-user-external-dns
+  namespace: azure-system
+  labels:
+    component: rbac
+    identity: external-dns
+spec:
+  owner:
+    name: aks-prod-keyvault
+    group: keyvault.azure.com
+    kind: Vault
+  principalIdFromConfig:
+    name: external-dns-identity-cm
+    key: principalId
+  roleDefinitionReference:
+    # Key Vault Secrets User - can read secrets only
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6
+
+---
+# Key Vault Crypto Officer role for AKS cluster
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: keyvault-crypto-officer-aks
+  namespace: azure-system
+  labels:
+    component: rbac
+    identity: aks-cluster
+spec:
+  owner:
+    name: aks-prod-keyvault
+    group: keyvault.azure.com
+    kind: Vault
+  principalIdFromConfig:
+    name: flux-identity-cm
+    key: principalId
+  roleDefinitionReference:
+    # Key Vault Crypto Officer - manage encryption keys
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/14b46e9e-c2b7-41b4-b07b-48a6ebf60603
+
+---
+# Example: TLS certificate secret for Istio Gateway
+apiVersion: keyvault.azure.com/v1api20230701
+kind: VaultsSecret
+metadata:
+  name: istio-gateway-tls-cert
+  namespace: azure-system
+  labels:
+    component: tls-certificates
+    usage: istio-gateway
+spec:
+  owner:
+    name: aks-prod-keyvault
+  properties:
+    contentType: "application/x-pkcs12"
+    attributes:
+      enabled: true
+      # Expiry in 1 year (adjust as needed)
+      exp: 1767225600
+    # Tags for cert management
+    tags:
+      domain: "davidmarkgardiner.co.uk"
+      issuer: "cert-manager"
+      auto-renewal: "enabled"
+  # Placeholder - actual certificate will be managed by cert-manager
+  value: "MIIxxxxxx..."  # Base64 encoded certificate
+
+---
+# Database connection string secret
+apiVersion: keyvault.azure.com/v1api20230701
+kind: VaultsSecret
+metadata:
+  name: postgres-connection-string
+  namespace: azure-system
+  labels:
+    component: database-credentials
+    service: postgresql
+spec:
+  owner:
+    name: aks-prod-keyvault
+  properties:
+    contentType: "application/connection-string"
+    attributes:
+      enabled: true
+    tags:
+      database: "postgresql"
+      environment: "production"
+  # Placeholder - will be updated by database deployment
+  value: "postgresql://username:password@server:5432/database"
+
+---
+# Redis connection secret
+apiVersion: keyvault.azure.com/v1api20230701
+kind: VaultsSecret
+metadata:
+  name: redis-connection-string
+  namespace: azure-system
+  labels:
+    component: cache-credentials
+    service: redis
+spec:
+  owner:
+    name: aks-prod-keyvault
+  properties:
+    contentType: "application/connection-string"
+    attributes:
+      enabled: true
+    tags:
+      service: "redis-cache"
+      environment: "production"
+  # Placeholder - will be updated by Redis deployment
+  value: "redis://username:password@server:6380/0?ssl=true"
+
+---
+# Azure Monitor API key for observability
+apiVersion: keyvault.azure.com/v1api20230701
+kind: VaultsSecret
+metadata:
+  name: azure-monitor-api-key
+  namespace: azure-system
+  labels:
+    component: monitoring-credentials
+    service: azure-monitor
+spec:
+  owner:
+    name: aks-prod-keyvault
+  properties:
+    contentType: "text/plain"
+    attributes:
+      enabled: true
+    tags:
+      service: "azure-monitor"
+      usage: "api-access"
+  # Placeholder - actual key from Azure Monitor
+  value: "placeholder-api-key"

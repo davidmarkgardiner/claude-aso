@@ -1,0 +1,94 @@
+# Log Analytics Workspace for centralized logging
+apiVersion: operationalinsights.azure.com/v1api20221001
+kind: Workspace
+metadata:
+  name: aks-prod-logs
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  sku:
+    name: PerGB2018
+  retentionInDays: 90
+  features:
+    enableLogAccessUsingOnlyResourcePermissions: true
+    disableLocalAuth: false
+  tags:
+    environment: production
+    managedBy: aso
+---
+# Application Insights for application monitoring
+apiVersion: insights.azure.com/v1api20220615
+kind: Component
+metadata:
+  name: aks-prod-appinsights
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  applicationType: web
+  workspaceResourceReference:
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs
+  ingestionMode: LogAnalytics
+  tags:
+    environment: production
+    managedBy: aso
+---
+# Action Group for alert notifications
+apiVersion: insights.azure.com/v1api20220615
+kind: ActionGroup
+metadata:
+  name: aks-prod-alerts
+  namespace: azure-system
+spec:
+  location: global
+  owner:
+    name: at39473-weu-dev-prod
+  enabled: true
+  groupShortName: AKS-Prod
+  emailReceivers:
+    - name: DevOps-Team
+      emailAddress: devops@example.com
+      useCommonAlertSchema: true
+  smsReceivers:
+    - name: OnCall-Engineer
+      countryCode: "44"  # UK
+      phoneNumber: "1234567890"
+  azureAppPushReceivers:
+    - name: Teams-Channel
+      emailAddress: devops@example.com
+  tags:
+    environment: production
+    managedBy: aso
+---
+# Metric Alert for high CPU usage
+apiVersion: insights.azure.com/v1api20220615
+kind: MetricAlert
+metadata:
+  name: aks-high-cpu-alert
+  namespace: azure-system
+spec:
+  location: global
+  owner:
+    name: at39473-weu-dev-prod
+  enabled: true
+  severity: 2
+  evaluationFrequency: PT5M
+  windowSize: PT15M
+  scopes:
+    - /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+  criteria:
+    allOf:
+      - name: HighCPU
+        metricName: cpuUsagePercentage
+        metricNamespace: Microsoft.ContainerService/managedClusters
+        operator: GreaterThan
+        threshold: 80
+        timeAggregation: Average
+  actions:
+    - actionGroupId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Insights/actionGroups/aks-prod-alerts
+  tags:
+    environment: production
+    managedBy: aso

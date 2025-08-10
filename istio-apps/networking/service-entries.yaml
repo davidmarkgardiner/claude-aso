@@ -100,9 +100,9 @@ metadata:
     test-scenario: azure-integration
 spec:
   hosts:
-  - "*.ods.opinsights.azure.com"
-  - "*.oms.opinsights.azure.com"
-  - "*.monitoring.azure.com"
+  - ods.opinsights.azure.com
+  - oms.opinsights.azure.com
+  - monitoring.azure.com
   ports:
   - number: 443
     name: https
@@ -156,11 +156,11 @@ spec:
   location: MESH_EXTERNAL
   resolution: DNS
 ---
-# NTP Time servers - For time synchronization
+# NTP Pool - For time synchronization
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
-  name: ntp-servers
+  name: ntp-pool
   namespace: external-services
   labels:
     istio-component: serviceentry
@@ -169,8 +169,6 @@ metadata:
 spec:
   hosts:
   - pool.ntp.org
-  - time.nist.gov
-  - time.google.com
   ports:
   - number: 123
     name: ntp
@@ -178,11 +176,31 @@ spec:
   location: MESH_EXTERNAL
   resolution: DNS
 ---
-# DNS Resolution Services
+# NIST Time Server
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
-  name: dns-services
+  name: nist-time
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: time-synchronization
+spec:
+  hosts:
+  - time.nist.gov
+  ports:
+  - number: 123
+    name: ntp
+    protocol: UDP
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# Google DNS Service
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: google-dns
   namespace: external-services
   labels:
     istio-component: serviceentry
@@ -191,14 +209,6 @@ metadata:
 spec:
   hosts:
   - dns.google
-  - cloudflare-dns.com
-  - "1.1.1.1"
-  - "8.8.8.8"
-  addresses:
-  - 1.1.1.1
-  - 1.0.0.1
-  - 8.8.8.8
-  - 8.8.4.4
   ports:
   - number: 53
     name: dns
@@ -210,4 +220,30 @@ spec:
     name: dns-https
     protocol: HTTPS
   location: MESH_EXTERNAL
-  resolution: STATIC
+  resolution: DNS
+---
+# Cloudflare DNS Service
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: cloudflare-dns
+  namespace: external-services
+  labels:
+    istio-component: serviceentry
+    deployment-agent: istio-engineer
+    test-scenario: dns-resolution
+spec:
+  hosts:
+  - cloudflare-dns.com
+  ports:
+  - number: 53
+    name: dns
+    protocol: UDP
+  - number: 853
+    name: dns-tls
+    protocol: TCP
+  - number: 443
+    name: dns-https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS

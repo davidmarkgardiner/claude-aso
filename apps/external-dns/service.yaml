@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    app.kubernetes.io/name: external-dns
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "7979"
+    prometheus.io/path: "/metrics"
+spec:
+  selector:
+    app.kubernetes.io/name: external-dns
+  ports:
+  - name: http
+    port: 7979
+    targetPort: http
+    protocol: TCP

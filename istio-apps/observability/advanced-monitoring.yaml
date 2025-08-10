@@ -1,0 +1,320 @@
+---
+# OpenTelemetry Collector for Enhanced Observability
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    component: observability
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:0.89.0
+        command:
+        - "/otelcol-contrib"
+        - "--config=/etc/config/otel-collector-config.yaml"
+        ports:
+        - name: jaeger-grpc
+          containerPort: 14250
+        - name: jaeger-thrift
+          containerPort: 14268
+        - name: otlp-grpc
+          containerPort: 4317
+        - name: otlp-http
+          containerPort: 4318
+        - name: metrics
+          containerPort: 8888
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/config
+      volumes:
+      - name: config
+        configMap:
+          name: otel-collector-config
+
+---
+# Service Mesh SLI/SLO Monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: istio-mesh-sli-slo
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    component: sli-slo-monitoring
+spec:
+  selector:
+    matchLabels:
+      app: istio-proxy
+  endpoints:
+  - port: http-monitoring
+    interval: 15s
+    path: /stats/prometheus
+  namespaceSelector:
+    matchNames:
+    - tenant-a
+    - tenant-b
+    - shared-services
+
+---
+# Custom SLO Rules for Service Mesh
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: istio-slo-rules
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    component: slo-monitoring
+spec:
+  groups:
+  - name: istio.slo.rules
+    interval: 30s
+    rules:
+    # Availability SLO (99.9% uptime)
+    - record: istio:sli_availability
+      expr: |
+        sum(rate(istio_requests_total{response_code!~"5.."}[5m])) by (destination_service_name, destination_service_namespace) /
+        sum(rate(istio_requests_total[5m])) by (destination_service_name, destination_service_namespace)
+    
+    # Latency SLO (P95 < 100ms)
+    - record: istio:sli_latency_p95
+      expr: |
+        histogram_quantile(0.95,
+          sum(rate(istio_request_duration_milliseconds_bucket[5m])) by (destination_service_name, destination_service_namespace, le)
+        )
+    
+    # Error Budget Burn Rate
+    - record: istio:error_budget_burn_rate
+      expr: |
+        (1 - istio:sli_availability) / (1 - 0.999)  # For 99.9% SLO
+
+    # SLO Violations Alert
+    - alert: SLOViolation
+      expr: istio:sli_availability < 0.999
+      for: 5m
+      labels:
+        severity: critical
+        deployment_agent: istio-engineer
+      annotations:
+        summary: "Service {{ $labels.destination_service_name }} violating availability SLO"
+        description: "Availability {{ $value | humanizePercentage }} below 99.9% threshold"
+
+---
+# Distributed Tracing Enhancement with Custom Sampling
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: control-plane-tracing
+  namespace: aks-istio-system
+  labels:
+    deployment-agent: istio-engineer
+spec:
+  meshConfig:
+    extensionProviders:
+    - name: jaeger
+      envoyOtelAls:
+        service: jaeger-collector.shared-services.svc.cluster.local
+        port: 14268
+    - name: otel-tracing
+      envoyOtelAls:
+        service: otel-collector.shared-services.svc.cluster.local
+        port: 4317
+    # Custom sampling strategy
+    defaultProviders:
+      tracing:
+      - jaeger
+    # Advanced sampling configuration
+    sampling:
+      - match:
+          headers:
+            x-trace-force:
+              exact: "true"
+        percentage: 100.0  # Force trace all requests with this header
+      - match:
+          headers:
+            user-agent:
+              regex: ".*LoadGenerator.*"
+        percentage: 1.0    # Sample 1% of load generator traffic
+      - percentage: 10.0   # Default 10% sampling
+
+---
+# Business Metrics Collection
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: business-metrics-config
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    component: business-metrics
+data:
+  custom_metrics.yaml: |
+    metrics:
+    - name: business_transaction_count
+      dimensions:
+        tenant: request.headers['x-tenant'] | 'unknown'
+        transaction_type: request.headers['x-transaction-type'] | 'unknown'
+        user_tier: request.headers['x-user-tier'] | 'free'
+      value: '1'
+      unit: transaction
+      
+    - name: business_revenue_per_request
+      dimensions:
+        tenant: request.headers['x-tenant'] | 'unknown'
+        currency: request.headers['x-currency'] | 'USD'
+      value: request.headers['x-revenue-amount'] | '0'
+      unit: currency_amount
+      
+    - name: user_engagement_score
+      dimensions:
+        tenant: request.headers['x-tenant'] | 'unknown'
+        user_id: request.headers['x-user-id'] | 'anonymous'
+      value: request.headers['x-engagement-score'] | '0'
+      unit: score
+
+---
+# Chaos Engineering Observability
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-observer
+  namespace: istio-testing
+  labels:
+    deployment-agent: istio-engineer
+    component: chaos-observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-observer
+  template:
+    metadata:
+      labels:
+        app: chaos-observer
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: chaos-observer
+        image: curlimages/curl:8.4.0
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          while true; do
+            echo "=== Chaos Engineering Health Check ==="
+            # Monitor service mesh health during chaos experiments
+            curl -s http://prometheus.shared-services:9090/api/v1/query?query=up | jq '.data.result[] | select(.metric.__name__ == "up") | .value[1]'
+            
+            # Check circuit breaker status
+            curl -s http://prometheus.shared-services:9090/api/v1/query?query=envoy_cluster_outlier_detection_ejections_active
+            
+            # Monitor error rates during experiments
+            curl -s http://prometheus.shared-services:9090/api/v1/query?query=rate%28istio_requests_total%7Bresponse_code%3D~%225..%22%7D%5B5m%5D%29
+            
+            sleep 30
+          done
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+
+---
+# Multi-Cluster Observability (for future expansion)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: multi-cluster-metrics
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    component: multi-cluster-observability
+data:
+  federation.yaml: |
+    # Prometheus federation configuration for multi-cluster
+    global:
+      external_labels:
+        cluster: 'aks-primary'
+        region: 'westeurope'
+    
+    scrape_configs:
+    - job_name: 'federate'
+      scrape_interval: 15s
+      honor_labels: true
+      metrics_path: '/federate'
+      params:
+        'match[]':
+          - '{__name__=~"istio_.*"}'
+          - '{__name__=~"envoy_.*"}'
+          - '{__name__=~"pilot_.*"}'
+      static_configs:
+      - targets:
+        - 'prometheus-east.shared-services.svc.clusterset.local:9090'  # East region cluster
+        - 'prometheus-west.shared-services.svc.clusterset.local:9090'  # West region cluster
+
+---
+# Cost Optimization Metrics
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: istio-cost-optimization
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    component: cost-optimization
+spec:
+  groups:
+  - name: istio.cost.optimization
+    rules:
+    # Proxy CPU efficiency
+    - record: istio:proxy_cpu_efficiency
+      expr: |
+        rate(container_cpu_usage_seconds_total{container="istio-proxy"}[5m]) /
+        on(pod) group_left() kube_pod_container_resource_requests{container="istio-proxy", resource="cpu"}
+    
+    # Memory utilization
+    - record: istio:proxy_memory_utilization
+      expr: |
+        container_memory_working_set_bytes{container="istio-proxy"} /
+        on(pod) group_left() kube_pod_container_resource_requests{container="istio-proxy", resource="memory"}
+    
+    # Cost per request calculation
+    - record: istio:cost_per_million_requests
+      expr: |
+        (avg(kube_pod_container_resource_requests{container="istio-proxy", resource="cpu"}) * 0.0464) /  # Azure CPU cost per vCPU hour
+        (sum(rate(istio_requests_total[1h])) / 1000000)
+        
+    # Alert for high cost services
+    - alert: HighCostService
+      expr: istio:cost_per_million_requests > 10
+      for: 15m
+      labels:
+        severity: warning
+        deployment_agent: istio-engineer
+      annotations:
+        summary: "Service has high cost per million requests"
+        description: "Cost per million requests: ${{ $value }}"

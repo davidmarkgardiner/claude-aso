@@ -1,0 +1,336 @@
+# Log Analytics Workspace for centralized logging
+apiVersion: operationalinsights.azure.com/v1api20221001
+kind: Workspace
+metadata:
+  name: aks-prod-logs-workspace
+  namespace: azure-system
+  labels:
+    component: observability
+    tier: production
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    # 30 days retention for cost optimization (increase for compliance)
+    retentionInDays: 30
+    # Enable public network access (restrict in production if needed)
+    publicNetworkAccessForIngestion: Enabled
+    publicNetworkAccessForQuery: Enabled
+    # Daily quota to control costs (2GB = ~£50/month)
+    workspaceCapping:
+      dailyQuotaGb: 2.0
+  sku:
+    name: PerGB2018
+  tags:
+    environment: production
+    cost-center: infra
+    purpose: centralized-logging
+    compliance: "gdpr,soc2"
+
+---
+# Application Insights for application performance monitoring
+apiVersion: insights.azure.com/v1api20220615
+kind: Component
+metadata:
+  name: aks-prod-app-insights
+  namespace: azure-system
+  labels:
+    component: observability-apm
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  kind: web
+  properties:
+    # Link to Log Analytics workspace
+    workspaceResourceId:
+      armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+    # Application type
+    applicationId: aks-production-cluster
+    applicationType: web
+    # Data retention
+    retentionInDays: 90
+    # Sampling for cost control
+    samplingPercentage: 100
+    # Disable automatic instrumentation key
+    disableIpMasking: false
+  tags:
+    environment: production
+    monitoring-tier: application
+    auto-instrumentation: enabled
+
+---
+# Action Group for alert notifications
+apiVersion: insights.azure.com/v1api20230101
+kind: ActionGroup
+metadata:
+  name: aks-production-alerts
+  namespace: azure-system
+  labels:
+    component: alerting
+    managed-by: aso
+spec:
+  location: Global  # Action groups are global resources
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    groupShortName: "AKSProd"
+    enabled: true
+    # Email notifications
+    emailReceivers:
+      - name: "DevOps Team"
+        emailAddress: "devops@davidmarkgardiner.co.uk"
+        useCommonAlertSchema: true
+    # Webhook notifications (for Slack/Teams)
+    webhookReceivers:
+      - name: "Slack Webhook"
+        serviceUri: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+        useCommonAlertSchema: true
+    # SMS notifications for critical alerts
+    smsReceivers:
+      - name: "On-call Engineer"
+        countryCode: "44"
+        phoneNumber: "7700900000"  # Replace with actual number
+  tags:
+    notification-channel: primary
+    severity-level: all
+
+---
+# Critical Alert: AKS Cluster Health
+apiVersion: insights.azure.com/v1api20230101
+kind: MetricAlert
+metadata:
+  name: aks-cluster-health-alert
+  namespace: azure-system
+  labels:
+    component: critical-alerts
+    service: aks-cluster
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    description: "AKS cluster health degraded - immediate attention required"
+    severity: 0  # Critical
+    enabled: true
+    # Check every 5 minutes
+    evaluationFrequency: PT5M
+    # Alert window of 10 minutes
+    windowSize: PT10M
+    # Target the AKS cluster
+    scopes:
+      - /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+    # Alert criteria
+    criteria:
+      odata.type: Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria
+      allOf:
+        - name: "cluster-health"
+          metricName: "cluster_autoscaler_cluster_safe_to_autoscale"
+          operator: LessThan
+          threshold: 1
+          timeAggregation: Average
+    # Action to take
+    actions:
+      - actionGroupId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/microsoft.insights/actionGroups/aks-production-alerts
+  tags:
+    alert-type: infrastructure
+    severity: critical
+
+---
+# High CPU Usage Alert
+apiVersion: insights.azure.com/v1api20230101
+kind: MetricAlert
+metadata:
+  name: aks-high-cpu-alert
+  namespace: azure-system
+  labels:
+    component: performance-alerts
+    metric: cpu-usage
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    description: "AKS cluster CPU usage is high - scale out may be needed"
+    severity: 2  # Warning
+    enabled: true
+    evaluationFrequency: PT5M
+    windowSize: PT15M
+    scopes:
+      - /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+    criteria:
+      odata.type: Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria
+      allOf:
+        - name: "high-cpu"
+          metricName: "node_cpu_usage_percentage"
+          operator: GreaterThan
+          threshold: 80
+          timeAggregation: Average
+    actions:
+      - actionGroupId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/microsoft.insights/actionGroups/aks-production-alerts
+
+---
+# Memory Usage Alert
+apiVersion: insights.azure.com/v1api20230101
+kind: MetricAlert
+metadata:
+  name: aks-high-memory-alert
+  namespace: azure-system
+  labels:
+    component: performance-alerts
+    metric: memory-usage
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    description: "AKS cluster memory usage is high"
+    severity: 2  # Warning
+    enabled: true
+    evaluationFrequency: PT5M
+    windowSize: PT15M
+    scopes:
+      - /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+    criteria:
+      odata.type: Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria
+      allOf:
+        - name: "high-memory"
+          metricName: "node_memory_usage_percentage"
+          operator: GreaterThan
+          threshold: 85
+          timeAggregation: Average
+    actions:
+      - actionGroupId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/microsoft.insights/actionGroups/aks-production-alerts
+
+---
+# Pod Restart Alert
+apiVersion: insights.azure.com/v1api20230101
+kind: ScheduledQueryRule
+metadata:
+  name: aks-pod-restart-alert
+  namespace: azure-system
+  labels:
+    component: application-alerts
+    type: pod-failures
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    description: "High pod restart rate detected"
+    severity: 1  # Error
+    enabled: true
+    evaluationFrequency: PT10M
+    windowSize: PT30M
+    # KQL query to detect pod restarts
+    criteria:
+      allOf:
+        - query: |
+            KubePodInventory
+            | where TimeGenerated > ago(30m)
+            | where PodRestartCount > 5
+            | summarize count() by Computer, PodName
+            | where count_ > 1
+        - threshold: 0
+        - operator: GreaterThan
+        - timeAggregation: Count
+        - resourceIdColumn: "Computer"
+    scopes:
+      - /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+    actions:
+      actionGroups:
+        - /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/microsoft.insights/actionGroups/aks-production-alerts
+
+---
+# Diagnostic Settings for AKS Cluster
+apiVersion: insights.azure.com/v1api20230101
+kind: DiagnosticSetting
+metadata:
+  name: aks-cluster-diagnostics
+  namespace: azure-system
+  labels:
+    component: diagnostics
+    resource: aks-cluster
+spec:
+  # Target resource (AKS cluster)
+  resourceUri: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod
+  # Send logs to Log Analytics workspace
+  workspaceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+  properties:
+    # Enable all relevant log categories
+    logs:
+      - category: kube-apiserver
+        enabled: true
+        retentionPolicy:
+          enabled: false
+      - category: kube-controller-manager
+        enabled: true
+        retentionPolicy:
+          enabled: false
+      - category: kube-scheduler
+        enabled: true
+        retentionPolicy:
+          enabled: false
+      - category: kube-audit
+        enabled: true
+        retentionPolicy:
+          enabled: false
+      - category: cluster-autoscaler
+        enabled: true
+        retentionPolicy:
+          enabled: false
+    # Enable all metrics
+    metrics:
+      - category: AllMetrics
+        enabled: true
+        retentionPolicy:
+          enabled: false
+
+---
+# Azure Monitor Workbook for AKS monitoring
+apiVersion: insights.azure.com/v1api20220801
+kind: Workbook
+metadata:
+  name: aks-production-workbook
+  namespace: azure-system
+  labels:
+    component: dashboards
+    resource: aks-monitoring
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  kind: shared
+  properties:
+    displayName: "AKS Production Monitoring Dashboard"
+    description: "Comprehensive monitoring dashboard for AKS production cluster"
+    category: workbook
+    # Workbook JSON definition (simplified version)
+    serializedData: |
+      {
+        "version": "Notebook/1.0",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "# AKS Production Cluster Monitoring\n\nComprehensive monitoring dashboard for production AKS cluster including:\n- Cluster health and resource utilization\n- Pod status and restart counts  \n- Network traffic and errors\n- Storage usage and performance\n- Security events and compliance"
+            }
+          },
+          {
+            "type": 10,
+            "content": {
+              "chartId": "cluster-overview",
+              "query": "KubeNodeInventory | summarize Nodes=dcount(Computer) by Status",
+              "size": 0,
+              "title": "Cluster Node Status"
+            }
+          }
+        ]
+      }
+    sourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+  tags:
+    dashboard-type: operational
+    resource-focus: aks-cluster

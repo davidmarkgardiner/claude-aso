@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-config
+  namespace: external-dns
+data:
+  azure.json: |
+    {
+      "useManagedIdentityExtension": true,
+      "useWorkloadIdentityExtension": true
+    }

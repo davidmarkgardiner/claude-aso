@@ -23,8 +23,9 @@ spec:
         http2MaxRequests: 100
         maxRequestsPerConnection: 2
         maxRetries: 3
-        connectTimeout: 30s
         h2UpgradePolicy: UPGRADE
+      tcp:
+        connectTimeout: 30s
     outlierDetection:
       consecutiveGatewayErrors: 3
       consecutive5xxErrors: 5
@@ -75,10 +76,10 @@ spec:
     connectionPool:
       tcp:
         maxConnections: 200
+        connectTimeout: 60s
       http:
         http1MaxPendingRequests: 20
         maxRequestsPerConnection: 10
-        connectTimeout: 60s
     outlierDetection:
       consecutiveGatewayErrors: 10
       consecutive5xxErrors: 10
@@ -115,10 +116,10 @@ spec:
     connectionPool:
       tcp:
         maxConnections: 50
+        connectTimeout: 10s
       http:
         http1MaxPendingRequests: 10
         maxRequestsPerConnection: 1
-        connectTimeout: 10s
     outlierDetection:
       consecutiveGatewayErrors: 2
       consecutive5xxErrors: 3
@@ -143,10 +144,10 @@ spec:
     connectionPool:
       tcp:
         maxConnections: 10
+        connectTimeout: 5s
       http:
         http1MaxPendingRequests: 5
         maxRequestsPerConnection: 1
-        connectTimeout: 5s
         idleTimeout: 60s
 ---
 # External Services DestinationRule for TLS origination
@@ -196,10 +197,10 @@ spec:
     connectionPool:
       tcp:
         maxConnections: 5
+        connectTimeout: 1s
       http:
         http1MaxPendingRequests: 1
         maxRequestsPerConnection: 1
-        connectTimeout: 1s
     outlierDetection:
       consecutiveGatewayErrors: 1
       consecutive5xxErrors: 1

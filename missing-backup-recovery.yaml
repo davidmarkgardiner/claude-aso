@@ -1,0 +1,170 @@
+# Recovery Services Vault for backup and disaster recovery
+apiVersion: recoveryservices.azure.com/v1api20230401
+kind: Vault
+metadata:
+  name: aks-prod-recovery-vault
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  sku:
+    name: Standard
+  properties:
+    # Storage type configuration
+    storageConfiguration:
+      storageModelType: LocallyRedundant  # Use GeoRedundant for production
+      crossRegionRestoreFlag: false
+    # Enhanced security features
+    securitySettings:
+      immutabilitySettings:
+        state: Disabled  # Enable for production immutable backups
+      multiUserAuthorization:
+        state: Disabled  # Enable for additional security
+      softDeleteSettings:
+        softDeleteState: Enabled
+        softDeleteRetentionPeriodInDays: 14
+    # Resource guard protection
+    resourceGuardOperationRequests: []
+  tags:
+    environment: production
+    managedBy: aso
+    purpose: backup-recovery
+---
+# Backup Policy for VMs and persistent volumes
+apiVersion: recoveryservices.azure.com/v1api20230401
+kind: VaultsBackupPolicy
+metadata:
+  name: aks-daily-backup-policy
+  namespace: azure-system
+spec:
+  owner:
+    name: aks-prod-recovery-vault
+  backupManagementType: AzureIaasVM
+  properties:
+    policyType: V2
+    # Schedule configuration
+    schedulePolicy:
+      schedulePolicyType: SimpleSchedulePolicy
+      scheduleRunFrequency: Daily
+      scheduleRunTimes:
+        - "2025-01-01T02:00:00Z"  # 2 AM UTC
+      scheduleWeeklyFrequency: 0
+    # Retention configuration
+    retentionPolicy:
+      retentionPolicyType: LongTermRetentionPolicy
+      dailySchedule:
+        retentionTimes:
+          - "2025-01-01T02:00:00Z"
+        retentionDuration:
+          count: 30
+          durationType: Days
+      weeklySchedule:
+        daysOfTheWeek:
+          - Sunday
+        retentionTimes:
+          - "2025-01-01T02:00:00Z"
+        retentionDuration:
+          count: 12
+          durationType: Weeks
+      monthlySchedule:
+        retentionScheduleFormatType: Weekly
+        retentionScheduleWeekly:
+          daysOfTheWeek:
+            - Sunday
+          weeksOfTheMonth:
+            - First
+        retentionTimes:
+          - "2025-01-01T02:00:00Z"
+        retentionDuration:
+          count: 12
+          durationType: Months
+      yearlySchedule:
+        retentionScheduleFormatType: Weekly
+        retentionScheduleWeekly:
+          daysOfTheWeek:
+            - Sunday
+          weeksOfTheMonth:
+            - First
+        monthsOfYear:
+          - January
+        retentionTimes:
+          - "2025-01-01T02:00:00Z"
+        retentionDuration:
+          count: 7
+          durationType: Years
+    # Time zone
+    timeZone: "UTC"
+  tags:
+    environment: production
+    managedBy: aso
+---
+# Site Recovery for disaster recovery (secondary region)
+apiVersion: recoveryservices.azure.com/v1api20230401
+kind: Vault
+metadata:
+  name: aks-dr-recovery-vault
+  namespace: azure-system
+spec:
+  location: ukwest  # Secondary region for DR
+  owner:
+    name: at39473-weu-dev-prod
+  sku:
+    name: Standard
+  properties:
+    storageConfiguration:
+      storageModelType: LocallyRedundant
+      crossRegionRestoreFlag: true  # Enable cross-region restore
+    securitySettings:
+      softDeleteSettings:
+        softDeleteState: Enabled
+        softDeleteRetentionPeriodInDays: 14
+  tags:
+    environment: production
+    managedBy: aso
+    purpose: disaster-recovery
+    region: secondary
+---
+# Resource Group for DR resources in secondary region
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: aks-dr-resources
+  namespace: azure-system
+spec:
+  azureName: aks-dr-resources-ukwest
+  location: ukwest
+  tags:
+    environment: production
+    managedBy: aso
+    purpose: disaster-recovery
+    region: secondary
+---
+# Storage Account for backup data replication
+apiVersion: storage.azure.com/v1api20230101
+kind: StorageAccount
+metadata:
+  name: aksbackupstorage
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  kind: StorageV2
+  sku:
+    name: Standard_GRS  # Geo-redundant storage for backups
+  accessTier: Cool  # Cost-effective for backup data
+  minimumTlsVersion: TLS1_2
+  allowBlobPublicAccess: false
+  enableHttpsTrafficOnly: true
+  # Configure for backup retention
+  deleteRetentionPolicy:
+    enabled: true
+    days: 365  # Keep deleted backups for 1 year
+  # Immutable storage for compliance
+  immutableStorageWithVersioning:
+    enabled: true
+  tags:
+    environment: production
+    managedBy: aso
+    purpose: backup-storage

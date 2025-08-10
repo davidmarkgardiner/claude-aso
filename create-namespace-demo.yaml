@@ -1,0 +1,71 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontend-demo-dev
+  labels:
+    team: frontend
+    environment: development
+    managed-by: platform-api
+    tier: small
+spec: {}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: frontend-demo-dev-quota
+  namespace: frontend-demo-dev
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    persistentvolumeclaims: "5"
+    services: "10"
+    pods: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: frontend-demo-dev-limits
+  namespace: frontend-demo-dev
+spec:
+  limits:
+  - default:
+      cpu: 500m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container
+  - max:
+      storage: 10Gi
+    type: PersistentVolumeClaim
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: frontend-developer
+  namespace: frontend-demo-dev
+rules:
+- apiGroups: ["", "apps", "batch"]
+  resources: ["pods", "services", "deployments", "jobs", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods/log", "pods/exec", "pods/portforward"]
+  verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: frontend-developer-binding
+  namespace: frontend-demo-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: frontend-developer
+subjects:
+- kind: User
+  name: developer@company.com
+  apiGroup: rbac.authorization.k8s.io

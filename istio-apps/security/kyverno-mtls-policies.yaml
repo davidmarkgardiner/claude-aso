@@ -1,0 +1,343 @@
+---
+# Kyverno ClusterPolicy to block PERMISSIVE or DISABLE mTLS modes
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: enforce-strict-mtls-peerauthentication
+  annotations:
+    policies.kyverno.io/title: Enforce Strict mTLS in PeerAuthentication
+    policies.kyverno.io/category: Istio Security
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >-
+      Enforces that all PeerAuthentication resources use STRICT mTLS mode.
+      PERMISSIVE and DISABLE modes are not allowed to ensure all communication
+      in the mesh is encrypted and authenticated.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-mtls-mode
+      match:
+        any:
+        - resources:
+            kinds:
+            - PeerAuthentication
+            namespaces:
+            - "*"
+      validate:
+        message: "PeerAuthentication must use STRICT mTLS mode. PERMISSIVE and DISABLE modes are not allowed."
+        pattern:
+          spec:
+            mtls:
+              mode: "STRICT"
+    
+    - name: block-permissive-mode
+      match:
+        any:
+        - resources:
+            kinds:
+            - PeerAuthentication
+            namespaces:
+            - "*"
+      validate:
+        message: "PERMISSIVE mTLS mode is not allowed. Use STRICT mode for security."
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.spec.mtls.mode }}"
+              operator: Equals
+              value: "PERMISSIVE"
+    
+    - name: block-disable-mode
+      match:
+        any:
+        - resources:
+            kinds:
+            - PeerAuthentication
+            namespaces:
+            - "*"
+      validate:
+        message: "DISABLE mTLS mode is not allowed. Use STRICT mode for security."
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.spec.mtls.mode }}"
+              operator: Equals
+              value: "DISABLE"
+    
+    - name: block-port-level-permissive
+      match:
+        any:
+        - resources:
+            kinds:
+            - PeerAuthentication
+            namespaces:
+            - "*"
+      validate:
+        message: "Port-level mTLS exceptions with PERMISSIVE or DISABLE modes are not allowed"
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.spec.portLevelMtls[?contains(@.mode, 'PERMISSIVE')] }}"
+              operator: AnyNotIn
+              value: [""]
+            - key: "{{ request.object.spec.portLevelMtls[?contains(@.mode, 'DISABLE')] }}"
+              operator: AnyNotIn
+              value: [""]
+---
+# Kyverno ClusterPolicy to enforce mTLS in DestinationRules
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: enforce-mtls-destinationrules
+  annotations:
+    policies.kyverno.io/title: Enforce mTLS in DestinationRules
+    policies.kyverno.io/category: Istio Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Ensures all DestinationRules use ISTIO_MUTUAL or MUTUAL TLS modes.
+      SIMPLE and DISABLE modes are not allowed for internal services.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-tls-mode-internal
+      match:
+        any:
+        - resources:
+            kinds:
+            - DestinationRule
+            namespaces:
+            - "*"
+      preconditions:
+        all:
+        - key: "{{ request.object.spec.host }}"
+          operator: AnyIn
+          value: ["*.local", "*.svc.cluster.local", "*.svc", "*.cluster.local"]
+      validate:
+        message: "Internal services must use ISTIO_MUTUAL TLS mode"
+        pattern:
+          spec:
+            trafficPolicy:
+              tls:
+                mode: "ISTIO_MUTUAL"
+    
+    - name: block-disable-tls
+      match:
+        any:
+        - resources:
+            kinds:
+            - DestinationRule
+            namespaces:
+            - "*"
+      validate:
+        message: "DISABLE TLS mode is not allowed for any services"
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.spec.trafficPolicy.tls.mode }}"
+              operator: Equals
+              value: "DISABLE"
+    
+    - name: check-subset-tls
+      match:
+        any:
+        - resources:
+            kinds:
+            - DestinationRule
+            namespaces:
+            - "*"
+      validate:
+        message: "Subsets must not disable or downgrade TLS"
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.spec.subsets[?@.trafficPolicy.tls.mode == 'DISABLE'] }}"
+              operator: AnyNotIn
+              value: [""]
+            - key: "{{ request.object.spec.subsets[?@.trafficPolicy.tls.mode == 'SIMPLE'] }}"
+              operator: AnyNotIn
+              value: [""]
+---
+# Kyverno ClusterPolicy to ensure default PeerAuthentication exists
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-default-peerauthentication
+  annotations:
+    policies.kyverno.io/title: Require Default PeerAuthentication
+    policies.kyverno.io/category: Istio Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Ensures that a default PeerAuthentication with STRICT mode exists
+      in istio-system namespace for mesh-wide mTLS enforcement.
+spec:
+  validationFailureAction: Audit  # Audit mode since we check existence
+  background: false
+  rules:
+    - name: generate-default-peerauthentication
+      match:
+        any:
+        - resources:
+            kinds:
+            - Namespace
+            names:
+            - istio-system
+      generate:
+        synchronize: true
+        apiVersion: security.istio.io/v1beta1
+        kind: PeerAuthentication
+        name: default
+        namespace: istio-system
+        data:
+          metadata:
+            labels:
+              security-policy: strict-mtls
+              managed-by: kyverno
+          spec:
+            mtls:
+              mode: STRICT
+---
+# Kyverno ClusterPolicy to block insecure Sidecar configurations
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: enforce-secure-sidecar-config
+  annotations:
+    policies.kyverno.io/title: Enforce Secure Sidecar Configuration
+    policies.kyverno.io/category: Istio Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Ensures Sidecar configurations do not bypass security policies
+      or allow unrestricted egress traffic.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: block-allow-any-egress
+      match:
+        any:
+        - resources:
+            kinds:
+            - Sidecar
+            namespaces:
+            - "tenant-*"  # Only enforce for tenant namespaces
+      validate:
+        message: "Tenant Sidecars must use REGISTRY_ONLY mode, not ALLOW_ANY"
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.spec.outboundTrafficPolicy.mode }}"
+              operator: Equals
+              value: "ALLOW_ANY"
+    
+    - name: require-workload-selector
+      match:
+        any:
+        - resources:
+            kinds:
+            - Sidecar
+            namespaces:
+            - "tenant-*"
+      validate:
+        message: "Tenant Sidecars must have workloadSelector to limit scope"
+        pattern:
+          spec:
+            workloadSelector:
+              labels:
+                "?*": "?*"
+---
+# Kyverno ClusterPolicy to audit mTLS compliance
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: audit-mtls-compliance
+  annotations:
+    policies.kyverno.io/title: Audit mTLS Compliance
+    policies.kyverno.io/category: Istio Security
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/description: >-
+      Audits and reports any resources that might affect mTLS enforcement.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: audit-service-annotations
+      match:
+        any:
+        - resources:
+            kinds:
+            - Service
+            namespaces:
+            - "*"
+      validate:
+        message: "Service has security annotations that might affect mTLS"
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.metadata.annotations.\"security.istio.io/tlsMode\" }}"
+              operator: Equals
+              value: "disabled"
+    
+    - name: audit-deployment-annotations
+      match:
+        any:
+        - resources:
+            kinds:
+            - Deployment
+            - StatefulSet
+            - DaemonSet
+            namespaces:
+            - "*"
+      validate:
+        message: "Workload has sidecar injection disabled which bypasses mTLS"
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.spec.template.metadata.annotations.\"sidecar.istio.io/inject\" }}"
+              operator: Equals
+              value: "false"
+---
+# Kyverno ClusterPolicy to enforce mTLS for specific ports
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: enforce-mtls-critical-ports
+  annotations:
+    policies.kyverno.io/title: Enforce mTLS for Critical Ports
+    policies.kyverno.io/category: Istio Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Ensures critical ports (databases, caches, etc.) always use mTLS.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: protect-database-ports
+      match:
+        any:
+        - resources:
+            kinds:
+            - Service
+            namespaces:
+            - "*"
+      preconditions:
+        any:
+        - key: "{{ request.object.spec.ports[?@.port == `3306`] }}"  # MySQL
+          operator: AnyNotIn
+          value: [""]
+        - key: "{{ request.object.spec.ports[?@.port == `5432`] }}"  # PostgreSQL
+          operator: AnyNotIn
+          value: [""]
+        - key: "{{ request.object.spec.ports[?@.port == `6379`] }}"  # Redis
+          operator: AnyNotIn
+          value: [""]
+        - key: "{{ request.object.spec.ports[?@.port == `27017`] }}" # MongoDB
+          operator: AnyNotIn
+          value: [""]
+      validate:
+        message: "Database and cache services must have sidecar injection enabled for mTLS"
+        pattern:
+          metadata:
+            labels:
+              "sidecar.istio.io/inject": "true"

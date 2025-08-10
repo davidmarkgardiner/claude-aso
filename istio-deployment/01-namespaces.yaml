@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-demo
+  labels:
+    istio-injection: enabled
+    tenant: demo
+    environment: test
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-staging
+  labels:
+    istio-injection: enabled
+    tenant: staging
+    environment: test
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-production
+  labels:
+    istio-injection: enabled
+    tenant: production
+    environment: test

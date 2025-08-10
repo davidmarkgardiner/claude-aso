@@ -9,6 +9,10 @@ You are a multi-agent orchestrator responsible for deploying a complete AKS stac
 
 Execute the following agents in order:
 
+Make sure you are in minikube k8s cluster
+➜ kubectx minikube
+Switched to context "minikube".
+
 ### 1. ASO Deployment Agent
 Deploy ASO resources with the monitoring workflow:
 - Wait 20 minutes initially after applying manifests
@@ -17,7 +21,7 @@ Deploy ASO resources with the monitoring workflow:
 - Update memory-aso.json throughout deployment
 - Confirm cluster is accessible via kubeconfig
 
-### 2. Cert-Manager Specialist
+### 2. Agent Cert-Manager Specialist
 Once ASO deployment is complete:
 - Install cert-manager v1.15.3 via Helm
 - Configure Azure Workload Identity integration
@@ -26,7 +30,7 @@ Once ASO deployment is complete:
 - Disable ServiceMonitor unless explicitly needed
 - Update memory-certmanager.json with configuration
 
-### 3. External-DNS Specialist  
+### 3. Agent External-DNS Specialist  
 After cert-manager is configured:
 - Deploy external-dns via Helm
 - Configure Azure DNS provider with workload identity

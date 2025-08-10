@@ -39,7 +39,11 @@ spec:
         }
         
         has_sidecar_injection {
-          input.review.object.metadata.labels["istio-injection"] == "enabled"
+          input.review.object.metadata.labels["istio.io/rev"] == "asm-1-25"
+        }
+        
+        has_sidecar_injection {
+          input.review.namespace.metadata.labels["istio.io/rev"] == "asm-1-25"
         }
 
 ---

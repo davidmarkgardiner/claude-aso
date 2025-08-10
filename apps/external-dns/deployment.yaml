@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/version: "0.18.0"
+    app.kubernetes.io/component: dns-controller
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-dns
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: external-dns
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: external-dns
+      securityContext:
+        fsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+      - name: external-dns
+        image: registry.k8s.io/external-dns/external-dns:v0.18.0
+        args:
+        - --source=service
+        - --source=ingress
+        - --domain-filter=davidmarkgardiner.co.uk
+        - --provider=azure
+        - --azure-resource-group=dns
+        - --azure-subscription-id=133d5755-4074-4d6e-ad38-eb2a6ad12903
+        - --txt-owner-id=uk8s-tsshared-weu-gt025-int-prod
+        - --policy=sync
+        - --registry=txt
+        - --txt-prefix=externaldns-
+        - --interval=30s
+        - --log-format=text
+        - --log-level=info
+        env:
+        - name: AZURE_USE_WORKLOAD_IDENTITY_EXTENSION
+          value: "true"
+        - name: AZURE_CLIENT_ID
+          value: "721782e9-90d6-4563-8e92-a0889337243e"
+        - name: AZURE_TENANT_ID
+          value: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
+        - name: AZURE_SUBSCRIPTION_ID
+          value: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+        ports:
+        - name: http
+          containerPort: 7979
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        volumeMounts:
+        - name: azure-config
+          mountPath: /etc/kubernetes
+          readOnly: true
+        resources:
+          limits:
+            cpu: 100m
+            memory: 300Mi
+          requests:
+            cpu: 50m
+            memory: 50Mi
+      volumes:
+      - name: azure-config
+        configMap:
+          name: azure-config

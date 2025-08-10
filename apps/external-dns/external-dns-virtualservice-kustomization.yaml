@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: external-dns-virtualservice-integration
+  namespace: external-dns
+
+resources:
+  # External DNS Core Configuration
+  - external-dns-helmrepo.yaml
+  - external-dns-helmrelease.yaml
+  - external-dns-rbac-patch.yaml
+  
+  # Test Application and VirtualService Setup
+  - test-app-podinfo.yaml
+  - test-istio-gateway.yaml
+  - test-virtualservice.yaml
+  - test-authorization-policy.yaml
+
+commonLabels:
+  app.kubernetes.io/name: external-dns-virtualservice-integration
+  app.kubernetes.io/component: dns-management
+  app.kubernetes.io/part-of: external-dns
+
+patches:
+  # Ensure External DNS deployment has VirtualService sources
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: external-dns
+      namespace: external-dns
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --source=istio-virtualservice
+      - op: add  
+        path: /spec/template/spec/containers/0/args/-
+        value: --source=istio-gateway

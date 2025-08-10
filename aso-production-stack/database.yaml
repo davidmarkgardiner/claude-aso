@@ -1,0 +1,454 @@
+# PostgreSQL Flexible Server for application databases
+apiVersion: dbforpostgresql.azure.com/v1api20221201
+kind: FlexibleServer
+metadata:
+  name: aks-prod-postgres
+  namespace: azure-system
+  labels:
+    component: database
+    engine: postgresql
+    tier: production
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    # PostgreSQL version
+    version: "15"
+    
+    # Administrator credentials from Key Vault
+    administratorLogin: postgres_admin
+    administratorLoginPassword:
+      name: postgres-admin-password
+      key: password
+    
+    # Compute and storage configuration
+    sku:
+      name: Standard_D2s_v3  # 2 vCPUs, 8GB RAM
+      tier: GeneralPurpose
+    
+    storage:
+      storageSizeGB: 128  # 128GB storage
+      autoGrow: Enabled
+      tier: P6  # Premium SSD
+      
+    # Network configuration
+    network:
+      delegatedSubnetResourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/database-subnet
+      privateDnsZoneResourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/privateDnsZones/postgres.database.azure.com
+    
+    # Backup configuration
+    backup:
+      backupRetentionDays: 35  # 5 weeks retention
+      geoRedundantBackup: Enabled
+      pointInTimeRestore: Enabled
+    
+    # High availability
+    highAvailability:
+      mode: ZoneRedundant
+      standbyAvailabilityZone: "2"
+    
+    # Maintenance window
+    maintenanceWindow:
+      customWindow: Enabled
+      dayOfWeek: 1  # Monday
+      startHour: 2   # 2 AM
+      startMinute: 0
+    
+    # Security settings
+    authConfig:
+      activeDirectoryAuth: Enabled
+      passwordAuth: Enabled
+      tenantId: 550cfcda-8a2d-452c-ba71-d6bc6bf5bb31
+    
+    # Enable encryption at rest
+    dataEncryption:
+      type: AzureKeyVault
+      primaryKeyURI: https://aks-prod-keyvault.vault.azure.net/keys/postgres-encryption-key
+      primaryUserAssignedIdentityId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ManagedIdentity/userAssignedIdentities/postgres-identity
+  
+  tags:
+    environment: production
+    database-engine: postgresql-15
+    high-availability: zone-redundant
+    backup-retention: 35-days
+    encryption: customer-managed-key
+
+---
+# Database Subnet
+apiVersion: network.azure.com/v1api20220701
+kind: Subnet
+metadata:
+  name: database-subnet
+  namespace: azure-system
+  labels:
+    component: networking
+    usage: database-services
+spec:
+  owner:
+    name: aks-prod-vnet
+    group: network.azure.com
+    kind: VirtualNetwork
+  properties:
+    addressPrefix: "10.0.4.0/24"  # 256 IP addresses for database services
+    # Delegate subnet to PostgreSQL
+    delegations:
+      - name: postgres-delegation
+        properties:
+          serviceName: Microsoft.DBforPostgreSQL/flexibleServers
+    serviceEndpoints:
+      - service: Microsoft.Storage
+        locations: ["uksouth"]
+
+---
+# Private DNS Zone for PostgreSQL
+apiVersion: network.azure.com/v1api20220301
+kind: PrivateDnsZone
+metadata:
+  name: postgres-private-dns
+  namespace: azure-system
+  labels:
+    component: dns
+    service: postgresql
+spec:
+  location: global
+  owner:
+    name: at39473-weu-dev-prod
+  zoneName: postgres.database.azure.com
+  tags:
+    service: postgresql-flexible-server
+
+---
+# Link PostgreSQL DNS zone to VNet
+apiVersion: network.azure.com/v1api20220301
+kind: PrivateDnsZoneVirtualNetworkLink
+metadata:
+  name: postgres-dns-link
+  namespace: azure-system
+spec:
+  owner:
+    name: postgres-private-dns
+    group: network.azure.com
+    kind: PrivateDnsZone
+  properties:
+    virtualNetwork:
+      id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet
+    registrationEnabled: true
+  location: global
+
+---
+# Managed Identity for PostgreSQL encryption
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: postgres-identity
+  namespace: azure-system
+  labels:
+    component: security
+    usage: postgres-encryption
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  tags:
+    purpose: database-encryption
+    key-vault-access: required
+
+---
+# Key Vault access for PostgreSQL identity
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: postgres-keyvault-access
+  namespace: azure-system
+spec:
+  owner:
+    name: aks-prod-keyvault
+    group: keyvault.azure.com
+    kind: Vault
+  principalIdFromConfig:
+    name: postgres-identity-cm
+    key: principalId
+  roleDefinitionReference:
+    # Key Vault Crypto Service Encryption User
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/e147488a-f6f5-4113-8e2d-b22465e65bf6
+
+---
+# Database for tenant-a applications
+apiVersion: dbforpostgresql.azure.com/v1api20221201
+kind: FlexibleServersDatabase
+metadata:
+  name: tenant-a-database
+  namespace: azure-system
+  labels:
+    tenant: tenant-a
+    purpose: application-data
+spec:
+  owner:
+    name: aks-prod-postgres
+    group: dbforpostgresql.azure.com
+    kind: FlexibleServer
+  properties:
+    charset: UTF8
+    collation: en_US.utf8
+  tags:
+    tenant: tenant-a
+    data-classification: restricted
+
+---
+# Database for tenant-b applications
+apiVersion: dbforpostgresql.azure.com/v1api20221201
+kind: FlexibleServersDatabase
+metadata:
+  name: tenant-b-database
+  namespace: azure-system
+  labels:
+    tenant: tenant-b
+    purpose: application-data
+spec:
+  owner:
+    name: aks-prod-postgres
+    group: dbforpostgresql.azure.com
+    kind: FlexibleServer
+  properties:
+    charset: UTF8
+    collation: en_US.utf8
+  tags:
+    tenant: tenant-b
+    data-classification: restricted
+
+---
+# Database for shared services (monitoring, etc.)
+apiVersion: dbforpostgresql.azure.com/v1api20221201
+kind: FlexibleServersDatabase
+metadata:
+  name: shared-services-database
+  namespace: azure-system
+  labels:
+    tenant: shared-services
+    purpose: monitoring-data
+spec:
+  owner:
+    name: aks-prod-postgres
+    group: dbforpostgresql.azure.com
+    kind: FlexibleServer
+  properties:
+    charset: UTF8
+    collation: en_US.utf8
+  tags:
+    tenant: shared-services
+    data-classification: internal
+
+---
+# Redis Cache for session storage and caching
+apiVersion: cache.azure.com/v1api20230801
+kind: Redis
+metadata:
+  name: aks-prod-redis
+  namespace: azure-system
+  labels:
+    component: cache
+    tier: production
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    # Premium tier for VNet integration and clustering
+    sku:
+      name: Premium
+      family: P
+      capacity: 1  # 6GB cache
+    
+    # Redis version
+    redisVersion: "6.0"
+    
+    # Enable non-SSL port for internal communication
+    enableNonSslPort: false
+    
+    # Network configuration
+    subnetId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/cache-subnet
+    staticIP: "10.0.5.10"
+    
+    # High availability
+    replicasPerMaster: 1
+    replicasPerPrimary: 1
+    shardCount: 1
+    
+    # Security settings
+    minimumTlsVersion: "1.2"
+    
+    # Backup settings
+    rdbBackupEnabled: true
+    rdbBackupFrequency: Daily
+    rdbBackupMaxSnapshotCount: 7
+    rdbStorageConnectionString: "DefaultEndpointsProtocol=https;AccountName=aksprodstorageukst001;AccountKey=<storage-key>"
+    
+    # Patch schedule (maintenance window)
+    patchSchedule:
+      - dayOfWeek: Monday
+        startHourUtc: 2
+        maintenanceWindow: PT4H  # 4-hour window
+  
+  tags:
+    environment: production
+    cache-tier: premium
+    ssl-only: "true"
+    backup-enabled: "true"
+
+---
+# Redis Cache Subnet
+apiVersion: network.azure.com/v1api20220701
+kind: Subnet
+metadata:
+  name: cache-subnet
+  namespace: azure-system
+  labels:
+    component: networking
+    usage: redis-cache
+spec:
+  owner:
+    name: aks-prod-vnet
+    group: network.azure.com
+    kind: VirtualNetwork
+  properties:
+    addressPrefix: "10.0.5.0/28"  # 16 IP addresses for Redis
+    serviceEndpoints:
+      - service: Microsoft.Storage
+        locations: ["uksouth"]
+
+---
+# Cosmos DB for document storage (if needed)
+apiVersion: documentdb.azure.com/v1api20231115
+kind: DatabaseAccount
+metadata:
+  name: aks-prod-cosmos
+  namespace: azure-system
+  labels:
+    component: document-database
+    tier: production
+    api: sql
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  kind: GlobalDocumentDB
+  properties:
+    # Multi-region configuration
+    locations:
+      - locationName: uksouth
+        failoverPriority: 0
+        isZoneRedundant: true
+      - locationName: ukwest
+        failoverPriority: 1
+        isZoneRedundant: false
+    
+    # Database consistency
+    consistencyPolicy:
+      defaultConsistencyLevel: Session
+      maxStalenessPrefix: 100
+      maxIntervalInSeconds: 300
+    
+    # Enable automatic failover
+    enableAutomaticFailover: true
+    enableMultipleWriteLocations: false
+    
+    # Network security
+    isVirtualNetworkFilterEnabled: true
+    virtualNetworkRules:
+      - id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/aks-nodes-subnet
+        ignoreMissingVNetServiceEndpoint: false
+    
+    # IP range filter for additional security
+    ipRules:
+      - ipAddressOrRange: "10.0.0.0/16"  # Allow from VNet
+    
+    # Enable backup
+    backupPolicy:
+      type: Periodic
+      periodicModeProperties:
+        backupIntervalInMinutes: 240  # 4 hours
+        backupRetentionIntervalInHours: 720  # 30 days
+        backupStorageRedundancy: Geo
+    
+    # Encryption
+    keyVaultKeyUri: https://aks-prod-keyvault.vault.azure.net/keys/cosmos-encryption-key
+  
+  tags:
+    environment: production
+    database-type: document-store
+    multi-region: enabled
+    backup-policy: periodic
+
+---
+# CosmosDB SQL Database
+apiVersion: documentdb.azure.com/v1api20231115
+kind: SqlDatabase
+metadata:
+  name: application-documents
+  namespace: azure-system
+  labels:
+    purpose: application-data
+    api: sql
+spec:
+  owner:
+    name: aks-prod-cosmos
+    group: documentdb.azure.com
+    kind: DatabaseAccount
+  properties:
+    # Shared throughput for cost optimization
+    throughput: 400  # 400 RU/s shared
+    options:
+      enableFreeTier: false
+      disableKeyBasedMetadataWriteAccess: true
+  tags:
+    throughput-model: provisioned
+    ru-per-second: "400"
+
+---
+# Diagnostic Settings for PostgreSQL
+apiVersion: insights.azure.com/v1api20230101
+kind: DiagnosticSetting
+metadata:
+  name: postgres-diagnostics
+  namespace: azure-system
+spec:
+  resourceUri: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.DBforPostgreSQL/flexibleServers/aks-prod-postgres
+  workspaceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+  properties:
+    logs:
+      - category: PostgreSQLLogs
+        enabled: true
+      - category: PostgreSQLFlexDatabaseXacts
+        enabled: true
+      - category: PostgreSQLFlexQueryStoreRuntime
+        enabled: true
+      - category: PostgreSQLFlexQueryStoreWaitStats
+        enabled: true
+      - category: PostgreSQLFlexSessions
+        enabled: true
+      - category: PostgreSQLFlexTableStats
+        enabled: true
+    metrics:
+      - category: AllMetrics
+        enabled: true
+
+---
+# Diagnostic Settings for Redis Cache
+apiVersion: insights.azure.com/v1api20230101
+kind: DiagnosticSetting
+metadata:
+  name: redis-diagnostics
+  namespace: azure-system
+spec:
+  resourceUri: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Cache/Redis/aks-prod-redis
+  workspaceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+  properties:
+    logs:
+      - category: ConnectedClientList
+        enabled: true
+    metrics:
+      - category: AllMetrics
+        enabled: true

@@ -1,0 +1,109 @@
+# Example Certificate Configurations
+# These examples demonstrate different certificate use cases with cert-manager
+
+---
+# Basic single-domain certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: single-domain-cert
+  namespace: example
+spec:
+  secretName: single-domain-tls
+  dnsNames:
+  - api.davidmarkgardiner.co.uk
+  issuerRef:
+    name: letsencrypt-prod-dns01
+    kind: ClusterIssuer
+
+---
+# Multi-domain certificate (SAN certificate)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: multi-domain-cert
+  namespace: example
+spec:
+  secretName: multi-domain-tls
+  dnsNames:
+  - api.davidmarkgardiner.co.uk
+  - www.davidmarkgardiner.co.uk
+  - app.davidmarkgardiner.co.uk
+  issuerRef:
+    name: letsencrypt-prod-dns01
+    kind: ClusterIssuer
+
+---
+# Wildcard certificate (covers all subdomains)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-cert
+  namespace: example
+spec:
+  secretName: wildcard-tls
+  dnsNames:
+  - "*.davidmarkgardiner.co.uk"
+  issuerRef:
+    name: letsencrypt-prod-dns01
+    kind: ClusterIssuer
+
+---
+# Certificate with custom key algorithm and size
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: custom-key-cert
+  namespace: example
+spec:
+  secretName: custom-key-tls
+  dnsNames:
+  - secure.davidmarkgardiner.co.uk
+  issuerRef:
+    name: letsencrypt-prod-dns01
+    kind: ClusterIssuer
+  privateKey:
+    algorithm: RSA
+    size: 4096
+    rotationPolicy: Always
+
+---
+# Certificate with extended validation time
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: long-lived-cert
+  namespace: example
+spec:
+  secretName: long-lived-tls
+  dnsNames:
+  - stable.davidmarkgardiner.co.uk
+  issuerRef:
+    name: letsencrypt-prod-dns01
+    kind: ClusterIssuer
+  duration: 2160h # 90 days
+  renewBefore: 720h # 30 days before expiry
+
+---
+# Certificate for staging/development
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: staging-cert
+  namespace: example
+spec:
+  secretName: staging-tls
+  dnsNames:
+  - staging.davidmarkgardiner.co.uk
+  issuerRef:
+    name: letsencrypt-staging-dns01  # Use staging for development
+    kind: ClusterIssuer
+
+---
+# Example namespace for certificates
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example
+  labels:
+    cert-manager.io/disable-validation: "true"

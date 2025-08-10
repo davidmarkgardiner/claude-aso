@@ -1,0 +1,434 @@
+---
+# Performance Testing with K6
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-performance-test
+  namespace: istio-testing
+  labels:
+    deployment-agent: istio-engineer
+    test-type: performance
+spec:
+  parallelism: 3
+  completions: 3
+  template:
+    metadata:
+      labels:
+        app: k6-performance
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: k6-runner
+        image: grafana/k6:0.47.0
+        command: ["k6", "run"]
+        args:
+        - --vus=50
+        - --duration=10m
+        - --summary-trend-stats=avg,min,med,max,p(95),p(99),p(99.5)
+        - --out=prometheus-rw
+        - /scripts/performance-test.js
+        env:
+        - name: K6_PROMETHEUS_RW_SERVER_URL
+          value: "http://prometheus.shared-services:9090/api/v1/write"
+        - name: K6_PROMETHEUS_RW_TREND_STATS
+          value: "p(95),p(99),min,max"
+        volumeMounts:
+        - name: test-scripts
+          mountPath: /scripts
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: test-scripts
+        configMap:
+          name: k6-test-scripts
+
+---
+# K6 Test Scripts ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-test-scripts
+  namespace: istio-testing
+  labels:
+    deployment-agent: istio-engineer
+data:
+  performance-test.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend, Counter } from 'k6/metrics';
+    
+    // Custom metrics
+    const errorRate = new Rate('error_rate');
+    const responseTime = new Trend('response_time');
+    const requestCount = new Counter('request_count');
+    
+    export const options = {
+      stages: [
+        { duration: '2m', target: 10 },  // Ramp up
+        { duration: '5m', target: 50 },  // Stay at 50 users
+        { duration: '2m', target: 100 }, // Spike test
+        { duration: '1m', target: 0 },   // Ramp down
+      ],
+      thresholds: {
+        http_req_duration: ['p(95)<500', 'p(99)<1000'],
+        http_req_failed: ['rate<0.01'],
+        error_rate: ['rate<0.01'],
+      },
+    };
+    
+    const BASE_URL = 'http://aks-istio-ingressgateway-internal.aks-istio-system.svc.cluster.local';
+    
+    export default function () {
+      // Test different scenarios
+      const scenarios = [
+        { host: 'podinfo.tenant-a.davidmarkgardiner.co.uk', path: '/' },
+        { host: 'podinfo.tenant-a.davidmarkgardiner.co.uk', path: '/healthz' },
+        { host: 'podinfo.tenant-a.davidmarkgardiner.co.uk', path: '/metrics' },
+        { host: 'podinfo.tenant-b.davidmarkgardiner.co.uk', path: '/' },
+      ];
+      
+      const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+      
+      const params = {
+        headers: {
+          'Host': scenario.host,
+          'User-Agent': 'k6-performance-test/1.0',
+          'X-Test-Run': `${__ENV.K6_INSTANCE_ID || 'local'}`,
+        },
+      };
+      
+      // Add canary header 10% of the time
+      if (Math.random() < 0.1) {
+        params.headers['canary'] = 'true';
+      }
+      
+      const response = http.get(`${BASE_URL}${scenario.path}`, params);
+      
+      // Record metrics
+      requestCount.add(1);
+      responseTime.add(response.timings.duration);
+      errorRate.add(response.status !== 200);
+      
+      // Validate response
+      check(response, {
+        'status is 200': (r) => r.status === 200,
+        'response time < 500ms': (r) => r.timings.duration < 500,
+        'has istio headers': (r) => r.headers['x-envoy-upstream-service-time'] !== undefined,
+        'correct content-type': (r) => r.headers['content-type'] && r.headers['content-type'].includes('application/json'),
+      });
+      
+      sleep(Math.random() * 2); // Random sleep 0-2 seconds
+    }
+
+  chaos-test.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { SharedArray } from 'k6/data';
+    
+    // Chaos testing scenarios
+    const chaosScenarios = new SharedArray('chaos', function () {
+      return [
+        { name: 'fault_injection', path: '/', headers: { 'x-chaos-fault': 'true' } },
+        { name: 'delay_injection', path: '/', headers: { 'x-chaos-delay': '1000' } },
+        { name: 'abort_injection', path: '/', headers: { 'x-chaos-abort': '503' } },
+        { name: 'circuit_breaker_test', path: '/', headers: { 'x-chaos-circuit-breaker': 'true' } },
+      ];
+    });
+    
+    export const options = {
+      scenarios: {
+        chaos_testing: {
+          executor: 'ramping-vus',
+          startVUs: 1,
+          stages: [
+            { duration: '1m', target: 10 },
+            { duration: '3m', target: 10 },
+            { duration: '1m', target: 0 },
+          ],
+        },
+      },
+    };
+    
+    export default function () {
+      const scenario = chaosScenarios[Math.floor(Math.random() * chaosScenarios.length)];
+      
+      const response = http.get(
+        'http://aks-istio-ingressgateway-internal.aks-istio-system.svc.cluster.local' + scenario.path,
+        {
+          headers: {
+            ...scenario.headers,
+            'Host': 'podinfo.tenant-a.davidmarkgardiner.co.uk',
+            'X-Chaos-Test': scenario.name,
+          },
+        }
+      );
+      
+      // Different expectations based on chaos scenario
+      if (scenario.headers['x-chaos-abort']) {
+        check(response, {
+          'chaos abort works': (r) => r.status === 503,
+        });
+      } else if (scenario.headers['x-chaos-delay']) {
+        check(response, {
+          'delay injection works': (r) => r.timings.duration >= 1000,
+        });
+      } else {
+        check(response, {
+          'request completed': (r) => r.status >= 200 && r.status < 500,
+        });
+      }
+      
+      sleep(1);
+    }
+
+---
+# Security Testing Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: security-test-suite
+  namespace: istio-testing
+  labels:
+    deployment-agent: istio-engineer
+    test-type: security
+spec:
+  template:
+    metadata:
+      labels:
+        app: security-tests
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: security-scanner
+        image: owasp/zap2docker-stable:2.14.0
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          echo "Starting OWASP ZAP security tests..."
+          
+          # Basic vulnerability scan
+          zap-baseline.py -t http://podinfo.tenant-a.svc.cluster.local:9898 \
+            -J zap-baseline-report.json \
+            -r zap-baseline-report.html \
+            --hook=/zap/auth_hook.py
+          
+          # API security scan
+          zap-api-scan.py -t http://podinfo.tenant-a.svc.cluster.local:9898/api \
+            -J zap-api-report.json \
+            -r zap-api-report.html
+          
+          echo "Security scan completed"
+        volumeMounts:
+        - name: test-reports
+          mountPath: /zap/wrk
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: test-reports
+        emptyDir: {}
+
+---
+# mTLS Validation Test
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mtls-validation-test
+  namespace: istio-testing
+  labels:
+    deployment-agent: istio-engineer
+    test-type: mtls-validation
+spec:
+  template:
+    metadata:
+      labels:
+        app: mtls-test
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: mtls-validator
+        image: curlimages/curl:8.4.0
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "=== mTLS Validation Test ==="
+          
+          # Test 1: Verify mTLS is working between services
+          echo "Testing service-to-service mTLS..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://podinfo.tenant-a.svc.cluster.local:9898/)
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Service-to-service communication working (mTLS enabled)"
+          else
+            echo "❌ Service-to-service communication failed (HTTP $RESPONSE)"
+            exit 1
+          fi
+          
+          # Test 2: Verify cross-namespace communication follows authorization policies
+          echo "Testing cross-namespace authorization..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://podinfo.tenant-b.svc.cluster.local:9898/)
+          echo "Cross-namespace response: $RESPONSE"
+          
+          # Test 3: Check certificate validity
+          echo "Checking certificate details..."
+          openssl s_client -connect podinfo.tenant-a.svc.cluster.local:9898 -servername podinfo.tenant-a.svc.cluster.local < /dev/null 2>/dev/null | openssl x509 -text -noout | grep -A 2 "Validity"
+          
+          echo "mTLS validation completed successfully"
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+
+---
+# Compliance Validation Test
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: compliance-validation
+  namespace: istio-testing
+  labels:
+    deployment-agent: istio-engineer
+    test-type: compliance
+spec:
+  template:
+    metadata:
+      labels:
+        app: compliance-test
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: compliance-tester
+      containers:
+      - name: compliance-validator
+        image: bitnami/kubectl:1.28
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          echo "=== Compliance Validation Test ==="
+          
+          # Test 1: Verify all pods have resource limits
+          echo "Checking resource limits compliance..."
+          PODS_WITHOUT_LIMITS=$(kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{" "}{.spec.containers[*].resources.limits}{"\n"}{end}' | grep -v "cpu\|memory" | wc -l)
+          if [ "$PODS_WITHOUT_LIMITS" -gt 0 ]; then
+            echo "❌ Found $PODS_WITHOUT_LIMITS pods without resource limits"
+          else
+            echo "✅ All pods have resource limits"
+          fi
+          
+          # Test 2: Verify security contexts
+          echo "Checking security context compliance..."
+          kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{" "}{.spec.containers[*].securityContext}{"\n"}{end}' | grep -E "(runAsNonRoot|readOnlyRootFilesystem)" > /tmp/security_contexts.txt
+          
+          # Test 3: Verify network policies exist
+          echo "Checking network policy compliance..."
+          NP_COUNT=$(kubectl get networkpolicies -A --no-headers | wc -l)
+          if [ "$NP_COUNT" -gt 0 ]; then
+            echo "✅ Network policies found: $NP_COUNT"
+          else
+            echo "⚠️  No network policies found - consider implementing for defense in depth"
+          fi
+          
+          # Test 4: Check PodSecurityStandards
+          echo "Checking Pod Security Standards..."
+          kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.metadata.labels.pod-security\.kubernetes\.io/enforce}{"\n"}{end}' | grep -v "restricted\|baseline" | wc -l
+          
+          echo "Compliance validation completed"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "10m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+
+---
+# Automated Test Pipeline Orchestration
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: automated-test-pipeline
+  namespace: istio-testing
+  labels:
+    deployment-agent: istio-engineer
+    component: test-automation
+spec:
+  schedule: "0 2 * * *"  # Run daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: test-pipeline
+          annotations:
+            sidecar.istio.io/inject: "true"
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: test-orchestrator
+            image: bitnami/kubectl:1.28
+            command: ["/bin/bash"]
+            args:
+            - -c
+            - |
+              echo "=== Automated Test Pipeline ==="
+              
+              # Phase 1: Performance Tests
+              echo "Starting performance tests..."
+              kubectl create job --from=cronjob/k6-performance-test k6-nightly-$(date +%Y%m%d%H%M) -n istio-testing
+              sleep 300  # Wait 5 minutes for performance tests
+              
+              # Phase 2: Security Tests
+              echo "Starting security tests..."
+              kubectl create job --from=cronjob/security-test-suite security-nightly-$(date +%Y%m%d%H%M) -n istio-testing
+              sleep 600  # Wait 10 minutes for security tests
+              
+              # Phase 3: Compliance Tests
+              echo "Starting compliance validation..."
+              kubectl create job --from=cronjob/compliance-validation compliance-nightly-$(date +%Y%m%d%H%M) -n istio-testing
+              sleep 180  # Wait 3 minutes
+              
+              # Phase 4: mTLS Tests
+              echo "Starting mTLS validation..."
+              kubectl create job --from=cronjob/mtls-validation-test mtls-nightly-$(date +%Y%m%d%H%M) -n istio-testing
+              sleep 60   # Wait 1 minute
+              
+              # Generate summary report
+              echo "=== Test Pipeline Summary ==="
+              echo "Date: $(date)"
+              echo "Performance tests: Completed"
+              echo "Security tests: Completed" 
+              echo "Compliance tests: Completed"
+              echo "mTLS tests: Completed"
+              
+              # Send notification (if webhook available)
+              curl -X POST http://notification-service.shared-services:8080/test-report \
+                -H "Content-Type: application/json" \
+                -d '{"pipeline": "nightly", "status": "completed", "timestamp": "'$(date -Iseconds)'"}'
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "10m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"

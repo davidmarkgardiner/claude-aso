@@ -1,0 +1,130 @@
+---
+# Mesh-wide strict mTLS PeerAuthentication
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istio-system  # Apply mesh-wide
+  labels:
+    security-policy: strict-mtls
+    deployment-agent: istio-engineer
+spec:
+  mtls:
+    mode: STRICT  # Enforce strict mTLS everywhere
+---
+# Namespace-specific strict mTLS for Tenant A
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: tenant-a-strict-mtls
+  namespace: tenant-a
+  labels:
+    security-policy: strict-mtls
+    deployment-agent: istio-engineer
+    tenant: tenant-a
+spec:
+  mtls:
+    mode: STRICT
+---
+# Namespace-specific strict mTLS for Tenant B
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: tenant-b-strict-mtls
+  namespace: tenant-b
+  labels:
+    security-policy: strict-mtls
+    deployment-agent: istio-engineer
+    tenant: tenant-b
+spec:
+  mtls:
+    mode: STRICT
+---
+# Namespace-specific strict mTLS for Shared Services
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: shared-services-strict-mtls
+  namespace: shared-services
+  labels:
+    security-policy: strict-mtls
+    deployment-agent: istio-engineer
+    tenant: shared
+spec:
+  mtls:
+    mode: STRICT
+---
+# Namespace-specific strict mTLS for Testing
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: testing-strict-mtls
+  namespace: istio-testing
+  labels:
+    security-policy: strict-mtls
+    deployment-agent: istio-engineer
+    tenant: testing
+spec:
+  mtls:
+    mode: STRICT
+---
+# Namespace-specific strict mTLS for External Services
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: external-services-strict-mtls
+  namespace: external-services
+  labels:
+    security-policy: strict-mtls
+    deployment-agent: istio-engineer
+    tenant: external
+spec:
+  mtls:
+    mode: STRICT
+---
+# Namespace-specific strict mTLS for AKS Istio System
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: aks-istio-system-strict-mtls
+  namespace: aks-istio-system
+  labels:
+    security-policy: strict-mtls
+    deployment-agent: istio-engineer
+spec:
+  mtls:
+    mode: STRICT
+---
+# DestinationRule to enforce mTLS for all services in mesh
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: default
+  namespace: istio-system  # Apply mesh-wide
+  labels:
+    security-policy: strict-mtls
+    deployment-agent: istio-engineer
+spec:
+  host: "*.local"  # All services in the mesh
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL  # Enforce Istio mTLS
+  exportTo:
+  - "*"
+---
+# DestinationRule for cross-namespace communication with mTLS
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: cross-namespace-mtls
+  namespace: istio-system
+  labels:
+    security-policy: strict-mtls
+    deployment-agent: istio-engineer
+spec:
+  host: "*.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+  exportTo:
+  - "*"

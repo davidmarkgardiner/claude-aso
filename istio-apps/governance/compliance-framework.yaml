@@ -1,0 +1,500 @@
+---
+# GDPR Compliance Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gdpr-compliance-config
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    compliance-framework: gdpr
+data:
+  privacy-policy.yaml: |
+    # Data Processing and Privacy Configuration
+    data_processing:
+      # Data residency requirements
+      data_residency:
+        allowed_regions: ["EU", "UK"]
+        prohibited_regions: ["US", "CN", "RU"]
+      
+      # Retention policies
+      retention:
+        access_logs: "30d"
+        tracing_data: "7d"
+        metrics_data: "90d"
+        audit_logs: "7y"  # Legal requirement
+      
+      # Data anonymization
+      anonymization:
+        ip_addresses: true
+        user_identifiers: true
+        session_tokens: true
+    
+    # Privacy headers enforcement
+    privacy_headers:
+      - "X-Privacy-Policy: https://davidmarkgardiner.co.uk/privacy"
+      - "X-Data-Processing: GDPR-compliant"
+      - "X-Data-Retention: 30d"
+
+  data-anonymization-lua.lua: |
+    -- GDPR-compliant data anonymization
+    function envoy_on_request(request_handle)
+      local user_ip = request_handle:headers():get("x-forwarded-for")
+      local user_agent = request_handle:headers():get("user-agent")
+      
+      -- Anonymize IP addresses (remove last octet)
+      if user_ip then
+        local anonymized_ip = string.gsub(user_ip, "(%d+%.%d+%.%d+%.)%d+", "%10")
+        request_handle:headers():replace("x-anonymized-ip", anonymized_ip)
+        request_handle:headers():remove("x-forwarded-for")
+      end
+      
+      -- Hash user agent for privacy
+      if user_agent then
+        local hash = ngx.md5(user_agent .. "privacy_salt_2024")
+        request_handle:headers():replace("x-user-agent-hash", hash)
+        request_handle:headers():remove("user-agent")
+      end
+      
+      -- Add privacy compliance headers
+      request_handle:headers():add("x-privacy-compliant", "true")
+      request_handle:headers():add("x-gdpr-processed", "true")
+    end
+
+---
+# SOC 2 Type II Compliance
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: soc2-access-controls
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    compliance-framework: soc2-type2
+spec:
+  action: ALLOW
+  rules:
+  # Administrative access controls
+  - from:
+    - source:
+        principals: ["cluster.local/ns/shared-services/sa/admin-service"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/admin/*"]
+    when:
+    # Require MFA token
+    - key: request.headers[x-mfa-verified]
+      values: ["true"]
+    # Time-based access (business hours only)
+    - key: request.time.hour
+      values: ["9", "10", "11", "12", "13", "14", "15", "16", "17"]
+  
+  # Audit log access (read-only for auditors)
+  - from:
+    - source:
+        principals: ["cluster.local/ns/shared-services/sa/auditor"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/logs/*", "/audit/*"]
+  
+  # Data access controls
+  - from:
+    - source:
+        namespaces: ["tenant-a", "tenant-b"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+    when:
+    # Require role-based access
+    - key: request.headers[x-user-role]
+      values: ["data-processor", "data-controller", "admin"]
+    # Log all data access
+    - key: request.headers[x-audit-log]
+      values: ["enabled"]
+
+---
+# ISO 27001 Security Controls
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: iso27001-security-controls
+  namespace: aks-istio-system
+  labels:
+    deployment-agent: istio-engineer
+    compliance-framework: iso27001
+spec:
+  workloadSelector:
+    labels:
+      istio: aks-istio-ingressgateway-internal
+  configPatches:
+  # Security logging for ISO 27001
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.wasm
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+          config:
+            name: security_audit_logger
+            vm_config:
+              vm_id: security_audit_logger
+              runtime: envoy.wasm.runtime.v8
+              code:
+                local:
+                  inline_string: |
+                    class SecurityAuditLogger {
+                      constructor(rootContext) {
+                        this.rootContext = rootContext;
+                      }
+                      
+                      onHttpRequestHeaders() {
+                        const headers = this.getRequestHeaders();
+                        const clientIp = headers["x-forwarded-for"];
+                        const userAgent = headers["user-agent"];
+                        const method = headers[":method"];
+                        const path = headers[":path"];
+                        const timestamp = new Date().toISOString();
+                        
+                        // Security event logging for ISO 27001
+                        const auditEvent = {
+                          timestamp: timestamp,
+                          event_type: "http_request",
+                          client_ip: clientIp,
+                          method: method,
+                          path: path,
+                          user_agent: userAgent,
+                          security_level: this.classifySecurityLevel(path),
+                          compliance_framework: "ISO27001"
+                        };
+                        
+                        // Log to security monitoring system
+                        console.log(JSON.stringify(auditEvent));
+                        
+                        return FilterHeadersStatus.Continue;
+                      }
+                      
+                      classifySecurityLevel(path) {
+                        if (path.includes("/admin") || path.includes("/debug")) {
+                          return "HIGH";
+                        } else if (path.includes("/api") || path.includes("/data")) {
+                          return "MEDIUM";
+                        }
+                        return "LOW";
+                      }
+                    }
+
+---
+# PCI DSS Compliance (if handling payment data)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: pci-dss-payment-service
+  namespace: tenant-a
+  labels:
+    deployment-agent: istio-engineer
+    compliance-framework: pci-dss
+spec:
+  hosts:
+  - payment.tenant-a.svc.cluster.local
+  http:
+  # PCI DSS requires encrypted communication
+  - match:
+    - uri:
+        prefix: "/payment"
+    - headers:
+        x-payment-data:
+          regex: ".*"
+    fault:
+      # Reject non-encrypted payment requests
+      abort:
+        percentage:
+          value: 100
+        httpStatus: 403
+    match:
+    - headers:
+        x-tls-verified:
+          exact: "false"
+    headers:
+      response:
+        add:
+          x-pci-dss-violation: "Unencrypted payment data transmission"
+  
+  # Allow only encrypted traffic
+  - route:
+    - destination:
+        host: payment.tenant-a.svc.cluster.local
+    headers:
+      request:
+        add:
+          x-pci-compliant: "true"
+          x-encryption-verified: "true"
+    timeout: 15s  # PCI requirement for timeout
+
+---
+# HIPAA Compliance (if handling health data)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: hipaa-health-data-access
+  namespace: tenant-a
+  labels:
+    deployment-agent: istio-engineer
+    compliance-framework: hipaa
+spec:
+  action: ALLOW
+  rules:
+  # Healthcare providers only
+  - from:
+    - source:
+        principals: ["cluster.local/ns/tenant-a/sa/healthcare-provider"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/health-records/*"]
+    when:
+    # Require HIPAA authorization
+    - key: request.headers[x-hipaa-authorization]
+      values: ["verified"]
+    # Audit trail requirement
+    - key: request.headers[x-audit-trail]
+      values: ["enabled"]
+    # Patient consent verification
+    - key: request.headers[x-patient-consent]
+      values: ["granted"]
+
+---
+# Regulatory Audit Trail
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: regulatory-audit-trail
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    component: regulatory-compliance
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: audit-trail
+  template:
+    metadata:
+      labels:
+        app: audit-trail
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      serviceAccountName: audit-trail-service
+      containers:
+      - name: audit-collector
+        image: fluent/fluent-bit:2.2.0
+        volumeMounts:
+        - name: audit-config
+          mountPath: /fluent-bit/etc
+        - name: audit-storage
+          mountPath: /var/log/audit
+        env:
+        - name: COMPLIANCE_FRAMEWORKS
+          value: "GDPR,SOC2,ISO27001,PCI-DSS,HIPAA"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      volumes:
+      - name: audit-config
+        configMap:
+          name: fluent-bit-audit-config
+      - name: audit-storage
+        persistentVolumeClaim:
+          claimName: audit-logs-pvc
+
+---
+# Compliance Monitoring and Alerting
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: compliance-monitoring
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    component: compliance-monitoring
+spec:
+  groups:
+  - name: compliance.violations
+    rules:
+    # GDPR violation alert
+    - alert: GDPRViolation
+      expr: |
+        sum(rate(envoy_http_downstream_rq_xx{envoy_response_code=~"4.."}[5m])) by (instance) > 10
+      for: 5m
+      labels:
+        severity: critical
+        compliance_framework: gdpr
+        deployment_agent: istio-engineer
+      annotations:
+        summary: "Potential GDPR violation detected"
+        description: "High rate of 4xx errors may indicate unauthorized access attempts"
+    
+    # SOC 2 access control violation
+    - alert: SOC2AccessViolation
+      expr: |
+        increase(istio_requests_total{response_code="403"}[10m]) > 5
+      for: 5m
+      labels:
+        severity: warning
+        compliance_framework: soc2
+        deployment_agent: istio-engineer
+      annotations:
+        summary: "SOC 2 access control violation"
+        description: "Multiple access denied events detected"
+    
+    # Data residency violation
+    - alert: DataResidencyViolation
+      expr: |
+        sum(rate(envoy_http_downstream_rq_xx{source_region!~"EU|UK"}[5m])) > 0
+      for: 1m
+      labels:
+        severity: critical
+        compliance_framework: gdpr
+        deployment_agent: istio-engineer
+      annotations:
+        summary: "Data residency violation detected"
+        description: "Traffic from prohibited regions detected"
+
+---
+# Compliance Reporting Dashboard
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compliance-dashboard
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    grafana_dashboard: "1"
+data:
+  compliance-monitoring.json: |
+    {
+      "dashboard": {
+        "title": "Regulatory Compliance Dashboard",
+        "tags": ["compliance", "governance", "security"],
+        "panels": [
+          {
+            "title": "GDPR Compliance Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=\"gdpr-compliance-checker\"}",
+                "legendFormat": "GDPR Status"
+              }
+            ]
+          },
+          {
+            "title": "SOC 2 Access Controls",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(istio_requests_total{response_code=\"403\"}[5m])",
+                "legendFormat": "Access Denied Events"
+              }
+            ]
+          },
+          {
+            "title": "Data Residency Compliance",
+            "type": "worldmap",
+            "targets": [
+              {
+                "expr": "sum by (source_region) (rate(envoy_http_downstream_rq_xx[5m]))",
+                "legendFormat": "{{ source_region }}"
+              }
+            ]
+          },
+          {
+            "title": "Audit Log Volume",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(audit_log_entries_total[5m])",
+                "legendFormat": "Audit Logs/sec"
+              }
+            ]
+          },
+          {
+            "title": "Compliance Violations",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "increase(compliance_violations_total[24h])",
+                "legendFormat": "{{ framework }} - {{ violation_type }}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+---
+# Automated Compliance Reporting
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: compliance-report-generator
+  namespace: shared-services
+  labels:
+    deployment-agent: istio-engineer
+    component: compliance-reporting
+spec:
+  schedule: "0 8 * * 1"  # Weekly on Monday at 8 AM
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: compliance-reporter
+          annotations:
+            sidecar.istio.io/inject: "true"
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: compliance-reporter
+          containers:
+          - name: report-generator
+            image: python:3.11-slim
+            command: ["python"]
+            args: ["/scripts/compliance-report.py"]
+            env:
+            - name: FRAMEWORKS
+              value: "GDPR,SOC2,ISO27001,PCI-DSS,HIPAA"
+            - name: REPORT_PERIOD
+              value: "weekly"
+            - name: OUTPUT_FORMAT
+              value: "pdf,json"
+            volumeMounts:
+            - name: report-scripts
+              mountPath: /scripts
+            - name: report-output
+              mountPath: /reports
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+          volumes:
+          - name: report-scripts
+            configMap:
+              name: compliance-report-scripts
+          - name: report-output
+            persistentVolumeClaim:
+              claimName: compliance-reports-pvc

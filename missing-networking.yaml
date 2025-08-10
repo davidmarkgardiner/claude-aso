@@ -1,0 +1,163 @@
+# Virtual Network with proper subnet segmentation
+apiVersion: network.azure.com/v1api20220701
+kind: VirtualNetwork
+metadata:
+  name: aks-prod-vnet
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  addressSpace:
+    addressPrefixes:
+      - "10.1.0.0/16"
+  subnets:
+    - name: aks-nodes-subnet
+      addressPrefix: "10.1.1.0/24"
+      serviceEndpoints:
+        - service: Microsoft.ContainerRegistry
+        - service: Microsoft.KeyVault
+        - service: Microsoft.Storage
+    - name: aks-pods-subnet
+      addressPrefix: "10.1.2.0/22"  # Large subnet for pods
+    - name: application-gateway-subnet
+      addressPrefix: "10.1.6.0/24"
+    - name: private-endpoints-subnet
+      addressPrefix: "10.1.7.0/24"
+      privateEndpointNetworkPolicies: Disabled
+  tags:
+    environment: production
+    managedBy: aso
+---
+# Network Security Group for AKS nodes
+apiVersion: network.azure.com/v1api20220701
+kind: NetworkSecurityGroup
+metadata:
+  name: aks-nodes-nsg
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  securityRules:
+    # Allow HTTPS inbound
+    - name: AllowHTTPS
+      properties:
+        protocol: Tcp
+        sourcePortRange: "*"
+        destinationPortRange: "443"
+        sourceAddressPrefix: "*"
+        destinationAddressPrefix: "*"
+        access: Allow
+        priority: 1000
+        direction: Inbound
+    # Allow HTTP inbound (for redirects)
+    - name: AllowHTTP
+      properties:
+        protocol: Tcp
+        sourcePortRange: "*"
+        destinationPortRange: "80"
+        sourceAddressPrefix: "*"
+        destinationAddressPrefix: "*"
+        access: Allow
+        priority: 1001
+        direction: Inbound
+    # Deny all other inbound
+    - name: DenyAllInbound
+      properties:
+        protocol: "*"
+        sourcePortRange: "*"
+        destinationPortRange: "*"
+        sourceAddressPrefix: "*"
+        destinationAddressPrefix: "*"
+        access: Deny
+        priority: 4096
+        direction: Inbound
+  tags:
+    environment: production
+    managedBy: aso
+---
+# Public IP for Application Gateway
+apiVersion: network.azure.com/v1api20220701
+kind: PublicIPAddress
+metadata:
+  name: aks-appgw-public-ip
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  sku:
+    name: Standard
+    tier: Regional
+  publicIPAllocationMethod: Static
+  publicIPAddressVersion: IPv4
+  dnsSettings:
+    domainNameLabel: aks-prod-gateway
+  tags:
+    environment: production
+    managedBy: aso
+---
+# Application Gateway for ingress
+apiVersion: network.azure.com/v1api20230501
+kind: ApplicationGateway
+metadata:
+  name: aks-prod-appgateway
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  sku:
+    name: Standard_v2
+    tier: Standard_v2
+    capacity: 2
+  gatewayIPConfigurations:
+    - name: appgw-ip-config
+      subnetReference:
+        armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/application-gateway-subnet
+  frontendIPConfigurations:
+    - name: appgw-public-frontend-ip
+      publicIPAddressReference:
+        armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/publicIPAddresses/aks-appgw-public-ip
+  frontendPorts:
+    - name: port-80
+      port: 80
+    - name: port-443
+      port: 443
+  backendAddressPools:
+    - name: aks-backend-pool
+  backendHttpSettingsCollection:
+    - name: aks-backend-settings
+      port: 80
+      protocol: Http
+      cookieBasedAffinity: Disabled
+  httpListeners:
+    - name: aks-listener
+      frontendIPConfigurationReference:
+        armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgateway/frontendIPConfigurations/appgw-public-frontend-ip
+      frontendPortReference:
+        armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgateway/frontendPorts/port-80
+      protocol: Http
+  requestRoutingRules:
+    - name: aks-routing-rule
+      ruleType: Basic
+      httpListenerReference:
+        armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgateway/httpListeners/aks-listener
+      backendAddressPoolReference:
+        armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgateway/backendAddressPools/aks-backend-pool
+      backendHttpSettingsReference:
+        armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgateway/backendHttpSettingsCollection/aks-backend-settings
+  # WAF configuration for security
+  webApplicationFirewallConfiguration:
+    enabled: true
+    firewallMode: Prevention
+    ruleSetType: OWASP
+    ruleSetVersion: "3.2"
+    disabledRuleGroups: []
+    requestBodyCheck: true
+    maxRequestBodySizeInKb: 128
+    fileUploadLimitInMb: 100
+  tags:
+    environment: production
+    managedBy: aso

@@ -1,0 +1,69 @@
+# Azure Key Vault for secrets management
+apiVersion: keyvault.azure.com/v1api20230701
+kind: Vault
+metadata:
+  name: aks-prod-keyvault
+  namespace: azure-system
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    # Enable RBAC instead of access policies
+    enableRbacAuthorization: true
+    # Soft delete protection
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 90
+    # Purge protection for production
+    enablePurgeProtection: true
+    # Network restrictions
+    networkAcls:
+      defaultAction: Deny
+      bypass: AzureServices
+      ipRules:
+        - value: "0.0.0.0/0"  # Replace with your actual IP ranges
+    # Diagnostic settings
+    enabledForDeployment: true
+    enabledForTemplateDeployment: true
+    enabledForDiskEncryption: true
+  sku:
+    family: A
+    name: standard
+  tags:
+    environment: production
+    managedBy: aso
+    costCenter: BT-TS-INFRA-
+---
+# Key Vault access role assignment for AKS identity
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: keyvault-secrets-officer
+  namespace: azure-system
+spec:
+  owner:
+    name: aks-prod-keyvault
+    group: keyvault.azure.com
+    kind: Vault
+  principalIdFromConfig:
+    name: external-dns-identity-cm
+    key: principalId
+  roleDefinitionReference:
+    # Key Vault Secrets Officer role
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b86a8fe4-44ce-4948-aee5-eccb2c155cd7
+---
+# Example secret for certificate storage
+apiVersion: keyvault.azure.com/v1api20230701
+kind: VaultsSecret
+metadata:
+  name: tls-certificate-secret
+  namespace: azure-system
+spec:
+  owner:
+    name: aks-prod-keyvault
+  properties:
+    contentType: "application/x-pkcs12"
+    attributes:
+      enabled: true
+      exp: 1735689600  # Expiration timestamp
+  value: "placeholder-certificate-data"

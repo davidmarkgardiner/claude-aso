@@ -1,0 +1,462 @@
+# Virtual Network for enhanced networking control
+apiVersion: network.azure.com/v1api20220701
+kind: VirtualNetwork
+metadata:
+  name: aks-prod-vnet
+  namespace: azure-system
+  labels:
+    component: networking
+    tier: production
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    addressSpace:
+      addressPrefixes:
+        - "10.0.0.0/16"  # 65,536 IP addresses
+    # Enable DDoS protection for production
+    enableDdosProtection: true
+    ddosProtectionPlan:
+      id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/ddosProtectionPlans/aks-prod-ddos-plan
+  tags:
+    environment: production
+    network-tier: production
+    ddos-protection: enabled
+
+---
+# DDoS Protection Plan
+apiVersion: network.azure.com/v1api20220701
+kind: DdosProtectionPlan
+metadata:
+  name: aks-prod-ddos-plan
+  namespace: azure-system
+  labels:
+    component: network-security
+    protection-type: ddos
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  tags:
+    environment: production
+    protection-level: standard
+
+---
+# AKS Subnet with enhanced security
+apiVersion: network.azure.com/v1api20220701
+kind: Subnet
+metadata:
+  name: aks-nodes-subnet
+  namespace: azure-system
+  labels:
+    component: networking
+    usage: aks-nodes
+spec:
+  owner:
+    name: aks-prod-vnet
+    group: network.azure.com
+    kind: VirtualNetwork
+  properties:
+    addressPrefix: "10.0.1.0/24"  # 256 IP addresses for nodes
+    # Enable private endpoint network policies
+    privateEndpointNetworkPolicies: Disabled
+    privateLinkServiceNetworkPolicies: Disabled
+    # Service endpoints for Azure services
+    serviceEndpoints:
+      - service: Microsoft.Storage
+        locations: ["uksouth"]
+      - service: Microsoft.KeyVault
+        locations: ["uksouth"]
+      - service: Microsoft.ContainerRegistry
+        locations: ["uksouth"]
+
+---
+# Application Gateway Subnet
+apiVersion: network.azure.com/v1api20220701
+kind: Subnet
+metadata:
+  name: appgw-subnet
+  namespace: azure-system
+  labels:
+    component: networking
+    usage: application-gateway
+spec:
+  owner:
+    name: aks-prod-vnet
+    group: network.azure.com
+    kind: VirtualNetwork
+  properties:
+    addressPrefix: "10.0.2.0/27"  # 32 IP addresses for App Gateway
+
+---
+# Private Endpoints Subnet
+apiVersion: network.azure.com/v1api20220701
+kind: Subnet
+metadata:
+  name: private-endpoints-subnet
+  namespace: azure-system
+  labels:
+    component: networking
+    usage: private-endpoints
+spec:
+  owner:
+    name: aks-prod-vnet
+    group: network.azure.com
+    kind: VirtualNetwork
+  properties:
+    addressPrefix: "10.0.3.0/24"  # 256 IP addresses for private endpoints
+    privateEndpointNetworkPolicies: Disabled
+
+---
+# Network Security Group for AKS nodes
+apiVersion: network.azure.com/v1api20220701
+kind: NetworkSecurityGroup
+metadata:
+  name: aks-nodes-nsg
+  namespace: azure-system
+  labels:
+    component: network-security
+    usage: aks-nodes
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    securityRules:
+      # Allow HTTPS inbound from Application Gateway
+      - name: "Allow-HTTPS-from-AppGW"
+        properties:
+          protocol: Tcp
+          sourceAddressPrefix: "10.0.2.0/27"
+          sourcePortRange: "*"
+          destinationAddressPrefix: "10.0.1.0/24"
+          destinationPortRange: "443"
+          access: Allow
+          priority: 100
+          direction: Inbound
+      
+      # Allow HTTP inbound from Application Gateway
+      - name: "Allow-HTTP-from-AppGW"
+        properties:
+          protocol: Tcp
+          sourceAddressPrefix: "10.0.2.0/27"
+          sourcePortRange: "*"
+          destinationAddressPrefix: "10.0.1.0/24"
+          destinationPortRange: "80"
+          access: Allow
+          priority: 110
+          direction: Inbound
+      
+      # Allow Kubernetes API server
+      - name: "Allow-Kubernetes-API"
+        properties:
+          protocol: Tcp
+          sourceAddressPrefix: "10.0.1.0/24"
+          sourcePortRange: "*"
+          destinationAddressPrefix: "10.0.1.0/24"
+          destinationPortRange: "6443"
+          access: Allow
+          priority: 120
+          direction: Inbound
+      
+      # Allow kubelet communication
+      - name: "Allow-Kubelet"
+        properties:
+          protocol: Tcp
+          sourceAddressPrefix: "10.0.1.0/24"
+          sourcePortRange: "*"
+          destinationAddressPrefix: "10.0.1.0/24"
+          destinationPortRange: "10250"
+          access: Allow
+          priority: 130
+          direction: Inbound
+      
+      # Allow NodePort services (30000-32767)
+      - name: "Allow-NodePort-Services"
+        properties:
+          protocol: Tcp
+          sourceAddressPrefix: "VirtualNetwork"
+          sourcePortRange: "*"
+          destinationAddressPrefix: "10.0.1.0/24"
+          destinationPortRange: "30000-32767"
+          access: Allow
+          priority: 140
+          direction: Inbound
+      
+      # Deny all other inbound traffic
+      - name: "Deny-All-Inbound"
+        properties:
+          protocol: "*"
+          sourceAddressPrefix: "*"
+          sourcePortRange: "*"
+          destinationAddressPrefix: "*"
+          destinationPortRange: "*"
+          access: Deny
+          priority: 4096
+          direction: Inbound
+      
+      # Allow all outbound traffic (can be restricted further)
+      - name: "Allow-All-Outbound"
+        properties:
+          protocol: "*"
+          sourceAddressPrefix: "*"
+          sourcePortRange: "*"
+          destinationAddressPrefix: "*"
+          destinationPortRange: "*"
+          access: Allow
+          priority: 100
+          direction: Outbound
+  tags:
+    security-tier: production
+    rule-set: aks-optimized
+
+---
+# Application Gateway with WAF
+apiVersion: network.azure.com/v1api20220701
+kind: ApplicationGateway
+metadata:
+  name: aks-prod-appgw
+  namespace: azure-system
+  labels:
+    component: application-gateway
+    waf-enabled: "true"
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    sku:
+      name: WAF_v2
+      tier: WAF_v2
+      capacity: 2  # Minimum for production
+    
+    # Gateway IP configuration
+    gatewayIPConfigurations:
+      - name: appgw-ip-config
+        properties:
+          subnet:
+            id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/appgw-subnet
+    
+    # Frontend IP configurations
+    frontendIPConfigurations:
+      - name: appgw-frontend-ip
+        properties:
+          publicIPAddress:
+            id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/publicIPAddresses/appgw-public-ip
+    
+    # Frontend ports
+    frontendPorts:
+      - name: port-80
+        properties:
+          port: 80
+      - name: port-443
+        properties:
+          port: 443
+    
+    # Backend address pools
+    backendAddressPools:
+      - name: aks-backend-pool
+        properties:
+          backendAddresses:
+            - ipAddress: "10.0.1.10"  # AKS ingress controller IP
+    
+    # Backend HTTP settings
+    backendHttpSettingsCollection:
+      - name: aks-backend-settings
+        properties:
+          port: 80
+          protocol: Http
+          requestTimeout: 30
+          connectionDraining:
+            enabled: true
+            drainTimeoutInSec: 30
+    
+    # HTTP listeners
+    httpListeners:
+      - name: http-listener
+        properties:
+          frontendIPConfiguration:
+            id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgw/frontendIPConfigurations/appgw-frontend-ip
+          frontendPort:
+            id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgw/frontendPorts/port-80
+          protocol: Http
+    
+    # Routing rules
+    requestRoutingRules:
+      - name: basic-routing-rule
+        properties:
+          ruleType: Basic
+          httpListener:
+            id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgw/httpListeners/http-listener
+          backendAddressPool:
+            id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgw/backendAddressPools/aks-backend-pool
+          backendHttpSettings:
+            id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgw/backendHttpSettingsCollection/aks-backend-settings
+    
+    # Web Application Firewall configuration
+    webApplicationFirewallConfiguration:
+      enabled: true
+      firewallMode: Prevention
+      ruleSetType: OWASP
+      ruleSetVersion: "3.2"
+      # Disable problematic rules if needed
+      disabledRuleGroups: []
+      requestBodyCheck: true
+      maxRequestBodySizeInKb: 128
+      fileUploadLimitInMb: 100
+  tags:
+    waf-mode: prevention
+    owasp-version: "3.2"
+    environment: production
+
+---
+# Public IP for Application Gateway
+apiVersion: network.azure.com/v1api20220701
+kind: PublicIPAddress
+metadata:
+  name: appgw-public-ip
+  namespace: azure-system
+  labels:
+    component: public-ip
+    usage: application-gateway
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  sku:
+    name: Standard
+    tier: Regional
+  properties:
+    publicIPAllocationMethod: Static
+    # DNS label for the public IP
+    dnsSettings:
+      domainNameLabel: "aks-prod-appgw"
+      fqdn: "aks-prod-appgw.uksouth.cloudapp.azure.com"
+  tags:
+    usage: application-gateway
+    dns-enabled: "true"
+
+---
+# Route Table for custom routing
+apiVersion: network.azure.com/v1api20220701
+kind: RouteTable
+metadata:
+  name: aks-route-table
+  namespace: azure-system
+  labels:
+    component: routing
+    usage: aks-cluster
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    # Disable BGP route propagation for more control
+    disableBgpRoutePropagation: true
+    routes:
+      # Route to Azure services via service endpoints
+      - name: azure-services-route
+        properties:
+          addressPrefix: "0.0.0.0/0"
+          nextHopType: Internet
+  tags:
+    routing-type: custom
+    bgp-disabled: "true"
+
+---
+# Private DNS Zone for internal name resolution
+apiVersion: network.azure.com/v1api20220301
+kind: PrivateDnsZone
+metadata:
+  name: aks-internal-dns
+  namespace: azure-system
+  labels:
+    component: dns
+    usage: internal-resolution
+spec:
+  location: global
+  owner:
+    name: at39473-weu-dev-prod
+  # Use a private domain for internal services
+  zoneName: aks.internal
+  tags:
+    dns-type: private
+    usage: internal-services
+
+---
+# Link private DNS zone to VNet
+apiVersion: network.azure.com/v1api20220301
+kind: PrivateDnsZoneVirtualNetworkLink
+metadata:
+  name: aks-internal-dns-link
+  namespace: azure-system
+  labels:
+    component: dns-linking
+spec:
+  owner:
+    name: aks-internal-dns
+    group: network.azure.com
+    kind: PrivateDnsZone
+  properties:
+    virtualNetwork:
+      id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet
+    registrationEnabled: true
+  location: global
+
+---
+# Network Watcher for network monitoring
+apiVersion: network.azure.com/v1api20220701
+kind: NetworkWatcher
+metadata:
+  name: aks-network-watcher
+  namespace: azure-system
+  labels:
+    component: network-monitoring
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  tags:
+    monitoring-type: network
+    region: uksouth
+
+---
+# Flow Logs for network security monitoring
+apiVersion: network.azure.com/v1api20220701
+kind: FlowLog
+metadata:
+  name: aks-nsg-flow-logs
+  namespace: azure-system
+  labels:
+    component: security-monitoring
+    log-type: network-flow
+spec:
+  location: uksouth
+  owner:
+    name: aks-network-watcher
+    group: network.azure.com
+    kind: NetworkWatcher
+  properties:
+    targetResourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/networkSecurityGroups/aks-nodes-nsg
+    storageId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Storage/storageAccounts/aksprodstorageukst001
+    enabled: true
+    # Flow log format version
+    format:
+      type: JSON
+      version: 2
+    # Traffic analytics
+    trafficAnalyticsConfiguration:
+      enabled: true
+      workspaceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+      workspaceRegion: uksouth
+      workspaceResourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+    # Retention policy
+    retentionPolicy:
+      days: 90
+      enabled: true
+  tags:
+    analysis-enabled: "true"
+    retention-days: "90"

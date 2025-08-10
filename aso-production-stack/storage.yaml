@@ -1,0 +1,325 @@
+# Storage Account for persistent volumes and backup storage
+apiVersion: storage.azure.com/v1api20230101
+kind: StorageAccount
+metadata:
+  name: aksprodstorageukst001
+  namespace: azure-system
+  labels:
+    component: storage
+    tier: production
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  kind: StorageV2
+  sku:
+    name: Standard_LRS  # Use Premium_LRS for better performance if needed
+  properties:
+    # Security settings
+    allowBlobPublicAccess: false
+    minimumTlsVersion: TLS1_2
+    supportsHttpsTrafficOnly: true
+    
+    # Network access restrictions
+    networkAcls:
+      defaultAction: Deny
+      bypass: AzureServices
+      # Allow access from AKS subnet
+      virtualNetworkRules:
+        - id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-vnet/subnets/default
+          action: Allow
+    
+    # Enable secure transfer
+    encryption:
+      services:
+        blob:
+          enabled: true
+        file:
+          enabled: true
+      keySource: Microsoft.Storage
+    
+    # Access tier for cost optimization
+    accessTier: Hot
+  tags:
+    environment: production
+    usage: aks-persistent-volumes
+    cost-center: infra
+    backup-required: "true"
+
+---
+# Private Endpoint for Storage Account
+apiVersion: network.azure.com/v1api20220701
+kind: PrivateEndpoint
+metadata:
+  name: storage-private-endpoint
+  namespace: azure-system
+  labels:
+    component: storage-networking
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    subnet:
+      armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-vnet/subnets/default
+    privateLinkServiceConnections:
+      - name: storage-blob-connection
+        properties:
+          privateLinkServiceId:
+            armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Storage/storageAccounts/aksprodstorageukst001
+          groupIds:
+            - blob
+      - name: storage-file-connection
+        properties:
+          privateLinkServiceId:
+            armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Storage/storageAccounts/aksprodstorageukst001
+          groupIds:
+            - file
+
+---
+# Container Registry for private container images
+apiVersion: containerregistry.azure.com/v1api20230701
+kind: Registry
+metadata:
+  name: aksprodregistry001
+  namespace: azure-system
+  labels:
+    component: container-registry
+    tier: production
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  sku:
+    name: Premium  # Required for private endpoints and geo-replication
+  properties:
+    # Admin user disabled for security
+    adminUserEnabled: false
+    
+    # Network access restrictions
+    networkRuleSet:
+      defaultAction: Deny
+      # Allow access from AKS cluster
+      virtualNetworkRules:
+        - action: Allow
+          virtualNetworkResourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-vnet
+    
+    # Public network access
+    publicNetworkAccess: Disabled
+    
+    # Enable vulnerability scanning
+    policies:
+      quarantinePolicy:
+        status: Enabled
+      trustPolicy:
+        status: Enabled
+        type: Notary
+      retentionPolicy:
+        status: Enabled
+        days: 30
+    
+    # Enable content trust
+    encryption:
+      status: Enabled
+  tags:
+    environment: production
+    usage: container-images
+    security-scanning: enabled
+    content-trust: enabled
+
+---
+# Private Endpoint for Container Registry
+apiVersion: network.azure.com/v1api20220701
+kind: PrivateEndpoint
+metadata:
+  name: acr-private-endpoint
+  namespace: azure-system
+  labels:
+    component: registry-networking
+    managed-by: aso
+spec:
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  properties:
+    subnet:
+      armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-vnet/subnets/default
+    privateLinkServiceConnections:
+      - name: acr-connection
+        properties:
+          privateLinkServiceId:
+            armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerRegistry/registries/aksprodregistry001
+          groupIds:
+            - registry
+
+---
+# RBAC for AKS cluster to pull from ACR
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: aks-acr-pull-role
+  namespace: azure-system
+  labels:
+    component: rbac
+    purpose: container-image-pull
+spec:
+  owner:
+    name: aksprodregistry001
+    group: containerregistry.azure.com
+    kind: Registry
+  # AKS cluster's kubelet identity
+  principalIdFromConfig:
+    name: uk8s-tsshared-weu-gt025-int-prod-cm
+    key: kubeletIdentityPrincipalId
+  roleDefinitionReference:
+    # AcrPull role allows pulling images
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d
+
+---
+# Storage Account role assignment for AKS cluster
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: aks-storage-contributor
+  namespace: azure-system
+  labels:
+    component: rbac
+    purpose: persistent-volumes
+spec:
+  owner:
+    name: aksprodstorageukst001
+    group: storage.azure.com
+    kind: StorageAccount
+  # AKS cluster's managed identity
+  principalIdFromConfig:
+    name: uk8s-tsshared-weu-gt025-int-prod-cm
+    key: principalId
+  roleDefinitionReference:
+    # Storage Account Contributor for managing storage resources
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/17d1049b-9a84-46fb-8f53-869881c3d3ab
+
+---
+# File Share for shared storage (e.g., configuration files)
+apiVersion: storage.azure.com/v1api20230101
+kind: FileShare
+metadata:
+  name: aks-shared-config
+  namespace: azure-system
+  labels:
+    component: shared-storage
+    usage: configuration-files
+spec:
+  owner:
+    name: aksprodstorageukst001
+  properties:
+    # 1TB quota - adjust based on needs
+    shareQuota: 1024
+    # Premium tier for better performance
+    accessTier: Premium
+    # Enable backup
+    enabledProtocols: SMB
+  metadata:
+    environment: production
+    mounted-by: aks-pods
+    backup-enabled: "true"
+
+---
+# Blob Container for application data and backups
+apiVersion: storage.azure.com/v1api20230101
+kind: BlobContainer
+metadata:
+  name: aks-application-data
+  namespace: azure-system
+  labels:
+    component: blob-storage
+    usage: application-backups
+spec:
+  owner:
+    name: aksprodstorageukst001
+  properties:
+    # Private access level
+    publicAccess: None
+    # Enable immutable storage for compliance
+    immutableStorageWithVersioning:
+      enabled: true
+  metadata:
+    purpose: backup-storage
+    retention-policy: 90-days
+    compliance: gdpr-compliant
+
+---
+# Backup Container for database backups
+apiVersion: storage.azure.com/v1api20230101
+kind: BlobContainer
+metadata:
+  name: database-backups
+  namespace: azure-system
+  labels:
+    component: blob-storage
+    usage: database-backups
+spec:
+  owner:
+    name: aksprodstorageukst001
+  properties:
+    publicAccess: None
+    # Lifecycle management policy for cost optimization
+    metadata:
+      lifecycle-management: enabled
+      move-to-cool: 30-days
+      move-to-archive: 90-days
+      delete-after: 7-years
+
+---
+# Diagnostic Settings for Storage Account
+apiVersion: insights.azure.com/v1api20230101
+kind: DiagnosticSetting
+metadata:
+  name: storage-diagnostics
+  namespace: azure-system
+  labels:
+    component: diagnostics
+    resource: storage-account
+spec:
+  resourceUri: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Storage/storageAccounts/aksprodstorageukst001
+  workspaceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+  properties:
+    # Enable storage metrics and logs
+    logs:
+      - category: StorageRead
+        enabled: true
+      - category: StorageWrite
+        enabled: true
+      - category: StorageDelete
+        enabled: true
+    metrics:
+      - category: Transaction
+        enabled: true
+      - category: Capacity
+        enabled: true
+
+---
+# Diagnostic Settings for Container Registry
+apiVersion: insights.azure.com/v1api20230101
+kind: DiagnosticSetting
+metadata:
+  name: acr-diagnostics
+  namespace: azure-system
+  labels:
+    component: diagnostics
+    resource: container-registry
+spec:
+  resourceUri: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerRegistry/registries/aksprodregistry001
+  workspaceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
+  properties:
+    # Enable ACR logs for security monitoring
+    logs:
+      - category: ContainerRegistryRepositoryEvents
+        enabled: true
+      - category: ContainerRegistryLoginEvents
+        enabled: true
+    metrics:
+      - category: AllMetrics
+        enabled: true

@@ -1,0 +1,346 @@
+---
+# Kyverno Policy for AKS Istio Addon (ASM 1.25) Sidecar Injection
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: enforce-aks-istio-sidecar-injection
+  annotations:
+    policies.kyverno.io/title: Enforce AKS Istio Sidecar Injection
+    policies.kyverno.io/category: Istio AKS
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Ensures all pods in tenant namespaces have proper AKS Istio addon
+      sidecar injection using the ASM 1.25 revision label. AKS Istio addon
+      requires explicit revision labels instead of generic injection labels.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    # Rule 1: Ensure namespace has correct revision label
+    - name: check-namespace-revision-label
+      match:
+        any:
+        - resources:
+            kinds:
+            - Namespace
+            names:
+            - "tenant-*"
+            - "shared-services"
+            - "istio-testing"
+            - "external-services"
+      validate:
+        message: "Namespace must have 'istio.io/rev: asm-1-25' label for AKS Istio addon"
+        pattern:
+          metadata:
+            labels:
+              istio.io/rev: "asm-1-25"
+    
+    # Rule 2: Block incorrect injection labels on namespaces
+    - name: block-incorrect-namespace-labels
+      match:
+        any:
+        - resources:
+            kinds:
+            - Namespace
+            names:
+            - "tenant-*"
+            - "shared-services"
+            - "istio-testing"
+      validate:
+        message: "Use 'istio.io/rev: asm-1-25' instead of generic 'istio-injection: enabled' for AKS"
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.metadata.labels.\"istio-injection\" }}"
+              operator: Equals
+              value: "enabled"
+    
+    # Rule 3: Ensure pods in labeled namespaces get sidecar
+    - name: check-pod-sidecar-injection
+      match:
+        any:
+        - resources:
+            kinds:
+            - Pod
+            namespaces:
+            - "tenant-*"
+            - "shared-services"
+      preconditions:
+        all:
+        - key: "{{ request.operation }}"
+          operator: In
+          value: ["CREATE", "UPDATE"]
+      validate:
+        message: "Pod must have sidecar injection enabled via namespace or pod labels for AKS Istio"
+        anyPattern:
+        # Option 1: Pod has explicit revision label
+        - metadata:
+            labels:
+              istio.io/rev: "asm-1-25"
+        # Option 2: Pod explicitly enables injection via annotation
+        - metadata:
+            annotations:
+              sidecar.istio.io/inject: "true"
+        # Option 3: Pod is in a namespace with revision label (checked separately)
+        - metadata:
+            name: "?*"
+    
+    # Rule 4: Block pods that explicitly disable injection
+    - name: block-disabled-injection
+      match:
+        any:
+        - resources:
+            kinds:
+            - Pod
+            - Deployment
+            - StatefulSet
+            - DaemonSet
+            namespaces:
+            - "tenant-*"
+            - "shared-services"
+      validate:
+        message: "Cannot disable Istio sidecar injection in tenant namespaces"
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.metadata.annotations.\"sidecar.istio.io/inject\" || '' }}"
+              operator: Equals
+              value: "false"
+            - key: "{{ request.object.spec.template.metadata.annotations.\"sidecar.istio.io/inject\" || '' }}"
+              operator: Equals
+              value: "false"
+---
+# Kyverno Policy to mutate resources for AKS Istio compatibility
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: mutate-aks-istio-labels
+  annotations:
+    policies.kyverno.io/title: Mutate Resources for AKS Istio
+    policies.kyverno.io/category: Istio AKS
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Automatically adds correct AKS Istio addon labels to resources
+      that are missing them, ensuring proper sidecar injection.
+spec:
+  mutateExistingOnPolicyUpdate: false
+  generateExistingOnPolicyUpdate: false
+  rules:
+    # Rule 1: Auto-add revision label to tenant namespaces
+    - name: add-namespace-revision-label
+      match:
+        any:
+        - resources:
+            kinds:
+            - Namespace
+            names:
+            - "tenant-*"
+            - "shared-services"
+            - "istio-testing"
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              istio.io/rev: "asm-1-25"
+    
+    # Rule 2: Remove incorrect labels from namespaces
+    - name: remove-incorrect-labels
+      match:
+        any:
+        - resources:
+            kinds:
+            - Namespace
+            names:
+            - "tenant-*"
+            - "shared-services"
+      preconditions:
+        any:
+        - key: "{{ request.object.metadata.labels.\"istio-injection\" || '' }}"
+          operator: Equals
+          value: "enabled"
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              istio-injection: null  # Remove the incorrect label
+---
+# Kyverno Policy to validate AKS-specific Istio configurations
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: validate-aks-istio-configurations
+  annotations:
+    policies.kyverno.io/title: Validate AKS Istio Configurations
+    policies.kyverno.io/category: Istio AKS
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Validates that Istio resources are compatible with AKS Istio addon
+      requirements and limitations.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    # Rule 1: Ensure Gateways use correct selector for AKS
+    - name: check-gateway-selector
+      match:
+        any:
+        - resources:
+            kinds:
+            - Gateway
+            namespaceSelector:
+              matchLabels:
+                istio.io/rev: "asm-1-25"
+      validate:
+        message: "Gateway must use AKS Istio ingress gateway selector"
+        pattern:
+          spec:
+            selector:
+              istio: "aks-istio-ingressgateway-*"
+    
+    # Rule 2: Validate EnvoyFilter compatibility with AKS
+    - name: check-envoyfilter-context
+      match:
+        any:
+        - resources:
+            kinds:
+            - EnvoyFilter
+      validate:
+        message: "EnvoyFilter must specify workloadSelector for AKS Istio"
+        pattern:
+          spec:
+            workloadSelector:
+              labels:
+                "?*": "?*"
+    
+    # Rule 3: Ensure ServiceEntry doesn't conflict with AKS services
+    - name: check-serviceentry-hosts
+      match:
+        any:
+        - resources:
+            kinds:
+            - ServiceEntry
+      validate:
+        message: "ServiceEntry cannot use Azure reserved hostnames"
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.spec.hosts[?contains(@, '.azure.com')] }}"
+              operator: AnyIn
+              value: ["*.azure.com", "management.azure.com", "login.microsoftonline.com"]
+---
+# ConfigMap with AKS Istio addon information
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aks-istio-config
+  namespace: aks-istio-system
+  labels:
+    app: istio
+    istio.io/rev: asm-1-25
+data:
+  revision: "asm-1-25"
+  version: "1.25"
+  mesh_id: "cluster.local"
+  network: "azure"
+  cluster_name: "aks-cluster"
+  
+  # Script to check and fix namespace labels
+  fix-namespace-labels.sh: |
+    #!/bin/bash
+    echo "Fixing namespace labels for AKS Istio addon (ASM 1.25)..."
+    
+    # Namespaces that need Istio injection
+    NAMESPACES=("tenant-a" "tenant-b" "shared-services" "istio-testing" "external-services")
+    
+    for ns in "${NAMESPACES[@]}"; do
+      echo "Processing namespace: $ns"
+      
+      # Remove incorrect label if exists
+      kubectl label namespace $ns istio-injection- 2>/dev/null || true
+      
+      # Add correct revision label
+      kubectl label namespace $ns istio.io/rev=asm-1-25 --overwrite
+      
+      echo "  ✓ Applied istio.io/rev=asm-1-25"
+    done
+    
+    echo ""
+    echo "Restarting pods to pick up sidecar injection..."
+    for ns in "${NAMESPACES[@]}"; do
+      echo "Restarting deployments in $ns..."
+      kubectl rollout restart deployment -n $ns 2>/dev/null || true
+      kubectl rollout restart statefulset -n $ns 2>/dev/null || true
+    done
+    
+    echo ""
+    echo "Verification:"
+    kubectl get namespaces -L istio.io/rev -L istio-injection
+---
+# Job to apply correct labels
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aks-istio-label-migration
+  namespace: aks-istio-system
+  labels:
+    app: istio-migration
+    istio.io/rev: asm-1-25
+spec:
+  template:
+    metadata:
+      labels:
+        app: istio-migration
+        sidecar.istio.io/inject: "false"  # Don't inject sidecar in this job
+    spec:
+      serviceAccountName: istio-label-migrator
+      containers:
+      - name: label-migrator
+        image: bitnami/kubectl:latest
+        command: ["/bin/bash"]
+        args: ["/scripts/fix-namespace-labels.sh"]
+        volumeMounts:
+        - name: script
+          mountPath: /scripts
+      volumes:
+      - name: script
+        configMap:
+          name: aks-istio-config
+          defaultMode: 0755
+      restartPolicy: OnFailure
+---
+# ServiceAccount for label migration
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: istio-label-migrator
+  namespace: aks-istio-system
+---
+# ClusterRole for label migration
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: istio-label-migrator
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: ["apps"]
+  resources: ["deployments/rollout", "statefulsets/rollout"]
+  verbs: ["create"]
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: istio-label-migrator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: istio-label-migrator
+subjects:
+- kind: ServiceAccount
+  name: istio-label-migrator
+  namespace: aks-istio-system

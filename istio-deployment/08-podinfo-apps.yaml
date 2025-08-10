@@ -1,0 +1,265 @@
+---
+# ServiceAccount for podinfo
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: podinfo
+  namespace: istio-demo
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: podinfo
+  namespace: istio-staging
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: podinfo
+  namespace: istio-production
+---
+# Demo namespace - podinfo v1 and v2
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo-v1
+  namespace: istio-demo
+  labels:
+    app: podinfo
+    version: "6.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: podinfo
+      version: "6.0.0"
+  template:
+    metadata:
+      labels:
+        app: podinfo
+        version: "6.0.0"
+    spec:
+      serviceAccountName: podinfo
+      containers:
+      - name: podinfo
+        image: ghcr.io/stefanprodan/podinfo:6.0.0
+        ports:
+        - containerPort: 9898
+          name: http
+        - containerPort: 9999
+          name: grpc
+        env:
+        - name: PODINFO_UI_COLOR
+          value: "#34577c"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo-v2
+  namespace: istio-demo
+  labels:
+    app: podinfo
+    version: "6.0.1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: podinfo
+      version: "6.0.1"
+  template:
+    metadata:
+      labels:
+        app: podinfo
+        version: "6.0.1"
+    spec:
+      serviceAccountName: podinfo
+      containers:
+      - name: podinfo
+        image: ghcr.io/stefanprodan/podinfo:6.0.1
+        ports:
+        - containerPort: 9898
+          name: http
+        - containerPort: 9999
+          name: grpc
+        env:
+        - name: PODINFO_UI_COLOR
+          value: "#d64545"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
+---
+# Staging namespace - both versions
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo-v1
+  namespace: istio-staging
+  labels:
+    app: podinfo
+    version: "6.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: podinfo
+      version: "6.0.0"
+  template:
+    metadata:
+      labels:
+        app: podinfo
+        version: "6.0.0"
+    spec:
+      serviceAccountName: podinfo
+      containers:
+      - name: podinfo
+        image: ghcr.io/stefanprodan/podinfo:6.0.0
+        ports:
+        - containerPort: 9898
+          name: http
+        env:
+        - name: PODINFO_UI_COLOR
+          value: "#34577c"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo-v2
+  namespace: istio-staging
+  labels:
+    app: podinfo
+    version: "6.0.1"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: podinfo
+      version: "6.0.1"
+  template:
+    metadata:
+      labels:
+        app: podinfo
+        version: "6.0.1"
+    spec:
+      serviceAccountName: podinfo
+      containers:
+      - name: podinfo
+        image: ghcr.io/stefanprodan/podinfo:6.0.1
+        ports:
+        - containerPort: 9898
+          name: http
+        env:
+        - name: PODINFO_UI_COLOR
+          value: "#d64545"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+---
+# Production namespace - only v1 for stability
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo-v1
+  namespace: istio-production
+  labels:
+    app: podinfo
+    version: "6.0.0"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: podinfo
+      version: "6.0.0"
+  template:
+    metadata:
+      labels:
+        app: podinfo
+        version: "6.0.0"
+    spec:
+      serviceAccountName: podinfo
+      containers:
+      - name: podinfo
+        image: ghcr.io/stefanprodan/podinfo:6.0.0
+        ports:
+        - containerPort: 9898
+          name: http
+        env:
+        - name: PODINFO_UI_COLOR
+          value: "#228B22"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 128Mi
+          limits:
+            cpu: 1000m
+            memory: 256Mi
+---
+# Services for each namespace
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: istio-demo
+  labels:
+    app: podinfo
+spec:
+  ports:
+  - port: 9898
+    name: http
+    targetPort: 9898
+  - port: 9999
+    name: grpc
+    targetPort: 9999
+  selector:
+    app: podinfo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: istio-staging
+  labels:
+    app: podinfo
+spec:
+  ports:
+  - port: 9898
+    name: http
+    targetPort: 9898
+  - port: 9999
+    name: grpc
+    targetPort: 9999
+  selector:
+    app: podinfo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: istio-production
+  labels:
+    app: podinfo
+spec:
+  ports:
+  - port: 9898
+    name: http
+    targetPort: 9898
+  - port: 9999
+    name: grpc
+    targetPort: 9999
+  selector:
+    app: podinfo

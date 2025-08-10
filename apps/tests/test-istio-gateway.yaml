@@ -1,0 +1,30 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: test-gateway
+  namespace: test-dns
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: gateway.davidmarkgardiner.co.uk
+    external-dns.alpha.kubernetes.io/ttl: "300"
+spec:
+  selector:
+    app: aks-istio-ingressgateway-internal
+    istio: aks-istio-ingressgateway-internal
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - podinfo.davidmarkgardiner.co.uk
+    - test-vs.davidmarkgardiner.co.uk
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: test-tls-secret
+    hosts:
+    - podinfo.davidmarkgardiner.co.uk
+    - test-vs.davidmarkgardiner.co.uk
