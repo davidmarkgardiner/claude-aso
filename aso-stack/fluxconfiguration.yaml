@@ -45,15 +45,8 @@ spec:
           clientId: "540fae85-49bc-4a56-946b-08518c7c5838"
           principalId: "50cf8e5f-835b-419b-958f-62207aa2242e"
           tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
-    apps:
+    istio-apps:
       dependsOn: ["external-dns", "cert-manager-config"]
-      path: ./apps
-      timeoutInSeconds: 600
-      syncIntervalInSeconds: 120
-      prune: true
-      force: true
-    istio-app:
-      dependsOn: ["apps"]
       path: ./istio-apps
       timeoutInSeconds: 600
       syncIntervalInSeconds: 120
