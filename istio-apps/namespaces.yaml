@@ -63,3 +63,15 @@ metadata:
     security-level: permissive
     deployment-agent: istio-engineer
 spec: {}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spire
+  labels:
+    istio-injection: disabled
+    tenant: spire-system
+    environment: infrastructure
+    security-level: strict
+    deployment-agent: istio-engineer
+spec: {}
