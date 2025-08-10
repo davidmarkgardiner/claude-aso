@@ -83,67 +83,68 @@ spec:
       name: istio-apps
   summary: "Istio deployment failed in {{ .InvolvedObject.name }}"
 
----
-# Readiness Gates for Progressive Deployment
-apiVersion: flagger.app/v1beta1
-kind: Canary
-metadata:
-  name: tenant-a-podinfo-canary
-  namespace: tenant-a
-  labels:
-    deployment-agent: istio-engineer
-spec:
-  targetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: podinfo-v1
-  progressDeadlineSeconds: 600
-  
-  service:
-    port: 9898
-    targetPort: 9898
-    gateways:
-      - aks-istio-system/main-gateway
-    hosts:
-      - podinfo.tenant-a.davidmarkgardiner.co.uk
-  
-  analysis:
-    interval: 30s
-    threshold: 5
-    maxWeight: 10
-    stepWeight: 2
-    
-    # Health check gates
-    metrics:
-      - name: request-success-rate
-        thresholdRange:
-          min: 99
-        interval: 30s
-      
-      - name: request-duration
-        thresholdRange:
-          max: 500
-        interval: 30s
-      
-      - name: error-rate
-        thresholdRange:
-          max: 1
-        interval: 30s
-    
-    # Pre-deployment validation
-    webhooks:
-      - name: istio-proxy-check
-        type: pre-rollout
-        url: http://flagger-loadtester.istio-testing/
-        timeout: 10s
-        metadata:
-          type: bash
-          cmd: "kubectl get pods -n tenant-a -l version=canary --field-selector=status.phase=Running | wc -l | grep -q '^[1-9]'"
-      
-      - name: security-policy-validation  
-        type: pre-rollout
-        url: http://policy-validator.shared-services/validate
-        timeout: 15s
+# ---
+# # Readiness Gates for Progressive Deployment
+# # Commented out - requires Flagger operator to be installed first
+# apiVersion: flagger.app/v1beta1
+# kind: Canary
+# metadata:
+#   name: tenant-a-podinfo-canary
+#   namespace: tenant-a
+#   labels:
+#     deployment-agent: istio-engineer
+# spec:
+#   targetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: podinfo-v1
+#   progressDeadlineSeconds: 600
+#   
+#   service:
+#     port: 9898
+#     targetPort: 9898
+#     gateways:
+#       - aks-istio-system/main-gateway
+#     hosts:
+#       - podinfo.tenant-a.davidmarkgardiner.co.uk
+#   
+#   analysis:
+#     interval: 30s
+#     threshold: 5
+#     maxWeight: 10
+#     stepWeight: 2
+#     
+#     # Health check gates
+#     metrics:
+#       - name: request-success-rate
+#         thresholdRange:
+#           min: 99
+#         interval: 30s
+#       
+#       - name: request-duration
+#         thresholdRange:
+#           max: 500
+#         interval: 30s
+#       
+#       - name: error-rate
+#         thresholdRange:
+#           max: 1
+#         interval: 30s
+#     
+#     # Pre-deployment validation
+#     webhooks:
+#       - name: istio-proxy-check
+#         type: pre-rollout
+#         url: http://flagger-loadtester.istio-testing/
+#         timeout: 10s
+#         metadata:
+#           type: bash
+#           cmd: "kubectl get pods -n tenant-a -l version=canary --field-selector=status.phase=Running | wc -l | grep -q '^[1-9]'"
+#       
+#       - name: security-policy-validation  
+#         type: pre-rollout
+#         url: http://policy-validator.shared-services/validate
+#         timeout: 15s
 
 ---
 # Resource Quotas for GitOps Safety
