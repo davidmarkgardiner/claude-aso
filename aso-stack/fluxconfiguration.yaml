@@ -8,7 +8,7 @@ spec:
   gitRepository:
     provider: Generic
     repositoryRef:
-      branch: test-cluster-build
+      branch: experiment/test-cluster-build
     url: https://github.com/davidmarkgardiner/claude-aso
   kustomizations:
     external-dns:
