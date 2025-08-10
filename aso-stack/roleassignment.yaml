@@ -16,3 +16,36 @@ spec:
   roleDefinitionReference:
     # This ARM ID represents "dns zone conrtibutor" - you can read about other built in roles here: https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
     armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/befefa01-2a29-4197-83a8-272ff33ce314
+---
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: aso-subscription-contributor
+  namespace: azure-system
+spec:
+  # ASO needs permissions at subscription level to manage all Azure resources
+  scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903
+  # This is the Principal ID of the ASO workload identity
+  principalIdFromConfig:
+    name: aso-identity-cm
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    # This ARM ID represents "Contributor" role - required for ASO to manage Azure resources
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c
+---
+apiVersion: authorization.azure.com/v1api20220401
+kind: RoleAssignment
+metadata:
+  name: aso-user-access-administrator
+  namespace: azure-system
+spec:
+  # ASO needs User Access Administrator to manage role assignments
+  scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903
+  principalIdFromConfig:
+    name: aso-identity-cm
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    # This ARM ID represents "User Access Administrator" - required for ASO to manage RBAC
+    armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/18d7d88d-d35e-4fb5-a5c3-7773c20a72d9
