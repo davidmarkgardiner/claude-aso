@@ -1,17 +1,17 @@
-import rateLimit from 'express-rate-limit';
+import expressRateLimit from 'express-rate-limit';
 import { Request, Response } from 'express';
 import { logger } from '../utils/logger';
 import { config } from '../config/config';
 
 // Default rate limit configuration
-export const rateLimitMiddleware = rateLimit({
+const rateLimitMiddleware = expressRateLimit({
   windowMs: config.rateLimit.windowMs,
   max: config.rateLimit.maxRequests,
   skipSuccessfulRequests: config.rateLimit.skipSuccessfulRequests,
   
   // Key generator - use user ID if authenticated, otherwise IP
   keyGenerator: (req: Request): string => {
-    return req.user?.id || req.ip;
+    return req.user?.id || req.ip || 'unknown';
   },
   
   // Custom handler for rate limit exceeded
@@ -53,13 +53,16 @@ export const rateLimitMiddleware = rateLimit({
   legacyHeaders: false
 });
 
+// Export the main rate limit as rateLimit
+export const rateLimit = rateLimitMiddleware;
+
 // Stricter rate limit for resource-intensive operations
-export const strictRateLimit = rateLimit({
+export const strictRateLimit = expressRateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // Max 10 requests per window
   
   keyGenerator: (req: Request): string => {
-    return req.user?.id || req.ip;
+    return req.user?.id || req.ip || 'unknown';
   },
   
   handler: (req: Request, res: Response) => {
@@ -88,7 +91,7 @@ export const strictRateLimit = rateLimit({
 });
 
 // Team-specific rate limiting
-export const teamRateLimit = rateLimit({
+export const teamRateLimit = expressRateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 50, // Max 50 requests per team per minute
   

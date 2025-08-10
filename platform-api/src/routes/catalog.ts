@@ -290,7 +290,7 @@ router.get('/templates/:templateId',
 // GET /api/platform/catalog/categories - List template categories
 router.get('/categories',
   requireRole(['namespace:admin', 'namespace:developer']),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const categoryCounts = categories.map(category => ({
       name: category,
       count: serviceTemplates.filter(t => t.category === category).length,
@@ -396,8 +396,8 @@ router.post('/templates/:templateId/deploy',
                     templateParameters.workspaceName || templateParameters.pipelineName,
       team: templateParameters.team,
       environment: templateParameters.environment,
-      resourceTier: template.resourceTier,
-      networkPolicy: template.complexity === 'high' ? 'isolated' : 'team-shared',
+      resourceTier: template.resourceTier as 'micro' | 'small' | 'medium' | 'large',
+      networkPolicy: (template.complexity === 'high' ? 'isolated' : 'team-shared') as 'isolated' | 'team-shared' | 'open',
       features: template.features,
       description: `Deployed from template: ${template.name}`,
       costCenter: templateParameters.team
@@ -436,7 +436,7 @@ router.post('/templates/:templateId/deploy',
     } catch (error) {
       logger.error('Template deployment failed', {
         templateId,
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         namespaceName: namespaceRequest.namespaceName,
         requestedBy: req.user!.email
       });
@@ -448,7 +448,7 @@ router.post('/templates/:templateId/deploy',
 // GET /api/platform/catalog/favorites - Get user's favorite templates (mock for now)
 router.get('/favorites',
   requireRole(['namespace:admin', 'namespace:developer']),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     // In production, this would come from user preferences database
     const favoriteTemplateIds = ['basic-web-app', 'microservice-api'];
     
@@ -473,7 +473,7 @@ router.get('/favorites',
 // GET /api/platform/catalog/recent - Get recently used templates (mock for now)
 router.get('/recent',
   requireRole(['namespace:admin', 'namespace:developer']),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     // In production, this would come from user activity database
     const recentTemplateIds = ['microservice-api', 'data-pipeline', 'basic-web-app'];
     

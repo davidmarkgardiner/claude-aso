@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { requireRole } from '../middleware/auth';
-import { logger } from '../utils/logger';
+// logger import removed as it's not used
 
 const router = Router();
 
@@ -412,7 +412,7 @@ router.get('/security',
 // GET /api/platform/analytics/dashboard - Executive dashboard summary
 router.get('/dashboard',
   requireRole(['platform:admin', 'platform:engineer']),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const mockDashboardData = {
       summary: {
         totalNamespaces: 47,

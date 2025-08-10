@@ -1,83 +1,90 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Environment
-
-This repository uses **Devbox** for environment management and **Nushell** for scripting. The development environment includes cloud CLI tools (Azure CLI, AWS CLI, Google Cloud SDK) and Kubernetes tools.
-
-### Setup Commands
-
-```bash
-# Initialize development environment
-devbox shell
-
-# Setup complete infrastructure (interactive)
-nu dot.nu setup
-
-# Destroy infrastructure 
-nu dot.nu destroy [provider]
-```
 
 ## Architecture
 
-This is an **Azure Service Operator (ASO) demonstration repository** focused on managing Azure infrastructure through Kubernetes. The architecture consists of:
+This is an **Azure Service Operator (ASO) demonstration repository** focused on managing Azure infrastructure through Kubernetes and platform engineering patterns. The architecture consists of:
 
 ### Core Components
 
-1. **ASO Manifests** (`aso-manifests/`, `aso-manifests-dry-run/`, `aso-production-stack/`)
+1. **Specialized Agents** (`.claude/agents/`)
+   - Pre-configured Claude Code agents for specific tasks
+   - `aso-deployment.json` - Azure Service Operator deployment automation
+   - `istio-deployment.json` - Istio service mesh deployment and configuration  
+   - `build-aks` - AKS cluster building and management
+   - `sre-debugger.json` - Site reliability engineering and debugging
+   - `chaos-engineer.json` - Chaos engineering and resilience testing
+   - Additional agents in specialized categories (design, engineering, testing, etc.)
+
+2. **ASO Manifests** (`aso-stack/`)
    - Azure Service Operator YAML definitions
    - Resource Groups, Managed Identities, AKS clusters
    - Uses ASO CRDs to provision Azure resources via Kubernetes
+   - `.claude/agents/build-aks/aks/aso-deployment-agent.md` -  Azure Service Operator deployment agent
 
-2. **Nushell Scripts** (`scripts/`)
-   - `common.nu` - Cloud provider credential management and utilities
-   - `kubernetes.nu` - Multi-cloud Kubernetes cluster management (AWS EKS, Azure AKS, GCP GKE, Kind)  
-   - `crossplane.nu` - Crossplane installation and configuration
-   - `atlas.nu` - Atlas Operator for database schema migrations
-   - `ingress.nu` - Ingress controller management
+3. **APP Manifests** (`apps/`)
+   - apps deployed to aks cluster using gitops/ fluxconfiguration
+   - currentl deploys external-dns and cert-manager
+   - `.claude/agents/build-aks/apps/external-dns-specialist.md` - External DNS configuration agent
+   - `.claude/agents/build-aks/apps/cert-manager-specialist.md` - Cert-Manager deployment agent
 
-3. **Prompt Templates** (`prompts/`)
-   - ASO management workflows
-   - Resource observation and deletion procedures
-   - Database and application management templates
+4. **Service Mesh Integration** (`istio-apps/`)
+   - Istio configurations for traffic management and security
+   - mTLS enforcement and network policies
+   - Observability and monitoring integration
+   - `.claude/agents/build-aks/istio/istio-deployment-specialist.md` - Istio deployment agent
+   - `.claude/agents/build-aks/istio/istio-test-specialist.md` - Istio testing agent
+   - `.claude/agents/build-aks/istio/istio-documentation-agent.md` - Istio documentation agent
+
+5. **Platform Engineering Stack**
+   - `platform-api/` - Node.js/TypeScript backend for namespace-as-a-service
+   - `platform-ui/` - React/TypeScript frontend with TailwindCSS
+   - `platform-rbac/` - Role-based access control configurations
+   - Self-service multi-tenancy with Kubernetes integration
+   - `.claude/agents/build-aks/backstage/platform-api-specialist.md` - Platform API development agent
+   - `.claude/agents/build-aks/backstage/platform-ui-specialist.md` - Platform UI development agent
+   - `.claude/agents/build-aks/backstage/platform-rbac-specialist.md` - Platform RBAC configuration agent
+
+
+
 
 ### Key Patterns
 
-- **Multi-cloud support**: AWS, Azure, Google Cloud, Kind clusters
-- **Infrastructure as Code**: Kubernetes manifests for Azure resources via ASO
+- **Infrastructure as Code**: Kubernetes manifests for Azure resources via ASO, Backstage
 - **Memory-driven workflows**: Uses MCP memory services for storing operational patterns
-- **Environment isolation**: Separate namespaces (`a-team`, `b-team`) and validation modes
+- **Agent-driven automation**: Specialized Claude Code agents for complex operational tasks
 
 ## Common Commands
 
-### Infrastructure Management
+
+
+
+### Platform API Development
 ```bash
-# Setup environment and choose provider
-nu dot.nu setup
+# Development server (in platform-api/)
+npm run dev
 
-# Create specific cloud cluster
-nu scripts/kubernetes.nu create kubernetes [aws|azure|google|kind] --name cluster-name
+# Build and test
+npm run build
+npm test
+npm run lint
 
-# Apply ASO manifests
-kubectl apply -f aso-manifests/
-
-# Check ASO operator status  
-kubectl get pods -n azureserviceoperator-system
+# Run specific tests
+npm run test:unit
+npm run test:integration
+npm run test:demo
 ```
 
-### Development Workflow
+### Platform UI Development
 ```bash
-# Load environment variables
-source .env
+# Development server (in platform-ui/)
+npm run dev
 
-# Access cluster (after setup)
-export KUBECONFIG=kubeconfig-dot.yaml
-kubectl get nodes
-
-# Monitor Azure resource provisioning
-kubectl get resourcegroup,userassignedidentity,managedcluster -n aso
+# Build and lint
+npm run build
+npm run lint
 ```
+
 
 ### ASO Development
 
@@ -90,13 +97,29 @@ kubectl get resourcegroup,userassignedidentity,managedcluster -n aso
 
 Set automatically by setup scripts:
 - `KUBECONFIG` - Path to cluster kubeconfig
-- `PROVIDER` - Selected cloud provider
-- Provider-specific credentials (AWS_*, AZURE_*, PROJECT_ID)
+- `PROVIDER` - Azure
 
-## Dependencies
 
-Managed via Devbox (`devbox.json`):
-- Azure CLI, AWS CLI, Google Cloud SDK
-- kubectl, kind, helm, eksctl
-- Nushell for scripting
-- PostgreSQL client tools
+## Development Practices
+
+### Feature Development Workflow
+- **Always create a new branch** for each feature: `git checkout -b feature/feature-name`
+- **Create a GitHub issue** at https://github.com/davidmarkgardiner/claude-aso for every feature
+- **Link the branch to the issue** in the issue description or PR
+- **Hand off issues to specialized agents** using the appropriate agent from `.claude/agents/build-aks/`
+- **Use descriptive branch names** that reflect the feature being developed
+
+### Code Quality
+- Run `npm run lint` in platform-api/ and platform-ui/ before committing
+- Execute `npm test` in platform-api/ to ensure all tests pass
+- Use `./scripts/scan-secrets.sh` to scan for secrets before commits
+
+### Platform Backstage Testing Strategy
+- **Unit tests**: `npm run test:unit` - Test individual functions
+- **Integration tests**: `npm run test:integration` - Test API endpoints
+- **Demo tests**: `npm run test:demo` - End-to-end workflows
+
+### Infrastructure Validation
+- Test on Kind cluster before cloud deployment: `nu scripts/kubernetes.nu create kubernetes kind`
+- Use dry-run validation: `kubectl apply --dry-run=client -f <manifest>`
+- Monitor resource status: `kubectl get <resource> -o yaml`

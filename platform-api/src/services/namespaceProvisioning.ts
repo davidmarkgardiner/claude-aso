@@ -398,16 +398,11 @@ export class NamespaceProvisioningService {
     }
   }
 
-  private async getNetworkPolicies(namespace: string): Promise<k8s.V1NetworkPolicy[]> {
-    try {
-      const k8sClient = getKubernetesClient();
-      // This would need to use the networking API
-      // For now, return empty array
-      return [];
-    } catch (error) {
-      logger.error(`Failed to get network policies for namespace ${namespace}:`, error);
-      return [];
-    }
+  private async getNetworkPolicies(_namespace: string): Promise<k8s.V1NetworkPolicy[]> {
+    // const k8sClient = getKubernetesClient();
+    // This would need to use the networking API
+    // For now, return empty array
+    return [];
   }
 
   // These methods would typically interact with a database
@@ -416,7 +411,7 @@ export class NamespaceProvisioningService {
     logger.info('Storing request metadata', { requestId, workflowId });
   }
 
-  private async getRequestMetadata(requestId: string): Promise<ProvisioningResult | null> {
+  private async getRequestMetadata(_requestId: string): Promise<ProvisioningResult | null> {
     // TODO: Implement database retrieval
     return null;
   }

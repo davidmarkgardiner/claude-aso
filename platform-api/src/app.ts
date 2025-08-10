@@ -7,10 +7,10 @@ import { errorHandler } from './middleware/errorHandler';
 import { rateLimit } from './middleware/rateLimit';
 
 // Import routes
-import healthRouter from './routes/health';
-import namespacesRouter from './routes/namespaces';
-import catalogRouter from './routes/catalog';
-import analyticsRouter from './routes/analytics';
+import { healthRouter } from './routes/health';
+import { namespaceRouter } from './routes/namespaces';
+import { catalogRouter } from './routes/catalog';
+import { analyticsRouter } from './routes/analytics';
 
 export async function createApp(): Promise<express.Application> {
   const app = express();
@@ -18,7 +18,7 @@ export async function createApp(): Promise<express.Application> {
   // Security middleware
   app.use(helmet());
   app.use(cors({
-    origin: config.cors.origin,
+    origin: config.corsOrigins,
     credentials: true
   }));
 
@@ -32,12 +32,12 @@ export async function createApp(): Promise<express.Application> {
 
   // Routes
   app.use('/health', healthRouter);
-  app.use('/api/platform/namespaces', namespacesRouter);
+  app.use('/api/platform/namespaces', namespaceRouter);
   app.use('/api/platform/catalog', catalogRouter);
   app.use('/api/platform/analytics', analyticsRouter);
 
   // Root endpoint
-  app.get('/', (req, res) => {
+  app.get('/', (_req, res) => {
     res.json({
       name: 'Platform API',
       version: '1.0.0',

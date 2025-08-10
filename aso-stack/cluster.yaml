@@ -114,10 +114,10 @@ spec:
       enabled: true
       config:
         version: "v2"
-  # Monitoring and Metrics
+  Monitoring and Metrics
   # azureMonitorProfile:
   #   metrics:
-  #     enabled: false
+  #     enabled: true
   #     kubeStateMetrics:
   #       metricLabelsAllowlist: "namespaces=[owner, swID]"
   #       metricAnnotationsAllowList: "pods=[k8s-annotation-1,k8s-annotation-n]"
