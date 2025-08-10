@@ -3,10 +3,12 @@ import { DefaultAzureCredential } from '@azure/identity';
 import axios from 'axios';
 import { logger } from '../utils/logger';
 import { AzureADPrincipal, RBACValidationResult } from '../types/rbac';
+import { CircuitBreakerRegistry, CircuitBreakerError, CircuitState } from '../utils/circuitBreaker';
 
 export class AzureADValidationService {
   private credential: DefaultAzureCredential;
   private graphApiBaseUrl = 'https://graph.microsoft.com/v1.0';
+  private circuitBreaker = CircuitBreakerRegistry.getAzureADBreaker();
 
   constructor() {
     this.credential = new DefaultAzureCredential();
@@ -14,25 +16,29 @@ export class AzureADValidationService {
 
   async validateUserPrincipal(userPrincipalName: string): Promise<RBACValidationResult> {
     try {
-      const accessToken = await this.getGraphAccessToken();
-      
-      // Get user information from Microsoft Graph
-      const response = await axios.get(
-        `${this.graphApiBaseUrl}/users/${encodeURIComponent(userPrincipalName)}?$select=id,displayName,userPrincipalName`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+      // Use circuit breaker to protect against Azure AD API failures
+      const result = await this.circuitBreaker.execute(async () => {
+        const accessToken = await this.getGraphAccessToken();
+        
+        // Get user information from Microsoft Graph
+        const response = await axios.get(
+          `${this.graphApiBaseUrl}/users/${encodeURIComponent(userPrincipalName)}?$select=id,displayName,userPrincipalName`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 5000 // 5 second timeout for individual requests
           }
-        }
-      );
+        );
 
-      const userData = response.data;
+        return response.data;
+      });
 
       const principal: AzureADPrincipal = {
-        objectId: userData.id,
-        userPrincipalName: userData.userPrincipalName,
-        displayName: userData.displayName,
+        objectId: result.id,
+        userPrincipalName: result.userPrincipalName,
+        displayName: result.displayName,
         principalType: 'User',
         verified: true
       };
@@ -40,12 +46,27 @@ export class AzureADValidationService {
       return {
         valid: true,
         principal,
+        principalType: 'User',
         errors: []
       };
 
     } catch (error: unknown) {
+      if (error instanceof CircuitBreakerError) {
+        logger.warn('Azure AD validation blocked by circuit breaker', { 
+          userPrincipalName: this.maskPrincipalName(userPrincipalName),
+          circuitState: error.circuitState,
+          error: error.message
+        });
+
+        return {
+          valid: false,
+          principal: undefined,
+          errors: [`Azure AD service temporarily unavailable: ${error.message}`]
+        };
+      }
+
       logger.error('Failed to validate user principal', { 
-        userPrincipalName, 
+        userPrincipalName: this.maskPrincipalName(userPrincipalName), 
         error: error instanceof Error ? error.message : 'Unknown error' 
       });
 
@@ -184,6 +205,14 @@ export class AzureADValidationService {
       logger.error('Failed to get Graph API access token', { error: error instanceof Error ? error.message : 'Unknown error' });
       throw new Error('Failed to authenticate with Microsoft Graph API');
     }
+  }
+
+  private maskPrincipalName(principalName: string): string {
+    if (principalName.includes('@')) {
+      const [name, domain] = principalName.split('@');
+      return `${name.substr(0, 2)}***@${domain}`;
+    }
+    return `${principalName.substr(0, 8)}***`;
   }
 }
 

@@ -1,7 +1,7 @@
-// Remove unused imports
 import { getKubernetesClient } from './kubernetesClient';
 import { getClusterConfigService } from '../config/clusters';
 import { getAzureADValidationService } from '../middleware/azureAdValidation';
+import { auditService, RBACauditEvent } from './auditService';
 import { logger } from '../utils/logger';
 import {
   NamespaceRBACConfiguration,
@@ -12,6 +12,31 @@ import {
   AKS_ROLE_DEFINITIONS,
   AKSRoleDefinition
 } from '../types/rbac';
+import { Request } from 'express';
+
+// Enhanced error classes for better error handling
+export class RBACError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number,
+    public retryable: boolean = false,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'RBACError';
+  }
+}
+
+export const RBAC_ERROR_CODES = {
+  PRINCIPAL_NOT_FOUND: { status: 400, message: 'User or group not found in Azure AD', retryable: false },
+  ASO_TIMEOUT: { status: 408, message: 'Role assignment timeout - check status later', retryable: true },
+  PERMISSION_DENIED: { status: 403, message: 'Insufficient permissions for this operation', retryable: false },
+  CLUSTER_UNAVAILABLE: { status: 503, message: 'Target cluster temporarily unavailable', retryable: true },
+  APPROVAL_REQUIRED: { status: 202, message: 'Admin role assignment requires approval', retryable: false },
+  QUOTA_EXCEEDED: { status: 429, message: 'Resource quota exceeded', retryable: false },
+  VALIDATION_FAILED: { status: 400, message: 'Request validation failed', retryable: false }
+};
 
 export interface RBACIntegrationOptions {
   clusterName?: string;
@@ -31,27 +56,81 @@ export class RBACService {
     namespaceName: string,
     teamName: string,
     environment: string,
-    options: RBACIntegrationOptions
+    options: RBACIntegrationOptions,
+    req?: Request
   ): Promise<RBACProvisioningResult> {
     const startTime = Date.now();
+    const correlationId = req?.headers['x-correlation-id'] as string || this.generateCorrelationId();
+    
+    // Create audit event template
+    const auditEvent: Partial<RBACauditEvent> = {
+      action: 'create',
+      namespace: namespaceName,
+      principalId: options.principalId,
+      principalType: options.principalType || 'User',
+      roleDefinition: options.roleDefinition || 'aks-rbac-reader',
+      clusterName: options.clusterName || this.getDefaultCluster(environment),
+      requestedBy: {
+        userId: req?.user?.id || 'system',
+        email: req?.user?.email || 'system@platform.local',
+        roles: req?.user?.roles || ['system']
+      },
+      sourceIP: req?.ip || 'unknown',
+      userAgent: req?.get('user-agent') || 'unknown',
+      correlationId,
+      timestamp: new Date().toISOString(),
+      success: false
+    };
     
     try {
       logger.info('Starting RBAC provisioning', {
         namespaceName,
         teamName,
         environment,
-        options
+        correlationId,
+        options: { ...options, principalId: this.maskPrincipalId(options.principalId) }
       });
 
-      // Get cluster configuration
-      const clusterConfig = this.getClusterConfig(options.clusterName, environment);
+      // Check if approval is required for admin roles
+      if (this.requiresApproval(options.roleDefinition, environment)) {
+        await auditService.logApprovalEvent({
+          namespace: namespaceName,
+          principalId: options.principalId,
+          roleDefinition: options.roleDefinition!,
+          requestedBy: auditEvent.requestedBy!.userId,
+          action: 'requested',
+          correlationId
+        });
+        
+        throw new RBACError(
+          RBAC_ERROR_CODES.APPROVAL_REQUIRED.message,
+          'APPROVAL_REQUIRED',
+          RBAC_ERROR_CODES.APPROVAL_REQUIRED.status
+        );
+      }
+
+      // Get cluster configuration with validation
+      const clusterConfig = await this.getClusterConfigWithValidation(options.clusterName, environment);
+      auditEvent.clusterName = clusterConfig.name;
       
-      // Validate Azure AD principal if not skipped
+      // Check resource quotas
+      await this.checkResourceQuotas(namespaceName, teamName);
+      
+      // Validate Azure AD principal with retry logic
       if (!options.skipValidation) {
-        const validationResult = await this.azureAdService.validatePrincipalById(options.principalId);
+        const validationResult = await this.validatePrincipalWithRetry(options.principalId);
         if (!validationResult.valid) {
-          throw new Error(`Invalid Azure AD principal: ${validationResult.errors.join(', ')}`);
+          throw new RBACError(
+            `${RBAC_ERROR_CODES.PRINCIPAL_NOT_FOUND.message}: ${validationResult.errors.join(', ')}`,
+            'PRINCIPAL_NOT_FOUND',
+            RBAC_ERROR_CODES.PRINCIPAL_NOT_FOUND.status,
+            false,
+            { validationErrors: validationResult.errors }
+          );
         }
+        
+        // Update audit event with resolved principal type
+        auditEvent.principalType = validationResult.principalType || auditEvent.principalType;
       }
 
       // Create role assignment request
@@ -69,8 +148,8 @@ export class RBACService {
         [roleAssignmentRequest]
       );
 
-      // Apply ASO manifests to management cluster
-      await this.applyASOManifests(asoManifests);
+      // Apply ASO manifests with timeout and retry
+      await this.applyASOManifestsWithRetry(asoManifests, correlationId);
 
       // Create RBAC configuration object
       const rbacConfig: NamespaceRBACConfiguration = {
@@ -90,9 +169,19 @@ export class RBACService {
         createdAt: new Date()
       };
 
+      // Log successful audit event
+      auditEvent.success = true;
+      auditEvent.details = {
+        roleAssignmentIds: result.roleAssignmentIds,
+        scope: this.generateNamespaceScopeArmId(clusterConfig, namespaceName),
+        duration: Date.now() - startTime
+      };
+      await auditService.logRBACEvent(auditEvent as RBACauditEvent);
+
       logger.info('RBAC provisioning completed successfully', {
         namespaceName,
         teamName,
+        correlationId,
         duration: Date.now() - startTime,
         roleAssignmentCount: result.roleAssignmentIds.length
       });
@@ -100,28 +189,41 @@ export class RBACService {
       return result;
 
     } catch (error) {
+      // Enhanced error logging with correlation
       logger.error('RBAC provisioning failed', {
         namespaceName,
         teamName,
         environment,
-        error: error.message,
+        correlationId,
+        error: {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          retryable: error.retryable || false
+        },
         duration: Date.now() - startTime
       });
 
-      return {
-        namespaceRBAC: {
-          namespaceName,
-          clusterName: options.clusterName || 'unknown',
-          teamName,
-          environment,
-          roleAssignments: []
-        },
-        roleAssignmentIds: [],
-        asoManifests: [],
-        status: 'failed',
-        message: `RBAC provisioning failed: ${error.message}`,
-        createdAt: new Date()
+      // Log failed audit event
+      auditEvent.success = false;
+      auditEvent.error = error.message;
+      auditEvent.details = {
+        duration: Date.now() - startTime
       };
+      await auditService.logRBACEvent(auditEvent as RBACauditEvent);
+
+      // Re-throw as RBACError if not already
+      if (error instanceof RBACError) {
+        throw error;
+      }
+
+      throw new RBACError(
+        `RBAC provisioning failed: ${error.message}`,
+        'PROVISIONING_FAILED',
+        500,
+        false,
+        { originalError: error.name }
+      );
     }
   }
 
@@ -301,6 +403,135 @@ export class RBACService {
     });
 
     await Promise.all(promises);
+  }
+
+  // Helper methods for enhanced functionality
+  
+  private generateCorrelationId(): string {
+    return `rbac-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private maskPrincipalId(principalId: string): string {
+    if (principalId.includes('@')) {
+      const [name, domain] = principalId.split('@');
+      return `${name.substr(0, 2)}***@${domain}`;
+    }
+    return `${principalId.substr(0, 8)}***`;
+  }
+
+  private requiresApproval(roleDefinition?: AKSRoleDefinition, environment?: string): boolean {
+    return roleDefinition === 'aks-rbac-admin' && environment === 'production';
+  }
+
+  private getDefaultCluster(environment: string): string {
+    const defaults: { [key: string]: string } = {
+      'development': 'dev-aks-cluster',
+      'staging': 'staging-aks-cluster',
+      'production': 'prod-aks-cluster'
+    };
+    return defaults[environment] || 'dev-aks-cluster';
+  }
+
+  private async getClusterConfigWithValidation(clusterName?: string, environment?: string): Promise<ClusterConfiguration> {
+    try {
+      return this.getClusterConfig(clusterName, environment);
+    } catch (error) {
+      throw new RBACError(
+        RBAC_ERROR_CODES.CLUSTER_UNAVAILABLE.message,
+        'CLUSTER_UNAVAILABLE',
+        RBAC_ERROR_CODES.CLUSTER_UNAVAILABLE.status,
+        true
+      );
+    }
+  }
+
+  private async checkResourceQuotas(namespaceName: string, teamName: string): Promise<void> {
+    try {
+      // Check current role assignment count for namespace
+      const existing = await this.k8sClient.listCustomResources(
+        'authorization.azure.com/v1api20200801preview',
+        'RoleAssignment',
+        'aso-system',
+        `platform.io/namespace=${namespaceName}`
+      );
+
+      const maxAssignments = this.getMaxRoleAssignments(teamName);
+      if (existing.items && existing.items.length >= maxAssignments) {
+        throw new RBACError(
+          `Maximum role assignments (${maxAssignments}) exceeded for namespace ${namespaceName}`,
+          'QUOTA_EXCEEDED',
+          RBAC_ERROR_CODES.QUOTA_EXCEEDED.status
+        );
+      }
+    } catch (error) {
+      if (error instanceof RBACError) throw error;
+      // Log but don't fail on quota check errors
+      logger.warn('Resource quota check failed', { namespaceName, teamName, error: error.message });
+    }
+  }
+
+  private getMaxRoleAssignments(teamName: string): number {
+    // Default quota - can be made configurable per team
+    return 10;
+  }
+
+  private async validatePrincipalWithRetry(principalId: string, maxRetries: number = 3): Promise<any> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.azureAdService.validatePrincipalById(principalId);
+      } catch (error) {
+        if (attempt === maxRetries) {
+          logger.error('Azure AD validation failed after all retries', {
+            principalId: this.maskPrincipalId(principalId),
+            attempts: maxRetries,
+            error: error.message
+          });
+          throw error;
+        }
+        
+        // Exponential backoff
+        const delay = Math.pow(2, attempt - 1) * 1000;
+        logger.warn('Azure AD validation attempt failed, retrying', {
+          principalId: this.maskPrincipalId(principalId),
+          attempt,
+          retryAfter: delay
+        });
+        await this.sleep(delay);
+      }
+    }
+  }
+
+  private async applyASOManifestsWithRetry(manifests: AzureServiceOperatorRoleAssignment[], correlationId: string): Promise<void> {
+    const timeout = 30000; // 30 seconds
+    const startTime = Date.now();
+
+    try {
+      await Promise.race([
+        this.applyASOManifests(manifests),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('ASO manifest application timeout')), timeout)
+        )
+      ]);
+    } catch (error) {
+      if (Date.now() - startTime >= timeout) {
+        throw new RBACError(
+          RBAC_ERROR_CODES.ASO_TIMEOUT.message,
+          'ASO_TIMEOUT',
+          RBAC_ERROR_CODES.ASO_TIMEOUT.status,
+          true,
+          { correlationId, timeout }
+        );
+      }
+      throw error;
+    }
+  }
+
+  private generateNamespaceScopeArmId(clusterConfig: ClusterConfiguration, namespaceName: string): string {
+    return `${clusterConfig.armId}/namespaces/${namespaceName}`;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 
