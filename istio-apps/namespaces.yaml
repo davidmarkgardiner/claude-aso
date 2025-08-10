@@ -75,3 +75,15 @@ metadata:
     security-level: strict
     deployment-agent: istio-engineer
 spec: {}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+  labels:
+    istio-injection: disabled
+    tenant: istio-system
+    environment: infrastructure
+    security-level: strict
+    deployment-agent: istio-engineer
+spec: {}
