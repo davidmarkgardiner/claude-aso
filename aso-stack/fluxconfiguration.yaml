@@ -11,7 +11,7 @@ spec:
       branch: infra
     url: https://github.com/davidmarkgardiner/claude-aso
   kustomizations:
-    app:
+    apps:
       path: ./apps
       timeoutInSeconds: 600
       syncIntervalInSeconds: 120
@@ -23,7 +23,7 @@ spec:
             name: external-dns-identity-cm
             optional: false
     istio-app:
-      dependsOn: ["app"]
+      dependsOn: ["apps"]
       path: ./istio-apps
       timeoutInSeconds: 600
       syncIntervalInSeconds: 120

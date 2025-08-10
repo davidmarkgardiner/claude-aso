@@ -262,7 +262,7 @@ export class KubernetesClient {
   // Utility methods
   async healthCheck(): Promise<{ healthy: boolean; context: string; server: string }> {
     try {
-      const response = await this.coreApi.getAPIVersions();
+      await this.coreApi.getAPIVersions();
       return {
         healthy: true,
         context: this.kubeConfig.getCurrentContext(),
@@ -298,6 +298,86 @@ export class KubernetesClient {
       };
     } catch (error) {
       logger.error(`Failed to get resource usage for namespace ${namespace}:`, error);
+      throw error;
+    }
+  }
+
+  async listCustomResources(
+    apiVersion: string,
+    kind: string,
+    namespace?: string,
+    labelSelector?: string
+  ): Promise<any[]> {
+    try {
+      const [group, version] = apiVersion.split('/');
+      const plural = kind.toLowerCase() + 's'; // Simple pluralization
+      
+      const response = namespace
+        ? await this.customObjectsApi.listNamespacedCustomObject(
+            group, version, namespace, plural,
+            undefined, undefined, undefined, undefined, labelSelector
+          )
+        : await this.customObjectsApi.listClusterCustomObject(
+            group, version, plural,
+            undefined, undefined, undefined, undefined, labelSelector
+          );
+      
+      return (response.body as any).items || [];
+    } catch (error: any) {
+      if (error.response?.statusCode === 404) {
+        return [];
+      }
+      logger.error(`Failed to list custom resources ${kind}:`, error);
+      throw error;
+    }
+  }
+
+  async deleteCustomResourcesByLabel(
+    apiVersion: string,
+    kind: string,
+    namespace: string,
+    labelSelector: string
+  ): Promise<void> {
+    try {
+      const resources = await this.listCustomResources(apiVersion, kind, namespace, labelSelector);
+      
+      const deletePromises = resources.map(async (resource) => {
+        const [group, version] = apiVersion.split('/');
+        const plural = kind.toLowerCase() + 's';
+        
+        await this.customObjectsApi.deleteNamespacedCustomObject(
+          group, version, namespace, plural, resource.metadata.name
+        );
+        
+        logger.info(`Deleted custom resource ${resource.metadata.name}`, { 
+          kind, 
+          namespace,
+          name: resource.metadata.name
+        });
+      });
+
+      await Promise.all(deletePromises);
+    } catch (error) {
+      logger.error(`Failed to delete custom resources by label:`, error);
+      throw error;
+    }
+  }
+
+  async createCustomResource(manifest: any): Promise<any> {
+    try {
+      const [group, version] = manifest.apiVersion.split('/');
+      const kind = manifest.kind;
+      const plural = kind.toLowerCase() + 's';
+      const namespace = manifest.metadata?.namespace;
+      
+      const response = namespace
+        ? await this.customObjectsApi.createNamespacedCustomObject(group, version, namespace, plural, manifest)
+        : await this.customObjectsApi.createClusterCustomObject(group, version, plural, manifest);
+      
+      logger.info(`Custom resource ${manifest.metadata.name} created`, { kind, namespace });
+      return response.body;
+    } catch (error) {
+      logger.error(`Failed to create custom resource:`, error);
       throw error;
     }
   }

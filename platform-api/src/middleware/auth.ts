@@ -57,9 +57,9 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     });
 
     next();
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warn('Authentication failed', {
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       path: req.path,
       ip: req.ip
     });
@@ -117,16 +117,16 @@ async function validateToken(token: string): Promise<AuthenticatedUser> {
         tenant: decoded.tenant || 'default'
       };
     }
-  } catch (jwtError) {
-    logger.debug('JWT validation failed, trying Azure AD validation', { error: jwtError.message });
+  } catch (jwtError: unknown) {
+    logger.debug('JWT validation failed, trying Azure AD validation', { error: jwtError instanceof Error ? jwtError.message : 'Unknown JWT error' });
   }
 
   // Try Azure AD token validation
   try {
     const user = await validateAzureAdToken(token);
     return user;
-  } catch (azureError) {
-    logger.debug('Azure AD validation failed', { error: azureError.message });
+  } catch (azureError: unknown) {
+    logger.debug('Azure AD validation failed', { error: azureError instanceof Error ? azureError.message : 'Unknown Azure AD error' });
     throw new AuthenticationError('Invalid authentication token');
   }
 }
@@ -166,7 +166,7 @@ async function validateAzureAdToken(token: string): Promise<AuthenticatedUser> {
       roles,
       tenant: extractTenantFromEmail(userData.mail || userData.userPrincipalName)
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Azure AD token validation failed:', error);
     throw new AuthenticationError('Invalid Azure AD token');
   }

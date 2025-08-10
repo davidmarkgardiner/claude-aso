@@ -9,7 +9,7 @@ const router = Router();
 
 // GET /health - Basic health check
 router.get('/',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
