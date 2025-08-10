@@ -24,9 +24,9 @@ commonLabels:
 
 images:
 - name: stefanprodan/podinfo
-  newTag: 6.6.1
+  newTag: "6.6.1"
 - name: redis
-  newTag: 7-alpine
+  newTag: "7-alpine"
 
 replicas:
 - name: podinfo-v1

@@ -22,9 +22,9 @@ commonLabels:
 
 images:
 - name: stefanprodan/podinfo
-  newTag: 6.6.0
+  newTag: "6.6.0"
 - name: redis
-  newTag: 7-alpine
+  newTag: "7-alpine"
 
 # replicas already defined in base resources
 
