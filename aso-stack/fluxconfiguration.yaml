@@ -18,23 +18,35 @@ spec:
       prune: true
       force: true
       postBuild:
-        substituteFrom:
-          - kind: ConfigMap
-            name: external-dns-identity-cm
-            optional: false
-    cert-manager:
-      path: ./apps/cert-manager
+        substitute:
+          clientId: "1c0b7ee1-f55a-407c-946c-83254494df30"
+          principalId: "896eea23-4c9d-4070-b883-6706ca9fbea3"
+          tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
+    cert-manager-base:
+      path: ./apps/cert-manager-base
       timeoutInSeconds: 600
       syncIntervalInSeconds: 120
       prune: true
       force: true
       postBuild:
-        substituteFrom:
-          - kind: ConfigMap
-            name: cert-manager-identity-cm
-            optional: false
+        substitute:
+          clientId: "540fae85-49bc-4a56-946b-08518c7c5838"
+          principalId: "50cf8e5f-835b-419b-958f-62207aa2242e"
+          tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
+    cert-manager-config:
+      dependsOn: ["cert-manager-base"]
+      path: ./apps/cert-manager-config
+      timeoutInSeconds: 600
+      syncIntervalInSeconds: 120
+      prune: true
+      force: true
+      postBuild:
+        substitute:
+          clientId: "540fae85-49bc-4a56-946b-08518c7c5838"
+          principalId: "50cf8e5f-835b-419b-958f-62207aa2242e"
+          tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
     apps:
-      dependsOn: ["external-dns", "cert-manager"]
+      dependsOn: ["external-dns", "cert-manager-config"]
       path: ./apps
       timeoutInSeconds: 600
       syncIntervalInSeconds: 120
