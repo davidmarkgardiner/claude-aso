@@ -56,11 +56,6 @@ const Analytics: React.FC = () => {
     }).format(amount);
   };
 
-  const getUtilizationColor = (percentage: number) => {
-    if (percentage > 80) return 'text-red-600 bg-red-50';
-    if (percentage > 60) return 'text-yellow-600 bg-yellow-50';
-    return 'text-green-600 bg-green-50';
-  };
 
   return (
     <div className="space-y-8">
@@ -308,7 +303,7 @@ const Analytics: React.FC = () => {
             <span className="text-sm text-gray-400">Chart placeholder</span>
           </div>
           
-          {analyticsData.trends.map((trend, index) => (
+          {analyticsData.trends.map((trend) => (
             <div key={trend.month} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
               <span className="text-sm font-medium text-gray-900">{trend.month} 2023</span>
               <div className="flex space-x-4">

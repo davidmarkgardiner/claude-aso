@@ -15,14 +15,14 @@ export interface Parameter {
   type: 'string' | 'number' | 'boolean' | 'select';
   required: boolean;
   description: string;
-  defaultValue?: any;
+  defaultValue?: string | number | boolean;
   options?: string[];
 }
 
 export interface TemplateExample {
   name: string;
   description: string;
-  parameters?: Record<string, any>;
+  parameters?: Record<string, string | number | boolean>;
 }
 
 export interface NamespaceRequest {

@@ -3,7 +3,7 @@ import { DefaultAzureCredential } from '@azure/identity';
 import axios from 'axios';
 import { logger } from '../utils/logger';
 import { AzureADPrincipal, RBACValidationResult } from '../types/rbac';
-import { CircuitBreakerRegistry, CircuitBreakerError, CircuitState } from '../utils/circuitBreaker';
+import { CircuitBreakerRegistry, CircuitBreakerError } from '../utils/circuitBreaker';
 
 export class AzureADValidationService {
   private credential: DefaultAzureCredential;
@@ -46,7 +46,6 @@ export class AzureADValidationService {
       return {
         valid: true,
         principal,
-        principalType: 'User',
         errors: []
       };
 

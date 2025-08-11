@@ -1,11 +1,11 @@
 # Multi-stage build for optimal image size
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
 # Development stage
-FROM node:18-alpine AS dev
+FROM node:20-alpine AS dev
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -14,7 +14,7 @@ EXPOSE 3000
 CMD ["npm", "run", "dev"]
 
 # Build stage
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json tsconfig.json ./
 RUN npm ci
@@ -22,7 +22,7 @@ COPY src ./src
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 LABEL org.opencontainers.image.title="Platform API"
 LABEL org.opencontainers.image.description="Namespace-as-a-Service Platform API"
 LABEL org.opencontainers.image.version="1.0.0"

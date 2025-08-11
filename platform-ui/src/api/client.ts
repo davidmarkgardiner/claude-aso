@@ -1,11 +1,9 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import {
+import axios from 'axios';
+import type { AxiosInstance, AxiosResponse } from 'axios';
+import type {
   Template,
   NamespaceRequest,
   ProvisioningRequest,
-  Namespace,
-  Deployment,
-  PlatformAnalytics,
   ApiResponse
 } from '../types';
 
@@ -41,7 +39,7 @@ class PlatformApiClient {
   }
 
   // Health check
-  async getHealth(): Promise<any> {
+  async getHealth(): Promise<{ status: string; timestamp: string }> {
     const response = await this.client.get('/health');
     return response.data;
   }
@@ -78,29 +76,29 @@ class PlatformApiClient {
   }
 
   // Namespace Management
-  async getTeamNamespaces(team: string): Promise<{ team: string; count: number; namespaces: any[] }> {
-    const response: AxiosResponse<ApiResponse<{ team: string; count: number; namespaces: any[] }>> = 
+  async getTeamNamespaces(team: string): Promise<{ team: string; count: number; namespaces: Array<Record<string, unknown>> }> {
+    const response: AxiosResponse<ApiResponse<{ team: string; count: number; namespaces: Array<Record<string, unknown>> }>> = 
       await this.client.get(`/api/platform/namespaces/team/${team}`);
     return response.data.data;
   }
 
-  async getNamespaceDetails(namespaceName: string): Promise<any> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.client.get(
+  async getNamespaceDetails(namespaceName: string): Promise<Record<string, unknown>> {
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = await this.client.get(
       `/api/platform/namespaces/${namespaceName}`
     );
     return response.data.data;
   }
 
-  async getNamespaceCost(namespaceName: string, timeRange: string = '7d'): Promise<any> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.client.get(
+  async getNamespaceCost(namespaceName: string, timeRange: string = '7d'): Promise<Record<string, unknown>> {
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = await this.client.get(
       `/api/platform/namespaces/${namespaceName}/cost?timeRange=${timeRange}`
     );
     return response.data.data;
   }
 
   async getAllNamespaces(filters?: { team?: string; environment?: string; limit?: number; offset?: number }): Promise<{
-    namespaces: any[];
-    pagination: any;
+    namespaces: Array<Record<string, unknown>>;
+    pagination: Record<string, unknown>;
   }> {
     const params = new URLSearchParams();
     if (filters?.team) params.append('team', filters.team);
@@ -108,19 +106,19 @@ class PlatformApiClient {
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response: AxiosResponse<ApiResponse<{ namespaces: any[]; pagination: any }>> = 
+    const response: AxiosResponse<ApiResponse<{ namespaces: Array<Record<string, unknown>>; pagination: Record<string, unknown> }>> = 
       await this.client.get(`/api/platform/namespaces?${params.toString()}`);
     return response.data.data;
   }
 
   // Analytics
-  async getAnalytics(): Promise<any> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.client.get('/api/platform/analytics');
+  async getAnalytics(): Promise<Record<string, unknown>> {
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = await this.client.get('/api/platform/analytics');
     return response.data.data;
   }
 
-  async getTeamAnalytics(team: string): Promise<any> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.client.get(`/api/platform/analytics/team/${team}`);
+  async getTeamAnalytics(team: string): Promise<Record<string, unknown>> {
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = await this.client.get(`/api/platform/analytics/team/${team}`);
     return response.data.data;
   }
 }

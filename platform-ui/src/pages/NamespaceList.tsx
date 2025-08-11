@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   CubeIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
   EyeIcon,
   Cog6ToothIcon,
   ChartBarIcon
@@ -73,7 +72,7 @@ const NamespaceList: React.FC = () => {
   const [teamFilter, setTeamFilter] = useState('');
   const [environmentFilter, setEnvironmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [selectedNamespace, setSelectedNamespace] = useState<any>(null);
+  const [selectedNamespace, setSelectedNamespace] = useState<typeof mockNamespaces[0] | null>(null);
 
   const teams = [...new Set(mockNamespaces.map(ns => ns.team))];
   const environments = [...new Set(mockNamespaces.map(ns => ns.environment))];

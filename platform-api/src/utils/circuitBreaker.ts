@@ -39,7 +39,8 @@ export class CircuitBreaker {
   }
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
+      (async () => {
       if (this.state === CircuitState.OPEN) {
         if (Date.now() < this.nextAttempt) {
           const waitTime = Math.ceil((this.nextAttempt - Date.now()) / 1000);
@@ -72,16 +73,17 @@ export class CircuitBreaker {
         ));
       }, this.options.timeout);
 
-      try {
-        const result = await fn();
-        clearTimeout(timeoutId);
-        this.onSuccess();
-        resolve(result);
-      } catch (error) {
-        clearTimeout(timeoutId);
-        this.onFailure(error as Error);
-        reject(error);
-      }
+        try {
+          const result = await fn();
+          clearTimeout(timeoutId);
+          this.onSuccess();
+          resolve(result);
+        } catch (error) {
+          clearTimeout(timeoutId);
+          this.onFailure(error as Error);
+          reject(error);
+        }
+      })();
     });
   }
 
@@ -249,7 +251,7 @@ export class CircuitBreakerRegistry {
   // Reset all circuit breakers (for emergency recovery)
   static resetAll(): void {
     logger.warn('Resetting all circuit breakers');
-    for (const [name, breaker] of this.breakers.entries()) {
+    for (const [, breaker] of this.breakers.entries()) {
       breaker.reset();
     }
   }

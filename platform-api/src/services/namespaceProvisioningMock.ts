@@ -1,6 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { NamespaceRequest, ProvisioningResult, ProvisioningRequest, NamespaceInfo, ResourceTier } from '../types/namespace';
-import { mockNamespaces, mockProvisioningRequests } from '../../tests/fixtures/namespaces';
+// import { mockNamespaces, mockProvisioningRequests } from '../../tests/fixtures/namespaces';
+
+// Mock data
+const mockNamespaces: any[] = [];
+const mockProvisioningRequests: any[] = [];
 
 export class NamespaceProvisioningService {
   private activeRequests: Map<string, ProvisioningRequest> = new Map();
@@ -105,92 +109,5 @@ export class NamespaceProvisioningService {
     }
   }
 
-  private generateWorkflowSpec(request: NamespaceRequest, requestId: string): any {
-    const resourceConfig = this.getResourceConfig(request.resourceTier);
-    
-    return {
-      apiVersion: 'argoproj.io/v1alpha1',
-      kind: 'Workflow',
-      metadata: {
-        name: `provision-namespace-${requestId}-${Date.now()}`,
-        labels: {
-          'platform.company.com/request-id': requestId,
-          'platform.company.com/team': request.team
-        }
-      },
-      spec: {
-        entrypoint: 'main',
-        templates: [
-          {
-            name: 'main',
-            steps: [
-              [{ name: 'create-namespace', template: 'create-namespace' }],
-              [{ name: 'setup-rbac', template: 'setup-rbac' }],
-              [{ name: 'apply-policies', template: 'apply-policies' }],
-              [{ name: 'notify', template: 'notify' }]
-            ]
-          },
-          {
-            name: 'create-namespace',
-            script: {
-              image: 'bitnami/kubectl:latest',
-              command: ['bash'],
-              source: `
-                kubectl create namespace ${request.namespaceName} --dry-run=client -o yaml | \\
-                kubectl label --local -f - platform.company.com/team=${request.team} ${request.features.includes('istio-injection') ? 'istio-injection=enabled' : ''} -o yaml | \\
-                kubectl apply -f -
-              `
-            }
-          },
-          {
-            name: 'setup-rbac',
-            script: {
-              image: 'bitnami/kubectl:latest',
-              command: ['bash'],
-              source: `
-                cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: ${request.namespaceName}-quota
-  namespace: ${request.namespaceName}
-spec:
-  hard:
-    requests.cpu: "${resourceConfig.cpu}"
-    requests.memory: "${resourceConfig.memory}"
-    persistentvolumeclaims: "10"
-EOF
-              `
-            }
-          },
-          {
-            name: 'apply-policies',
-            script: {
-              image: 'bitnami/kubectl:latest',
-              command: ['bash'],
-              source: `echo "Applying network policies for ${request.networkPolicy}"`
-            }
-          },
-          {
-            name: 'notify',
-            script: {
-              image: 'curlimages/curl:latest',
-              command: ['sh'],
-              source: `echo "Namespace ${request.namespaceName} provisioned successfully"`
-            }
-          }
-        ]
-      }
-    };
-  }
 
-  private getResourceConfig(tier: ResourceTier): { cpu: string; memory: string } {
-    const configs = {
-      micro: { cpu: '1', memory: '2Gi' },
-      small: { cpu: '2', memory: '4Gi' },
-      medium: { cpu: '4', memory: '8Gi' },
-      large: { cpu: '8', memory: '16Gi' }
-    };
-    return configs[tier];
-  }
 }
