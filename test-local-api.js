@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-// Create a proper platform admin token that should bypass team checks
+// Create a proper platform admin token 
 const adminToken = jwt.sign({
     sub: 'platform-admin-123',
     email: 'admin@company.com', 
@@ -15,11 +15,11 @@ const adminToken = jwt.sign({
 console.log('🔑 Created platform admin token');
 console.log('Token payload:', JSON.stringify(jwt.decode(adminToken), null, 2));
 
-// Test the basic endpoint first
+// Test the local API (port 3001)
 const axios = require('axios');
 
-async function testPlatformAPI() {
-    const PLATFORM_API_URL = 'http://localhost:8080';
+async function testLocalPlatformAPI() {
+    const PLATFORM_API_URL = 'http://localhost:3001';
     
     try {
         console.log('\n1️⃣ Testing basic health endpoint...');
@@ -29,13 +29,13 @@ async function testPlatformAPI() {
         console.log('\n2️⃣ Testing namespace creation with platform admin...');
         
         const namespaceRequest = {
-            namespaceName: `test-platform-${Date.now()}`,
+            namespaceName: `test-local-${Date.now()}`,
             team: 'platform-test',
             environment: 'development',
             resourceTier: 'small',
             networkPolicy: 'team-shared',
             features: ['istio-injection'],
-            description: 'Test namespace created via Platform API'
+            description: 'Test namespace created via local Platform API'
         };
         
         console.log(`📝 Creating namespace: ${namespaceRequest.namespaceName}`);
@@ -49,29 +49,30 @@ async function testPlatformAPI() {
                     'Authorization': `Bearer ${adminToken}`,
                     'Content-Type': 'application/json'
                 },
-                timeout: 30000
+                timeout: 60000 // Increased timeout for resource creation
             }
         );
         
         console.log(`✅ Success! Status: ${response.status}`);
         console.log(`📊 Response:`, JSON.stringify(response.data, null, 2));
         
-        return response.data;
+        return { success: true, data: response.data, namespaceName: namespaceRequest.namespaceName };
         
     } catch (error) {
         console.log(`❌ Error: ${error.response?.status} - ${error.response?.data?.message || error.message}`);
         if (error.response?.data) {
             console.log(`📄 Full error response:`, JSON.stringify(error.response.data, null, 2));
         }
-        return null;
+        return { success: false, error: error.response?.data || error.message };
     }
 }
 
-testPlatformAPI().then(result => {
-    if (result) {
-        console.log('\n🎉 Platform API namespace creation test SUCCESSFUL!');
-        console.log('Now check your AKS cluster for the new namespace and resources.');
+testLocalPlatformAPI().then(result => {
+    if (result.success) {
+        console.log('\n🎉 Local Platform API namespace creation test SUCCESSFUL!');
+        console.log(`✨ Namespace created: ${result.namespaceName}`);
+        console.log('Now let\'s verify the resources were created in the AKS cluster...');
     } else {
-        console.log('\n❌ Platform API test failed. Check the logs above for details.');
+        console.log('\n❌ Local Platform API test failed. Check the logs above for details.');
     }
 });

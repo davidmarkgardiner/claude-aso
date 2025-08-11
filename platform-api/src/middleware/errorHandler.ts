@@ -13,7 +13,7 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  // Log the error
+  // Log the error (avoiding circular references)
   logger.error('API Error', {
     error: {
       name: error.name,
@@ -25,10 +25,6 @@ export const errorHandler = (
     request: {
       method: req.method,
       url: req.url,
-      headers: req.headers,
-      body: req.body,
-      params: req.params,
-      query: req.query,
       userId: req.user?.id,
       userEmail: req.user?.email
     }

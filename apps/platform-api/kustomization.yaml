@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: platform-api
+  namespace: platform-system
+resources:
+  - namespace.yaml
+  - identity-configmap.yaml
+  - configmap.yaml
+  - secret.yaml
+  - service.yaml
+  - serviceaccount.yaml
+  - deployment.yaml

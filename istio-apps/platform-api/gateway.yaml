@@ -1,0 +1,29 @@
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: platform-api-gateway
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+spec:
+  selector:
+    istio: aks-istio-ingressgateway-external
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - platform-api.davidmarkgardiner.co.uk
+    tls:
+      httpsRedirect: true
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - platform-api.davidmarkgardiner.co.uk
+    tls:
+      mode: SIMPLE
+      credentialName: wildcard-tls

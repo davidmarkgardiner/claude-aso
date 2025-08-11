@@ -1,13 +1,64 @@
 import { v4 as uuidv4 } from 'uuid';
 import { NamespaceRequest, ProvisioningResult, ProvisioningRequest, NamespaceInfo, ResourceTier } from '../types/namespace';
-import { mockNamespaces, mockProvisioningRequests } from '../../tests/fixtures/namespaces';
+// Mock data for testing
+const mockNamespaces: NamespaceInfo[] = [
+  {
+    name: 'test-namespace',
+    team: 'test-team',
+    environment: 'development',
+    resourceTier: 'small',
+    networkPolicy: 'team-shared',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    features: [],
+    description: 'Test namespace',
+    owner: {
+      id: 'test-owner-id',
+      email: 'test-owner@company.com',
+      name: 'Test Owner'
+    },
+    resources: {
+      pods: 0,
+      services: 0,
+      deployments: 0,
+      configMaps: 0,
+      secrets: 0
+    },
+    quota: {
+      cpu: { used: '0', limit: '2', percentage: 0 },
+      memory: { used: '0Gi', limit: '4Gi', percentage: 0 },
+      storage: { used: '0Gi', limit: '20Gi', percentage: 0 }
+    }
+  }
+];
+
+const mockProvisioningRequests: ProvisioningRequest[] = [
+  {
+    requestId: 'test-req-1',
+    namespaceName: 'test-namespace',
+    team: 'test-team',
+    environment: 'development',
+    resourceTier: 'small',
+    networkPolicy: 'team-shared',
+    features: [],
+    description: 'Test request',
+    status: 'completed',
+    workflowName: 'test-workflow',
+    createdAt: new Date().toISOString(),
+    owner: {
+      id: 'test-owner-id',
+      email: 'test-owner@company.com',
+      name: 'Test Owner'
+    }
+  }
+];
 
 export class NamespaceProvisioningService {
   private activeRequests: Map<string, ProvisioningRequest> = new Map();
 
   constructor() {
     // Initialize with mock data
-    mockProvisioningRequests.forEach(req => {
+    mockProvisioningRequests.forEach((req: any) => {
       this.activeRequests.set(req.requestId, req);
     });
   }
@@ -68,7 +119,7 @@ export class NamespaceProvisioningService {
   }
 
   async getNamespaceDetails(namespaceName: string): Promise<NamespaceInfo | null> {
-    return mockNamespaces.find(ns => ns.name === namespaceName) || null;
+    return mockNamespaces.find((ns: NamespaceInfo) => ns.name === namespaceName) || null;
   }
 
   private async validateRequest(request: NamespaceRequest): Promise<void> {
@@ -87,7 +138,7 @@ export class NamespaceProvisioningService {
     }
 
     // Check if namespace already exists
-    const exists = mockNamespaces.some(ns => ns.name === request.namespaceName);
+    const exists = mockNamespaces.some((ns: NamespaceInfo) => ns.name === request.namespaceName);
     if (exists) {
       throw new Error(`Namespace ${request.namespaceName} already exists`);
     }
@@ -105,92 +156,5 @@ export class NamespaceProvisioningService {
     }
   }
 
-  private generateWorkflowSpec(request: NamespaceRequest, requestId: string): any {
-    const resourceConfig = this.getResourceConfig(request.resourceTier);
-    
-    return {
-      apiVersion: 'argoproj.io/v1alpha1',
-      kind: 'Workflow',
-      metadata: {
-        name: `provision-namespace-${requestId}-${Date.now()}`,
-        labels: {
-          'platform.company.com/request-id': requestId,
-          'platform.company.com/team': request.team
-        }
-      },
-      spec: {
-        entrypoint: 'main',
-        templates: [
-          {
-            name: 'main',
-            steps: [
-              [{ name: 'create-namespace', template: 'create-namespace' }],
-              [{ name: 'setup-rbac', template: 'setup-rbac' }],
-              [{ name: 'apply-policies', template: 'apply-policies' }],
-              [{ name: 'notify', template: 'notify' }]
-            ]
-          },
-          {
-            name: 'create-namespace',
-            script: {
-              image: 'bitnami/kubectl:latest',
-              command: ['bash'],
-              source: `
-                kubectl create namespace ${request.namespaceName} --dry-run=client -o yaml | \\
-                kubectl label --local -f - platform.company.com/team=${request.team} ${request.features.includes('istio-injection') ? 'istio-injection=enabled' : ''} -o yaml | \\
-                kubectl apply -f -
-              `
-            }
-          },
-          {
-            name: 'setup-rbac',
-            script: {
-              image: 'bitnami/kubectl:latest',
-              command: ['bash'],
-              source: `
-                cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: ${request.namespaceName}-quota
-  namespace: ${request.namespaceName}
-spec:
-  hard:
-    requests.cpu: "${resourceConfig.cpu}"
-    requests.memory: "${resourceConfig.memory}"
-    persistentvolumeclaims: "10"
-EOF
-              `
-            }
-          },
-          {
-            name: 'apply-policies',
-            script: {
-              image: 'bitnami/kubectl:latest',
-              command: ['bash'],
-              source: `echo "Applying network policies for ${request.networkPolicy}"`
-            }
-          },
-          {
-            name: 'notify',
-            script: {
-              image: 'curlimages/curl:latest',
-              command: ['sh'],
-              source: `echo "Namespace ${request.namespaceName} provisioned successfully"`
-            }
-          }
-        ]
-      }
-    };
-  }
 
-  private getResourceConfig(tier: ResourceTier): { cpu: string; memory: string } {
-    const configs = {
-      micro: { cpu: '1', memory: '2Gi' },
-      small: { cpu: '2', memory: '4Gi' },
-      medium: { cpu: '4', memory: '8Gi' },
-      large: { cpu: '8', memory: '16Gi' }
-    };
-    return configs[tier];
-  }
 }

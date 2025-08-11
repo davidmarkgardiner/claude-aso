@@ -279,7 +279,7 @@ router.get('/templates/:templateId',
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: template,
       timestamp: new Date().toISOString()
@@ -421,7 +421,7 @@ router.post('/templates/:templateId/deploy',
         requestedBy: req.user!.email
       });
 
-      res.status(202).json({
+      return res.status(202).json({
         success: true,
         data: {
           ...result,

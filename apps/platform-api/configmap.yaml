@@ -8,7 +8,7 @@ metadata:
     platform.io/component: "platform-api"
 data:
   NODE_ENV: "production"
-  KUBE_CONTEXT: "current"
+  KUBE_CONTEXT: ""
   KUBE_NAMESPACE: "default"
   # JWT Configuration
   JWT_ISSUER: "platform-api"

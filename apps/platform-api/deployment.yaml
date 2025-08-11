@@ -21,7 +21,7 @@ spec:
         azure.workload.identity/use: "true"
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "3000"
+        prometheus.io/port: "3001"
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: platform-api
@@ -35,7 +35,7 @@ spec:
         imagePullPolicy: Always
         ports:
         - name: http
-          containerPort: 3000
+          containerPort: 3001
           protocol: TCP
         env:
         # Azure Workload Identity
@@ -50,6 +50,8 @@ spec:
               name: platform-api-identity-cm
               key: tenantId
         # Platform API Configuration (from ConfigMap)
+        - name: PORT
+          value: "3001"
         - name: NODE_ENV
           valueFrom:
             configMapKeyRef:

@@ -48,6 +48,12 @@ export interface RBACIntegrationOptions {
   skipValidation?: boolean;
 }
 
+// Utility function to handle unknown errors
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
 export class RBACService {
   private k8sClient = getKubernetesClient();
   private clusterConfigService = getClusterConfigService();
@@ -197,17 +203,17 @@ export class RBACService {
         environment,
         correlationId,
         error: {
-          name: error.name,
-          message: error.message,
-          code: error.code,
-          retryable: error.retryable || false
+          name: error instanceof Error ? error.name : 'UnknownError',
+          message: getErrorMessage(error),
+          code: (error as any)?.code || 'UNKNOWN',
+          retryable: (error as any)?.retryable || false
         },
         duration: Date.now() - startTime
       });
 
       // Log failed audit event
       auditEvent.success = false;
-      auditEvent.error = error.message;
+      auditEvent.error = getErrorMessage(error);
       auditEvent.details = {
         duration: Date.now() - startTime
       };
@@ -219,11 +225,11 @@ export class RBACService {
       }
 
       throw new RBACError(
-        `RBAC provisioning failed: ${error.message}`,
+        `RBAC provisioning failed: ${getErrorMessage(error)}`,
         'PROVISIONING_FAILED',
         500,
         false,
-        { originalError: error.name }
+        { originalError: error instanceof Error ? error.name : 'UnknownError' }
       );
     }
   }
@@ -255,7 +261,7 @@ export class RBACService {
       };
 
     } catch (error) {
-      logger.error('Failed to get RBAC status', { namespaceName, error: error.message });
+      logger.error('Failed to get RBAC status', { namespaceName, error: getErrorMessage(error) });
       throw error;
     }
   }
@@ -279,7 +285,7 @@ export class RBACService {
       logger.error('Failed to remove RBAC resources', { 
         namespaceName, 
         clusterName, 
-        error: error.message 
+        error: getErrorMessage(error) 
       });
       throw error;
     }
@@ -443,7 +449,7 @@ export class RBACService {
       } catch (error) {
         logger.error('Failed to apply ASO manifest', { 
           name: manifest.metadata.name,
-          error: error.message 
+          error: getErrorMessage(error) 
         });
         throw error;
       }
@@ -503,7 +509,7 @@ export class RBACService {
       );
 
       const maxAssignments = this.getMaxRoleAssignments(teamName);
-      if (existing.items && existing.items.length >= maxAssignments) {
+      if ((existing as any).items && (existing as any).items.length >= maxAssignments) {
         throw new RBACError(
           `Maximum role assignments (${maxAssignments}) exceeded for namespace ${namespaceName}`,
           'QUOTA_EXCEEDED',
@@ -513,12 +519,13 @@ export class RBACService {
     } catch (error) {
       if (error instanceof RBACError) throw error;
       // Log but don't fail on quota check errors
-      logger.warn('Resource quota check failed', { namespaceName, teamName, error: error.message });
+      logger.warn('Resource quota check failed', { namespaceName, teamName, error: getErrorMessage(error) });
     }
   }
 
-  private getMaxRoleAssignments(teamName: string): number {
+  private getMaxRoleAssignments(_teamName: string): number {
     // Default quota - can be made configurable per team
+    // TODO: Make this configurable per team using _teamName
     return 10;
   }
 
@@ -531,7 +538,7 @@ export class RBACService {
           logger.error('Azure AD validation failed after all retries', {
             principalId: this.maskPrincipalId(principalId),
             attempts: maxRetries,
-            error: error.message
+            error: getErrorMessage(error)
           });
           throw error;
         }
@@ -597,9 +604,9 @@ export class RBACService {
 
       logger.info('Managed identity authentication validated successfully');
     } catch (error) {
-      logger.error('Managed identity authentication validation failed', { error: error.message });
+      logger.error('Managed identity authentication validation failed', { error: getErrorMessage(error) });
       throw new RBACError(
-        `Authentication validation failed: ${error.message}`,
+        `Authentication validation failed: ${getErrorMessage(error)}`,
         'AUTHENTICATION_FAILED',
         401,
         false
@@ -624,7 +631,7 @@ export class RBACService {
       return true;
       
     } catch (error) {
-      logger.error('Platform API permissions validation failed', { error: error.message });
+      logger.error('Platform API permissions validation failed', { error: getErrorMessage(error) });
       return false;
     }
   }
@@ -712,7 +719,7 @@ export class RBACService {
       logger.error('Enhanced namespace creation with RBAC failed', {
         namespaceName: request.name,
         teamName: request.teamName,
-        error: error.message,
+        error: getErrorMessage(error),
         duration: Date.now() - startTime
       });
       throw error;
@@ -756,7 +763,7 @@ export class RBACService {
       }
     };
 
-    const quotaSpec = quotaSpecs[tier] || quotaSpecs.small;
+    const quotaSpec = quotaSpecs[tier as keyof typeof quotaSpecs] || quotaSpecs.small;
     await this.k8sClient.createResourceQuota(namespaceName, quotaSpec);
   }
 

@@ -1,5 +1,5 @@
 import { DefaultAzureCredential, WorkloadIdentityCredential } from '@azure/identity';
-import { KubernetesApi } from '@kubernetes/client-node';
+import '@kubernetes/client-node';
 import { logger } from '../utils/logger';
 import { config } from '../config/config';
 
@@ -11,7 +11,7 @@ export interface ManagedIdentityOptions {
 }
 
 export class ManagedIdentityAuthService {
-  private credential: DefaultAzureCredential | WorkloadIdentityCredential;
+  private credential!: DefaultAzureCredential | WorkloadIdentityCredential;
   private readonly options: ManagedIdentityOptions;
 
   constructor(options: ManagedIdentityOptions = {}) {
@@ -40,8 +40,8 @@ export class ManagedIdentityAuthService {
         logger.info('Initialized DefaultAzureCredential for local development');
       }
     } catch (error) {
-      logger.error('Failed to initialize Azure credential', { error: error.message });
-      throw new Error(`Failed to initialize Azure credential: ${error.message}`);
+      logger.error('Failed to initialize Azure credential', { error: error instanceof Error ? error.message : String(error) });
+      throw new Error(`Failed to initialize Azure credential: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -65,10 +65,10 @@ export class ManagedIdentityAuthService {
     } catch (error) {
       logger.error('Failed to get access token', { 
         scope,
-        error: error.message,
-        stack: error.stack
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace available'
       });
-      throw new Error(`Failed to get access token: ${error.message}`);
+      throw new Error(`Failed to get access token: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -87,7 +87,7 @@ export class ManagedIdentityAuthService {
       const token = await this.getAccessToken();
       return !!token;
     } catch (error) {
-      logger.error('Managed identity authentication validation failed', { error: error.message });
+      logger.error('Managed identity authentication validation failed', { error: error instanceof Error ? error.message : String(error) });
       return false;
     }
   }
@@ -114,7 +114,7 @@ export class ManagedIdentityAuthService {
         };
       }
     } catch (error) {
-      logger.error('Failed to get managed identity info', { error: error.message });
+      logger.error('Failed to get managed identity info', { error: error instanceof Error ? error.message : String(error) });
       throw error;
     }
   }

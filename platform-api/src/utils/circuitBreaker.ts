@@ -249,7 +249,7 @@ export class CircuitBreakerRegistry {
   // Reset all circuit breakers (for emergency recovery)
   static resetAll(): void {
     logger.warn('Resetting all circuit breakers');
-    for (const [name, breaker] of this.breakers.entries()) {
+    for (const [_name, breaker] of this.breakers.entries()) {
       breaker.reset();
     }
   }

@@ -1,0 +1,76 @@
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: platform-api-gateway-http
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+spec:
+  selector:
+    istio: aks-istio-ingressgateway-external
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - platform-api.davidmarkgardiner.co.uk
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: platform-api-vs-http
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: platform-api.davidmarkgardiner.co.uk
+spec:
+  hosts:
+  - platform-api.davidmarkgardiner.co.uk
+  gateways:
+  - platform-api-gateway-http
+  http:
+  - match:
+    - uri:
+        prefix: /health
+    route:
+    - destination:
+        host: platform-api.platform-system.svc.cluster.local
+        port:
+          number: 80
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+  - match:
+    - uri:
+        prefix: /api/platform
+    route:
+    - destination:
+        host: platform-api.platform-system.svc.cluster.local
+        port:
+          number: 80
+    timeout: 60s
+    retries:
+      attempts: 3
+      perTryTimeout: 20s
+    headers:
+      request:
+        add:
+          X-Forwarded-Proto: http
+          X-Forwarded-Host: platform-api.davidmarkgardiner.co.uk
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: platform-api.platform-system.svc.cluster.local
+        port:
+          number: 80
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s

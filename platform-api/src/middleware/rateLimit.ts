@@ -120,3 +120,5 @@ export const teamRateLimit = expressRateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
+
+export { rateLimitMiddleware };

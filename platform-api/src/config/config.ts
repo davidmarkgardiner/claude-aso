@@ -181,7 +181,6 @@ if (config.nodeEnv === 'production') {
   const requiredEnvVars = [
     'JWT_SECRET',
     'AZURE_CLIENT_ID', 
-    'AZURE_CLIENT_SECRET',
     'AZURE_TENANT_ID',
     'DB_PASSWORD',
     'REDIS_URL'

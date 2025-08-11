@@ -1,7 +1,6 @@
 import * as k8s from '@kubernetes/client-node';
 import { logger } from '../utils/logger';
 import { config } from '../config/config';
-import { getManagedIdentityAuthService } from './managedIdentityAuth';
 
 export class KubernetesClient {
   private kubeConfig: k8s.KubeConfig;
@@ -218,25 +217,6 @@ export class KubernetesClient {
   }
 
   // Custom Resource operations (for Capsule, Istio, etc.)
-  async createCustomResource(
-    group: string,
-    version: string,
-    plural: string,
-    namespace: string | undefined,
-    resource: any
-  ): Promise<any> {
-    try {
-      const response = namespace
-        ? await this.customObjectsApi.createNamespacedCustomObject(group, version, namespace, plural, resource)
-        : await this.customObjectsApi.createClusterCustomObject(group, version, plural, resource);
-      
-      logger.info(`Custom resource ${resource.metadata?.name} created`);
-      return response.body;
-    } catch (error) {
-      logger.error(`Failed to create custom resource:`, error);
-      throw error;
-    }
-  }
 
   async getCustomResource(
     group: string,
@@ -263,7 +243,7 @@ export class KubernetesClient {
   // Utility methods
   async healthCheck(): Promise<{ healthy: boolean; context: string; server: string }> {
     try {
-      await this.coreApi.getAPIVersions();
+      await this.coreApi.getAPIResources();
       return {
         healthy: true,
         context: this.kubeConfig.getCurrentContext(),

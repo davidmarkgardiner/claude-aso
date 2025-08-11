@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-api-external
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: platform-api.davidmarkgardiner.co.uk
+    external-dns.alpha.kubernetes.io/ttl: "300"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 131.145.96.118
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    protocol: TCP

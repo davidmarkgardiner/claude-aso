@@ -51,7 +51,7 @@ export class ArgoWorkflowsClient {
           url: error.config?.url,
           method: error.config?.method,
           status: error.response?.status,
-          message: error.message,
+          message: error instanceof Error ? error.message : String(error),
           data: error.response?.data
         });
         return Promise.reject(error);
@@ -94,7 +94,7 @@ export class ArgoWorkflowsClient {
       };
     } catch (error) {
       logger.error('Failed to submit workflow:', error);
-      throw new Error(`Failed to submit workflow: ${error.response?.data?.message || error.message}`);
+      throw new Error(`Failed to submit workflow: ${(error as any)?.response?.data?.message || (error instanceof Error ? error.message : String(error))}`);
     }
   }
 
@@ -126,10 +126,10 @@ export class ArgoWorkflowsClient {
       };
     } catch (error) {
       logger.error(`Failed to get workflow ${workflowName}:`, error);
-      if (error.response?.status === 404) {
+      if ((error as any)?.response?.status === 404) {
         throw new Error(`Workflow ${workflowName} not found`);
       }
-      throw new Error(`Failed to get workflow: ${error.response?.data?.message || error.message}`);
+      throw new Error(`Failed to get workflow: ${(error as any)?.response?.data?.message || (error instanceof Error ? error.message : String(error))}`);
     }
   }
 
@@ -178,7 +178,7 @@ export class ArgoWorkflowsClient {
       }));
     } catch (error) {
       logger.error('Failed to list workflows:', error);
-      throw new Error(`Failed to list workflows: ${error.response?.data?.message || error.message}`);
+      throw new Error(`Failed to list workflows: ${(error as any)?.response?.data?.message || (error instanceof Error ? error.message : String(error))}`);
     }
   }
 
@@ -193,7 +193,7 @@ export class ArgoWorkflowsClient {
       logger.info(`Workflow ${workflowName} terminated successfully`);
     } catch (error) {
       logger.error(`Failed to terminate workflow ${workflowName}:`, error);
-      throw new Error(`Failed to terminate workflow: ${error.response?.data?.message || error.message}`);
+      throw new Error(`Failed to terminate workflow: ${(error as any)?.response?.data?.message || (error instanceof Error ? error.message : String(error))}`);
     }
   }
 
@@ -226,7 +226,7 @@ export class ArgoWorkflowsClient {
       };
     } catch (error) {
       logger.error(`Failed to retry workflow ${workflowName}:`, error);
-      throw new Error(`Failed to retry workflow: ${error.response?.data?.message || error.message}`);
+      throw new Error(`Failed to retry workflow: ${(error as any)?.response?.data?.message || (error instanceof Error ? error.message : String(error))}`);
     }
   }
 
@@ -251,7 +251,7 @@ export class ArgoWorkflowsClient {
       return response.data;
     } catch (error) {
       logger.error(`Failed to get workflow logs for ${workflowName}:`, error);
-      throw new Error(`Failed to get workflow logs: ${error.response?.data?.message || error.message}`);
+      throw new Error(`Failed to get workflow logs: ${(error as any)?.response?.data?.message || (error instanceof Error ? error.message : String(error))}`);
     }
   }
 

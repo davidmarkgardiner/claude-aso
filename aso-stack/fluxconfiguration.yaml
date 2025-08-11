@@ -52,6 +52,18 @@ spec:
       syncIntervalInSeconds: 120
       prune: true
       force: true
+    platform-api:
+      dependsOn: ["external-dns", "cert-manager-config"]
+      path: ./apps/platform-api
+      timeoutInSeconds: 600
+      syncIntervalInSeconds: 120
+      prune: true
+      force: true
+      postBuild:
+        substitute:
+          clientId: "1e375c42-d66e-43d9-a957-ff5ec5563116"
+          principalId: "40c9d381-2c6e-4607-b48b-d83b6931f23d"
+          tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
   namespace: azure-system
   owner:
     group: containerservice.azure.com
