@@ -22,7 +22,25 @@ export const logger = winston.createLogger({
         winston.format.colorize({ all: true }),
         winston.format.timestamp(),
         winston.format.printf(({ level, message, timestamp, ...meta }) => {
-          const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+          let metaStr = '';
+          if (Object.keys(meta).length) {
+            try {
+              // Handle circular references in logged objects
+              metaStr = JSON.stringify(meta, (_key, value) => {
+                if (typeof value === 'object' && value !== null) {
+                  // Skip circular references and complex objects like sockets
+                  if (value.constructor?.name === 'Socket' || 
+                      value.constructor?.name === 'ClientRequest' ||
+                      value.constructor?.name === 'IncomingMessage') {
+                    return '[Circular/Complex Object]';
+                  }
+                }
+                return value;
+              }, 2);
+            } catch (error) {
+              metaStr = '[Error serializing metadata]';
+            }
+          }
           return `${timestamp} [${level}]: ${message} ${metaStr}`;
         })
       )
