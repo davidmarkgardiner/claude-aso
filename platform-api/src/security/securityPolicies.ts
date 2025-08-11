@@ -195,9 +195,9 @@ export class SecurityPolicyEngine {
     // Aggregate results
     const allViolations = results.flatMap(r => r.violations);
     const allRecommendations = results.flatMap(r => r.recommendations);
-    const maxRiskLevel = results.reduce((max, r) => 
+    const maxRiskLevel = results.reduce<'low' | 'medium' | 'high' | 'critical'>((max, r) => 
       getRiskLevelPriority(r.riskLevel) > getRiskLevelPriority(max) ? r.riskLevel : max,
-      'low' as const
+      'low'
     );
 
     const aggregatedResult: SecurityValidationResult = {

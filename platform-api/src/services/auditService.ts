@@ -72,7 +72,7 @@ export class AuditService {
     } catch (error) {
       // Never fail the main operation due to audit logging issues
       logger.error('Failed to log audit event', {
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         originalEvent: event
       });
     }
@@ -100,10 +100,10 @@ export class AuditService {
       timestamp: new Date().toISOString(),
       success: event.action === 'approved',
       details: {
-        approvalAction: event.action,
-        approver: event.approvedBy,
-        reason: event.reason
-      }
+        roleAssignmentIds: [],
+        scope: event.reason,
+        duration: undefined
+      } as any
     };
 
     logger.info('RBAC Approval Event', {
@@ -174,9 +174,9 @@ export class AuditService {
         });
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to log security policy event', {
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         originalEvent: event
       });
     }
@@ -221,7 +221,7 @@ export class AuditService {
 
     } catch (error) {
       logger.error('Failed to log managed identity event', {
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         originalEvent: event
       });
     }
@@ -277,7 +277,7 @@ export class AuditService {
 
     } catch (error) {
       logger.error('Failed to log namespace event', {
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         originalEvent: event
       });
     }
@@ -331,7 +331,7 @@ export class AuditService {
       return report;
 
     } catch (error) {
-      logger.error('Failed to generate compliance report', { error: error.message });
+      logger.error('Failed to generate compliance report', { error: error instanceof Error ? error.message : 'Unknown error' });
       throw error;
     }
   }
@@ -353,7 +353,7 @@ export class AuditService {
     return 'LOW';
   }
 
-  private async generateAuditMetrics(period: any): Promise<any> {
+  private async generateAuditMetrics(_period: any): Promise<any> {
     // In production, this would query the audit store for metrics
     return {
       eventsByType: {},

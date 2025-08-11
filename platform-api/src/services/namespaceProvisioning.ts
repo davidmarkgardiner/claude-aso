@@ -406,7 +406,7 @@ export class NamespaceProvisioningService {
   }
 
   // These methods would typically interact with a database
-  private async storeRequestMetadata(requestId: string, request: NamespaceRequest, workflowId?: string): Promise<void> {
+  private async storeRequestMetadata(requestId: string, _request: NamespaceRequest, workflowId?: string): Promise<void> {
     // TODO: Implement database storage
     logger.info('Storing request metadata', { requestId, workflowId });
   }

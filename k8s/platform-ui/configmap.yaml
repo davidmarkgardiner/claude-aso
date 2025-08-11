@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-ui-config
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    component: config
+data:
+  REACT_APP_API_URL: "http://platform-api.platform-system.svc.cluster.local"
+  REACT_APP_ENV: "development"

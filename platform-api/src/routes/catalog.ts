@@ -279,7 +279,7 @@ router.get('/templates/:templateId',
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: template,
       timestamp: new Date().toISOString()
@@ -299,7 +299,7 @@ router.get('/categories',
         .map(t => ({ id: t.id, name: t.name, complexity: t.complexity }))
     }));
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         categories: categoryCounts,
@@ -421,7 +421,7 @@ router.post('/templates/:templateId/deploy',
         requestedBy: req.user!.email
       });
 
-      res.status(202).json({
+      return res.status(202).json({
         success: true,
         data: {
           ...result,

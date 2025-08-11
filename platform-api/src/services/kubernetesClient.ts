@@ -1,7 +1,7 @@
 import * as k8s from '@kubernetes/client-node';
 import { logger } from '../utils/logger';
 import { config } from '../config/config';
-import { getManagedIdentityAuthService } from './managedIdentityAuth';
+// import { getManagedIdentityAuthService } from './managedIdentityAuth';
 
 export class KubernetesClient {
   private kubeConfig: k8s.KubeConfig;
@@ -263,7 +263,7 @@ export class KubernetesClient {
   // Utility methods
   async healthCheck(): Promise<{ healthy: boolean; context: string; server: string }> {
     try {
-      await this.coreApi.getAPIVersions();
+      await this.coreApi.listNamespace();
       return {
         healthy: true,
         context: this.kubeConfig.getCurrentContext(),
@@ -364,24 +364,6 @@ export class KubernetesClient {
     }
   }
 
-  async createCustomResource(manifest: any): Promise<any> {
-    try {
-      const [group, version] = manifest.apiVersion.split('/');
-      const kind = manifest.kind;
-      const plural = kind.toLowerCase() + 's';
-      const namespace = manifest.metadata?.namespace;
-      
-      const response = namespace
-        ? await this.customObjectsApi.createNamespacedCustomObject(group, version, namespace, plural, manifest)
-        : await this.customObjectsApi.createClusterCustomObject(group, version, plural, manifest);
-      
-      logger.info(`Custom resource ${manifest.metadata.name} created`, { kind, namespace });
-      return response.body;
-    } catch (error) {
-      logger.error(`Failed to create custom resource:`, error);
-      throw error;
-    }
-  }
 }
 
 // Singleton instance

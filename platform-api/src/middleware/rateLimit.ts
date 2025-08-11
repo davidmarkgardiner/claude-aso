@@ -53,8 +53,9 @@ const rateLimitMiddleware = expressRateLimit({
   legacyHeaders: false
 });
 
-// Export the main rate limit as rateLimit
+// Export the main rate limit as both rateLimit and rateLimitMiddleware
 export const rateLimit = rateLimitMiddleware;
+export { rateLimitMiddleware };
 
 // Stricter rate limit for resource-intensive operations
 export const strictRateLimit = expressRateLimit({

@@ -36,7 +36,7 @@ class PlatformApiClient {
     return response.json();
   }
 
-  async getTeamNamespaces(team: string): Promise<any[]> {
+  async getTeamNamespaces(team: string): Promise<Array<Record<string, unknown>>> {
     const response = await fetch(`${API_BASE_URL}/namespaces/team/${team}`);
     if (!response.ok) {
       throw new Error('Failed to get team namespaces');

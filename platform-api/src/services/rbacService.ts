@@ -197,17 +197,17 @@ export class RBACService {
         environment,
         correlationId,
         error: {
-          name: error.name,
-          message: error.message,
-          code: error.code,
-          retryable: error.retryable || false
+          name: error instanceof Error ? error.name : 'Error',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          code: (error as any)?.code,
+          retryable: (error as any)?.retryable || false
         },
         duration: Date.now() - startTime
       });
 
       // Log failed audit event
       auditEvent.success = false;
-      auditEvent.error = error.message;
+      auditEvent.error = error instanceof Error ? error.message : 'Unknown error';
       auditEvent.details = {
         duration: Date.now() - startTime
       };
@@ -219,11 +219,11 @@ export class RBACService {
       }
 
       throw new RBACError(
-        `RBAC provisioning failed: ${error.message}`,
+        `RBAC provisioning failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'PROVISIONING_FAILED',
         500,
         false,
-        { originalError: error.name }
+        { originalError: error instanceof Error ? error.name : 'Unknown' }
       );
     }
   }
@@ -255,7 +255,7 @@ export class RBACService {
       };
 
     } catch (error) {
-      logger.error('Failed to get RBAC status', { namespaceName, error: error.message });
+      logger.error('Failed to get RBAC status', { namespaceName, error: error instanceof Error ? error.message : 'Unknown error' });
       throw error;
     }
   }
@@ -279,7 +279,7 @@ export class RBACService {
       logger.error('Failed to remove RBAC resources', { 
         namespaceName, 
         clusterName, 
-        error: error.message 
+        error: error instanceof Error ? error.message : 'Unknown error' 
       });
       throw error;
     }
@@ -433,17 +433,25 @@ export class RBACService {
     const promises = manifests.map(async (manifest) => {
       try {
         // Apply custom resource to Kubernetes
-        await this.k8sClient.createCustomResource(manifest);
+        const [group, version] = manifest.apiVersion.split('/');
+        const plural = manifest.kind.toLowerCase() + 's';
+        await this.k8sClient.createCustomResource(
+          group,
+          version,
+          plural,
+          manifest.metadata.namespace,
+          manifest
+        );
         
         logger.info('ASO RoleAssignment manifest applied', { 
           name: manifest.metadata.name,
           namespace: manifest.metadata.namespace
         });
         
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to apply ASO manifest', { 
           name: manifest.metadata.name,
-          error: error.message 
+          error: error instanceof Error ? error.message : 'Unknown error' 
         });
         throw error;
       }
@@ -500,10 +508,10 @@ export class RBACService {
         'RoleAssignment',
         'aso-system',
         `platform.io/namespace=${namespaceName}`
-      );
+      ) as { items?: any[] };
 
       const maxAssignments = this.getMaxRoleAssignments(teamName);
-      if (existing.items && existing.items.length >= maxAssignments) {
+      if (existing?.items && Array.isArray(existing.items) && existing.items.length >= maxAssignments) {
         throw new RBACError(
           `Maximum role assignments (${maxAssignments}) exceeded for namespace ${namespaceName}`,
           'QUOTA_EXCEEDED',
@@ -513,11 +521,11 @@ export class RBACService {
     } catch (error) {
       if (error instanceof RBACError) throw error;
       // Log but don't fail on quota check errors
-      logger.warn('Resource quota check failed', { namespaceName, teamName, error: error.message });
+      logger.warn('Resource quota check failed', { namespaceName, teamName, error: error instanceof Error ? error instanceof Error ? error.message : 'Unknown error' : 'Unknown error' });
     }
   }
 
-  private getMaxRoleAssignments(teamName: string): number {
+  private getMaxRoleAssignments(_teamName: string): number {
     // Default quota - can be made configurable per team
     return 10;
   }
@@ -526,12 +534,12 @@ export class RBACService {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await this.azureAdService.validatePrincipalById(principalId);
-      } catch (error) {
+      } catch (error: unknown) {
         if (attempt === maxRetries) {
           logger.error('Azure AD validation failed after all retries', {
             principalId: this.maskPrincipalId(principalId),
             attempts: maxRetries,
-            error: error.message
+            error: error instanceof Error ? error.message : 'Unknown error'
           });
           throw error;
         }
@@ -597,9 +605,9 @@ export class RBACService {
 
       logger.info('Managed identity authentication validated successfully');
     } catch (error) {
-      logger.error('Managed identity authentication validation failed', { error: error.message });
+      logger.error('Managed identity authentication validation failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       throw new RBACError(
-        `Authentication validation failed: ${error.message}`,
+        `Authentication validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'AUTHENTICATION_FAILED',
         401,
         false
@@ -624,7 +632,7 @@ export class RBACService {
       return true;
       
     } catch (error) {
-      logger.error('Platform API permissions validation failed', { error: error.message });
+      logger.error('Platform API permissions validation failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       return false;
     }
   }
@@ -669,7 +677,15 @@ export class RBACService {
       );
 
       // Apply the ASO RoleAssignment manifest
-      await this.k8sClient.createCustomResource(rbacManifest);
+      const [group, version] = rbacManifest.apiVersion.split('/');
+      const plural = rbacManifest.kind.toLowerCase() + 's';
+      await this.k8sClient.createCustomResource(
+        group,
+        version,
+        plural,
+        rbacManifest.metadata.namespace,
+        rbacManifest
+      );
 
       // Apply resource quotas based on tier
       if (request.resourceTier) {
@@ -712,7 +728,7 @@ export class RBACService {
       logger.error('Enhanced namespace creation with RBAC failed', {
         namespaceName: request.name,
         teamName: request.teamName,
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         duration: Date.now() - startTime
       });
       throw error;
@@ -756,7 +772,7 @@ export class RBACService {
       }
     };
 
-    const quotaSpec = quotaSpecs[tier] || quotaSpecs.small;
+    const quotaSpec = (quotaSpecs as any)[tier] || quotaSpecs.small;
     await this.k8sClient.createResourceQuota(namespaceName, quotaSpec);
   }
 

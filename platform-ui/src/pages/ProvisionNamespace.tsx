@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import {
-  ExclamationTriangleIcon,
   CheckCircleIcon,
   ClockIcon,
   XCircleIcon,
@@ -45,7 +44,7 @@ const ProvisionNamespace: React.FC = () => {
       setProvisioningResult(result);
       setCurrentStep(3);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error('Provisioning failed:', error);
     }
   });
@@ -211,7 +210,7 @@ const ProvisionNamespace: React.FC = () => {
               <label className="form-label">Environment</label>
               <select
                 value={formData.environment}
-                onChange={(e) => setFormData(prev => ({ ...prev, environment: e.target.value as any }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, environment: e.target.value as 'development' | 'staging' | 'production' }))}
                 className="form-input"
               >
                 <option value="development">Development</option>
@@ -225,7 +224,7 @@ const ProvisionNamespace: React.FC = () => {
               <label className="form-label">Resource Tier</label>
               <select
                 value={formData.resourceTier}
-                onChange={(e) => setFormData(prev => ({ ...prev, resourceTier: e.target.value as any }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, resourceTier: e.target.value as 'micro' | 'small' | 'medium' | 'large' }))}
                 className="form-input"
               >
                 <option value="micro">Micro (1 CPU, 2GB RAM)</option>
@@ -240,7 +239,7 @@ const ProvisionNamespace: React.FC = () => {
               <label className="form-label">Network Policy</label>
               <select
                 value={formData.networkPolicy}
-                onChange={(e) => setFormData(prev => ({ ...prev, networkPolicy: e.target.value as any }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, networkPolicy: e.target.value as 'isolated' | 'team-shared' | 'open' }))}
                 className="form-input"
               >
                 <option value="isolated">Isolated - No external traffic</option>
@@ -332,7 +331,7 @@ const ProvisionNamespace: React.FC = () => {
                 </h3>
               </div>
               <p className="mt-2 text-sm text-red-700">
-                {(provisionMutation.error as any)?.message || 'An error occurred during provisioning'}
+                {(provisionMutation.error as Error)?.message || 'An error occurred during provisioning'}
               </p>
               <button
                 onClick={() => setCurrentStep(1)}
