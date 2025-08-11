@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getKubernetesClient } from './kubernetesClient';
 import { ArgoWorkflowsClient } from './argoWorkflowsClient';
+import { getDirectProvisioningService } from './directProvisioningService';
 import { logger } from '../utils/logger';
-import { config } from '../config/config';
 import * as k8s from '@kubernetes/client-node';
 
 export interface NamespaceRequest {
@@ -37,70 +37,51 @@ export interface ResourceTierConfig {
 export class NamespaceProvisioningService {
   private k8sClient = getKubernetesClient();
   private argoClient = new ArgoWorkflowsClient();
+  private directProvisioner = getDirectProvisioningService();
   
-  private readonly resourceTiers: Record<string, ResourceTierConfig> = {
-    micro: {
-      cpuLimit: '1',
-      memoryLimit: '2Gi',
-      storageQuota: '10Gi',
-      maxPods: 5,
-      maxServices: 3,
-      estimatedMonthlyCost: '$50'
-    },
-    small: {
-      cpuLimit: '2',
-      memoryLimit: '4Gi',
-      storageQuota: '20Gi',
-      maxPods: 10,
-      maxServices: 5,
-      estimatedMonthlyCost: '$100'
-    },
-    medium: {
-      cpuLimit: '4',
-      memoryLimit: '8Gi',
-      storageQuota: '50Gi',
-      maxPods: 20,
-      maxServices: 10,
-      estimatedMonthlyCost: '$200'
-    },
-    large: {
-      cpuLimit: '8',
-      memoryLimit: '16Gi',
-      storageQuota: '100Gi',
-      maxPods: 50,
-      maxServices: 20,
-      estimatedMonthlyCost: '$400'
-    }
-  };
+  // resourceTiers moved to DirectProvisioningService
 
-  async provisionNamespace(request: NamespaceRequest): Promise<ProvisioningResult> {
+  async provisionNamespace(request: NamespaceRequest, useArgoWorkflows: boolean = false): Promise<ProvisioningResult> {
     const requestId = `ns-${Date.now()}-${uuidv4().substr(0, 8)}`;
     
     try {
-      logger.info(`Starting namespace provisioning for request ${requestId}`, { request });
+      logger.info(`Starting namespace provisioning for request ${requestId}`, { request, useArgoWorkflows });
       
-      // Validate request
-      await this.validateRequest(request);
-      
-      // Create Argo Workflow for provisioning
-      const workflowSpec = this.generateWorkflowSpec(request, requestId);
-      const workflow = await this.argoClient.submitWorkflow(workflowSpec);
-      
-      // Store request metadata (would typically use database)
-      await this.storeRequestMetadata(requestId, request, workflow.metadata?.name);
-      
-      logger.info(`Namespace provisioning workflow submitted`, { 
-        requestId, 
-        workflowId: workflow.metadata?.name 
-      });
-      
-      return {
-        requestId,
-        status: 'submitted',
-        workflowId: workflow.metadata?.name,
-        message: `Namespace provisioning request submitted successfully. Expected completion in 5-10 minutes.`,
-        estimatedCompletionTime: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-      };
+      if (useArgoWorkflows) {
+        // Use Argo Workflows for provisioning
+        const workflowSpec = this.generateWorkflowSpec(request, requestId);
+        const workflowResponse = await this.argoClient.submitWorkflow(workflowSpec);
+        
+        logger.info(`Namespace provisioning workflow submitted`, { 
+          requestId, 
+          workflowId: workflowResponse.metadata.name 
+        });
+        
+        // Store request metadata for tracking
+        await this.storeRequestMetadata(requestId, request, workflowResponse.metadata.name);
+        
+        return {
+          requestId,
+          status: 'submitted',
+          workflowId: workflowResponse.metadata.name,
+          message: `Namespace provisioning workflow ${workflowResponse.metadata.name} has been submitted`,
+          estimatedCompletionTime: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes estimate
+        };
+      } else {
+        // Use direct provisioning
+        await this.directProvisioner.provisionNamespace(request);
+        
+        logger.info(`Namespace provisioning completed successfully`, { 
+          requestId, 
+          namespaceName: request.namespaceName
+        });
+        
+        return {
+          requestId,
+          status: 'completed',
+          message: `Namespace ${request.namespaceName} created successfully with all resources (ResourceQuota, LimitRange, RBAC, NetworkPolicy).`,
+        };
+      }
       
     } catch (error) {
       logger.error(`Failed to provision namespace for request ${requestId}:`, error);
@@ -191,94 +172,26 @@ export class NamespaceProvisioningService {
     }
   }
 
-  private async validateRequest(request: NamespaceRequest): Promise<void> {
-    // Validate namespace naming conventions
-    const namePattern = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
-    if (!namePattern.test(request.namespaceName)) {
-      throw new Error('Invalid namespace name format. Must be lowercase alphanumeric with hyphens.');
-    }
-
-    if (request.namespaceName.length > 63) {
-      throw new Error('Namespace name cannot exceed 63 characters');
-    }
-
-    // Check if namespace already exists
-    const existingNamespace = await this.k8sClient.getNamespace(request.namespaceName);
-    if (existingNamespace) {
-      throw new Error(`Namespace ${request.namespaceName} already exists`);
-    }
-
-    // Validate resource tier
-    if (!this.resourceTiers[request.resourceTier]) {
-      throw new Error(`Invalid resource tier: ${request.resourceTier}`);
-    }
-
-    // Check team quotas
-    const teamNamespaces = await this.listTeamNamespaces(request.team);
-    if (teamNamespaces.length >= config.platform.maxNamespacesPerTeam) {
-      throw new Error(`Team ${request.team} has reached namespace quota limit (${config.platform.maxNamespacesPerTeam})`);
-    }
-
-    // Validate features
-    const invalidFeatures = request.features.filter(
-      feature => !config.platform.allowedFeatures.includes(feature)
-    );
-    if (invalidFeatures.length > 0) {
-      throw new Error(`Invalid features: ${invalidFeatures.join(', ')}`);
-    }
-
-    // Environment-specific validations
-    if (request.environment === 'production') {
-      if (request.resourceTier === 'micro') {
-        throw new Error('Production environments require at least "small" resource tier');
-      }
-      if (request.networkPolicy === 'open') {
-        throw new Error('Production environments cannot use "open" network policy');
-      }
-    }
-  }
+  // validateRequest method moved to DirectProvisioningService
 
   private generateWorkflowSpec(request: NamespaceRequest, requestId: string): any {
-    const resourceTierConfig = this.resourceTiers[request.resourceTier];
+    const resourceTier = this.directProvisioner.getResourceTier(request.resourceTier);
     
     return {
       apiVersion: 'argoproj.io/v1alpha1',
       kind: 'Workflow',
       metadata: {
-        name: `provision-namespace-${requestId}`,
-        namespace: config.argo.namespace,
+        generateName: `provision-namespace-${request.namespaceName}-`,
+        namespace: 'argo',
         labels: {
           'platform.io/request-id': requestId,
           'platform.io/team': request.team,
-          'platform.io/environment': request.environment,
-          'platform.io/resource-tier': request.resourceTier
-        },
-        annotations: {
-          'platform.io/requested-by': request.requestedBy,
-          'platform.io/requested-at': new Date().toISOString(),
-          'platform.io/description': request.description || ''
+          'platform.io/environment': request.environment
         }
       },
       spec: {
         entrypoint: 'provision-namespace',
-        serviceAccountName: 'platform-provisioner',
-        arguments: {
-          parameters: [
-            { name: 'namespace-name', value: request.namespaceName },
-            { name: 'team-name', value: request.team },
-            { name: 'environment', value: request.environment },
-            { name: 'resource-tier', value: request.resourceTier },
-            { name: 'network-policy', value: request.networkPolicy },
-            { name: 'features', value: JSON.stringify(request.features) },
-            { name: 'cpu-limit', value: resourceTierConfig.cpuLimit },
-            { name: 'memory-limit', value: resourceTierConfig.memoryLimit },
-            { name: 'storage-quota', value: resourceTierConfig.storageQuota },
-            { name: 'max-pods', value: resourceTierConfig.maxPods.toString() },
-            { name: 'max-services', value: resourceTierConfig.maxServices.toString() },
-            { name: 'requested-by', value: request.requestedBy },
-            { name: 'cost-center', value: request.costCenter || request.team }
-          ]
-        },
+        serviceAccountName: 'argo-workflow',
         templates: [
           {
             name: 'provision-namespace',
@@ -286,85 +199,271 @@ export class NamespaceProvisioningService {
               tasks: [
                 {
                   name: 'create-namespace',
-                  templateRef: {
-                    name: 'create-namespace-template',
-                    template: 'create-namespace'
-                  },
+                  template: 'kubectl-apply',
                   arguments: {
                     parameters: [
-                      { name: 'namespace-name', value: '{{workflow.parameters.namespace-name}}' },
-                      { name: 'team-name', value: '{{workflow.parameters.team-name}}' },
-                      { name: 'environment', value: '{{workflow.parameters.environment}}' }
+                      {
+                        name: 'manifest',
+                        value: JSON.stringify({
+                          apiVersion: 'v1',
+                          kind: 'Namespace',
+                          metadata: {
+                            name: request.namespaceName,
+                            labels: {
+                              'platform.io/managed': 'true',
+                              'platform.io/team': request.team,
+                              'platform.io/environment': request.environment,
+                              'platform.io/resource-tier': request.resourceTier,
+                              'platform.io/request-id': requestId
+                            },
+                            annotations: {
+                              'platform.io/created-by': request.requestedBy,
+                              'platform.io/description': request.description || '',
+                              'platform.io/cost-center': request.costCenter || ''
+                            }
+                          }
+                        })
+                      }
                     ]
                   }
                 },
                 {
-                  name: 'apply-resource-quotas',
-                  templateRef: {
-                    name: 'create-namespace-template',
-                    template: 'apply-resource-quotas'
-                  },
+                  name: 'apply-resource-quota',
+                  template: 'kubectl-apply',
+                  dependencies: ['create-namespace'],
                   arguments: {
                     parameters: [
-                      { name: 'namespace-name', value: '{{workflow.parameters.namespace-name}}' },
-                      { name: 'cpu-limit', value: '{{workflow.parameters.cpu-limit}}' },
-                      { name: 'memory-limit', value: '{{workflow.parameters.memory-limit}}' },
-                      { name: 'storage-quota', value: '{{workflow.parameters.storage-quota}}' },
-                      { name: 'max-pods', value: '{{workflow.parameters.max-pods}}' },
-                      { name: 'max-services', value: '{{workflow.parameters.max-services}}' }
+                      {
+                        name: 'manifest',
+                        value: JSON.stringify({
+                          apiVersion: 'v1',
+                          kind: 'ResourceQuota',
+                          metadata: {
+                            name: 'namespace-quota',
+                            namespace: request.namespaceName
+                          },
+                          spec: {
+                            hard: {
+                              'requests.cpu': resourceTier.cpuLimit,
+                              'requests.memory': resourceTier.memoryLimit,
+                              'requests.storage': resourceTier.storageQuota,
+                              'persistentvolumeclaims': '10',
+                              'pods': String(resourceTier.maxPods),
+                              'services': String(resourceTier.maxServices)
+                            }
+                          }
+                        })
+                      }
                     ]
-                  },
-                  dependencies: ['create-namespace']
+                  }
+                },
+                {
+                  name: 'apply-limit-range',
+                  template: 'kubectl-apply',
+                  dependencies: ['create-namespace'],
+                  arguments: {
+                    parameters: [
+                      {
+                        name: 'manifest',
+                        value: JSON.stringify({
+                          apiVersion: 'v1',
+                          kind: 'LimitRange',
+                          metadata: {
+                            name: 'namespace-limits',
+                            namespace: request.namespaceName
+                          },
+                          spec: {
+                            limits: [
+                              {
+                                type: 'Container',
+                                default: {
+                                  cpu: '500m',
+                                  memory: '512Mi'
+                                },
+                                defaultRequest: {
+                                  cpu: '100m',
+                                  memory: '128Mi'
+                                }
+                              }
+                            ]
+                          }
+                        })
+                      }
+                    ]
+                  }
                 },
                 {
                   name: 'setup-rbac',
-                  templateRef: {
-                    name: 'create-namespace-template',
-                    template: 'setup-rbac'
-                  },
+                  template: 'kubectl-apply',
+                  dependencies: ['create-namespace'],
                   arguments: {
                     parameters: [
-                      { name: 'namespace-name', value: '{{workflow.parameters.namespace-name}}' },
-                      { name: 'team-name', value: '{{workflow.parameters.team-name}}' }
+                      {
+                        name: 'manifest',
+                        value: JSON.stringify({
+                          apiVersion: 'rbac.authorization.k8s.io/v1',
+                          kind: 'RoleBinding',
+                          metadata: {
+                            name: `${request.team}-namespace-admin`,
+                            namespace: request.namespaceName
+                          },
+                          subjects: [
+                            {
+                              kind: 'Group',
+                              name: `platform-team-${request.team}`,
+                              apiGroup: 'rbac.authorization.k8s.io'
+                            }
+                          ],
+                          roleRef: {
+                            kind: 'ClusterRole',
+                            name: 'edit',
+                            apiGroup: 'rbac.authorization.k8s.io'
+                          }
+                        })
+                      }
                     ]
-                  },
-                  dependencies: ['create-namespace']
+                  }
                 },
                 {
-                  name: 'apply-network-policies',
-                  templateRef: {
-                    name: 'create-namespace-template',
-                    template: 'apply-network-policies'
-                  },
+                  name: 'apply-network-policy',
+                  template: 'kubectl-apply',
+                  dependencies: ['create-namespace'],
+                  when: request.networkPolicy !== 'open',
                   arguments: {
                     parameters: [
-                      { name: 'namespace-name', value: '{{workflow.parameters.namespace-name}}' },
-                      { name: 'team-name', value: '{{workflow.parameters.team-name}}' },
-                      { name: 'network-policy', value: '{{workflow.parameters.network-policy}}' }
+                      {
+                        name: 'manifest',
+                        value: JSON.stringify(this.generateNetworkPolicySpec(request))
+                      }
                     ]
-                  },
-                  dependencies: ['create-namespace']
-                },
-                {
-                  name: 'setup-monitoring',
-                  templateRef: {
-                    name: 'create-namespace-template',
-                    template: 'setup-monitoring'
-                  },
-                  arguments: {
-                    parameters: [
-                      { name: 'namespace-name', value: '{{workflow.parameters.namespace-name}}' },
-                      { name: 'team-name', value: '{{workflow.parameters.team-name}}' }
-                    ]
-                  },
-                  dependencies: ['create-namespace']
+                  }
                 }
+              ]
+            }
+          },
+          {
+            name: 'kubectl-apply',
+            inputs: {
+              parameters: [
+                { name: 'manifest' }
+              ]
+            },
+            container: {
+              image: 'bitnami/kubectl:latest',
+              command: ['sh', '-c'],
+              args: [
+                'echo "{{inputs.parameters.manifest}}" | kubectl apply -f -'
               ]
             }
           }
         ]
       }
     };
+  }
+
+  private generateNetworkPolicySpec(request: NamespaceRequest): any {
+    const basePolicy = {
+      apiVersion: 'networking.k8s.io/v1',
+      kind: 'NetworkPolicy',
+      metadata: {
+        name: 'default-network-policy',
+        namespace: request.namespaceName
+      },
+      spec: {
+        podSelector: {},
+        policyTypes: ['Ingress', 'Egress']
+      }
+    };
+
+    if (request.networkPolicy === 'isolated') {
+      // Deny all ingress/egress except DNS
+      basePolicy.spec = {
+        ...basePolicy.spec,
+        egress: [
+          {
+            to: [
+              {
+                namespaceSelector: {
+                  matchLabels: {
+                    'kubernetes.io/metadata.name': 'kube-system'
+                  }
+                }
+              }
+            ],
+            ports: [
+              { protocol: 'UDP', port: 53 },
+              { protocol: 'TCP', port: 53 }
+            ]
+          }
+        ]
+      };
+    } else if (request.networkPolicy === 'team-shared') {
+      // Allow traffic within team namespaces
+      basePolicy.spec = {
+        ...basePolicy.spec,
+        ingress: [
+          {
+            from: [
+              {
+                namespaceSelector: {
+                  matchLabels: {
+                    'platform.io/team': request.team
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        egress: [
+          {
+            to: [
+              {
+                namespaceSelector: {
+                  matchLabels: {
+                    'platform.io/team': request.team
+                  }
+                }
+              }
+            ]
+          },
+          {
+            to: [
+              {
+                namespaceSelector: {
+                  matchLabels: {
+                    'kubernetes.io/metadata.name': 'kube-system'
+                  }
+                }
+              }
+            ],
+            ports: [
+              { protocol: 'UDP', port: 53 },
+              { protocol: 'TCP', port: 53 }
+            ]
+          }
+        ]
+      };
+    }
+
+    return basePolicy;
+  }
+
+  private async storeRequestMetadata(requestId: string, request: NamespaceRequest, workflowId: string): Promise<void> {
+    // TODO: In production, this would store to a database
+    // For now, we'll use an in-memory store or log it
+    logger.info('Storing request metadata', {
+      requestId,
+      request,
+      workflowId
+    });
+    
+    // In a real implementation, this would be something like:
+    // await this.db.requestMetadata.create({
+    //   requestId,
+    //   ...request,
+    //   workflowId,
+    //   createdAt: new Date()
+    // });
   }
 
   private mapWorkflowStatusToRequestStatus(workflowPhase: string): 'submitted' | 'in-progress' | 'completed' | 'failed' {
@@ -405,11 +504,7 @@ export class NamespaceProvisioningService {
     return [];
   }
 
-  // These methods would typically interact with a database
-  private async storeRequestMetadata(requestId: string, request: NamespaceRequest, workflowId?: string): Promise<void> {
-    // TODO: Implement database storage
-    logger.info('Storing request metadata', { requestId, workflowId });
-  }
+  // Database methods no longer needed for direct provisioning
 
   private async getRequestMetadata(_requestId: string): Promise<ProvisioningResult | null> {
     // TODO: Implement database retrieval

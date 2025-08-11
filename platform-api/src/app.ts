@@ -11,6 +11,7 @@ import { healthRouter } from './routes/health';
 import { namespaceRouter } from './routes/namespaces';
 import { catalogRouter } from './routes/catalog';
 import { analyticsRouter } from './routes/analytics';
+import { workflowRouter } from './routes/workflows';
 
 export async function createApp(): Promise<express.Application> {
   const app = express();
@@ -35,6 +36,7 @@ export async function createApp(): Promise<express.Application> {
   app.use('/api/platform/namespaces', namespaceRouter);
   app.use('/api/platform/catalog', catalogRouter);
   app.use('/api/platform/analytics', analyticsRouter);
+  app.use('/api/platform/workflows', workflowRouter);
 
   // Root endpoint
   app.get('/', (_req, res) => {

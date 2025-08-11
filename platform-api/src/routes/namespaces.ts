@@ -63,6 +63,11 @@ const namespaceRequestSchema = Joi.object({
     .max(50)
     .optional(),
   
+  useArgoWorkflows: Joi.boolean()
+    .default(false)
+    .optional()
+    .description('Use Argo Workflows for async provisioning instead of direct provisioning'),
+  
   // RBAC integration options
   rbacConfig: Joi.object({
     principalId: Joi.string()
@@ -108,7 +113,9 @@ router.post('/request',
     };
 
     try {
-      const result = await provisioningService.provisionNamespace(namespaceRequest);
+      // Extract useArgoWorkflows flag before passing to service
+      const useArgoWorkflows = value.useArgoWorkflows || false;
+      const result = await provisioningService.provisionNamespace(namespaceRequest, useArgoWorkflows);
       
       // If RBAC configuration is provided, provision RBAC alongside namespace
       let rbacResult = null;
@@ -136,7 +143,7 @@ router.post('/request',
           logger.error('RBAC provisioning failed', {
             requestId: result.requestId,
             namespaceName: namespaceRequest.namespaceName,
-            error: rbacError.message
+            error: rbacError instanceof Error ? rbacError.message : String(rbacError)
           });
           // Continue with namespace provisioning even if RBAC fails
         }
@@ -159,7 +166,7 @@ router.post('/request',
         } : null
       };
 
-      res.status(202).json({
+      return res.status(202).json({
         success: true,
         data: responseData,
         timestamp: new Date().toISOString()
@@ -167,11 +174,11 @@ router.post('/request',
     } catch (error) {
       logger.error('Namespace provisioning failed', {
         namespaceName: namespaceRequest.namespaceName,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         requestedBy: req.user!.email
       });
 
-      if (error.message.includes('already exists')) {
+      if (error instanceof Error && error.message.includes('already exists')) {
         return res.status(409).json({
           error: 'ConflictError',
           message: error.message,
@@ -179,7 +186,7 @@ router.post('/request',
         });
       }
 
-      if (error.message.includes('quota limit') || error.message.includes('Invalid')) {
+      if (error instanceof Error && (error.message.includes('quota limit') || error.message.includes('Invalid'))) {
         return res.status(400).json({
           error: 'ValidationError',
           message: error.message,
@@ -280,7 +287,7 @@ router.get('/:namespaceName',
         }
       }
       
-      res.json({
+      return res.json({
         success: true,
         data: {
           namespace: {
@@ -300,7 +307,7 @@ router.get('/:namespaceName',
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      if (error.message.includes('not found')) {
+      if (error instanceof Error && error.message.includes('not found')) {
         return res.status(404).json({
           error: 'NotFoundError',
           message: `Namespace ${namespaceName} not found`,
@@ -398,13 +405,13 @@ router.get('/:namespaceName/rbac',
     try {
       const rbacStatus = await rbacService.getRBACStatus(namespaceName, clusterName as string);
       
-      res.json({
+      return res.json({
         success: true,
         data: rbacStatus,
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      if (error.message.includes('not found')) {
+      if (error instanceof Error && error.message.includes('not found')) {
         return res.status(404).json({
           error: 'NotFoundError',
           message: `RBAC configuration for namespace ${namespaceName} not found`,
@@ -450,13 +457,13 @@ router.post('/:namespaceName/rbac',
         }
       );
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         data: rbacResult,
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      if (error.message.includes('not found')) {
+      if (error instanceof Error && error.message.includes('not found')) {
         return res.status(404).json({
           error: 'NotFoundError',
           message: `Namespace ${namespaceName} not found`,
@@ -478,13 +485,13 @@ router.delete('/:namespaceName/rbac',
     try {
       await rbacService.removeNamespaceRBAC(namespaceName, clusterName as string);
       
-      res.json({
+      return res.json({
         success: true,
         message: `RBAC removed from namespace ${namespaceName}`,
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      if (error.message.includes('not found')) {
+      if (error instanceof Error && error.message.includes('not found')) {
         return res.status(404).json({
           error: 'NotFoundError',
           message: `RBAC configuration for namespace ${namespaceName} not found`,
@@ -499,7 +506,7 @@ router.delete('/:namespaceName/rbac',
 // GET /api/platform/clusters - List available clusters
 router.get('/clusters',
   requireRole(['namespace:admin', 'namespace:developer']),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const clusters = clusterConfigService.getAllClusters();
     
     const clusterList = clusters.map(cluster => ({
