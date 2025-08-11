@@ -77,3 +77,19 @@ spec:
     name: aks-oidc-config-prod
     key: issuer-url
   subject: system:serviceaccount:azureserviceoperator-system:azureserviceoperator-default
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: aso-fic-platform-api
+  namespace: azure-system
+spec:
+  azureName: platform-api-federated-credential
+  owner:
+    name: platform-api-identity
+  audiences:
+    - api://AzureADTokenExchange
+  issuerFromConfig:
+    name: aks-oidc-config-prod
+    key: issuer-url
+  subject: system:serviceaccount:platform-system:platform-api

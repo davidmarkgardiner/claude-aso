@@ -1,0 +1,25 @@
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: platform-api-identity
+  namespace: azure-system
+  labels:
+    platform.io/managed: "true"
+    platform.io/component: "platform-api"
+    platform.io/environment: "production"
+spec:
+  azureName: platform-api-identity
+  location: uksouth
+  owner:
+    name: at39473-weu-dev-prod
+  operatorSpec:
+    configMaps:
+      clientId:
+        name: platform-api-identity-cm
+        key: clientId
+      principalId:
+        name: platform-api-identity-cm
+        key: principalId
+      tenantId:
+        name: platform-api-identity-cm
+        key: tenantId

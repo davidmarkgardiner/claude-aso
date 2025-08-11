@@ -1,7 +1,7 @@
 {
   "name": "namespace-platform-api",
   "version": "1.0.0",
-  "description": "Namespace-as-a-Service Platform API Backend",
+  "description": "Platform API for namespace-as-a-service with managed identity and RBAC",
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon src/server.ts",

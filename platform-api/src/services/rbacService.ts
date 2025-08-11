@@ -1,4 +1,5 @@
 import { getKubernetesClient } from './kubernetesClient';
+import { getManagedIdentityAuthService } from './managedIdentityAuth';
 import { getClusterConfigService } from '../config/clusters';
 import { getAzureADValidationService } from '../middleware/azureAdValidation';
 import { auditService, RBACauditEvent } from './auditService';
@@ -350,7 +351,7 @@ export class RBACService {
         kind: 'RoleAssignment',
         metadata: {
           name: manifestName,
-          namespace: 'aso-system', // ASO operator namespace
+          namespace: 'azure-system', // ASO operator namespace
           labels: {
             'platform.io/managed': 'true',
             'platform.io/namespace': namespaceName,
@@ -380,6 +381,52 @@ export class RBACService {
 
       return manifest;
     });
+  }
+
+  private instantiateNamespaceRBACTemplate(
+    namespaceName: string,
+    teamName: string,
+    environment: string,
+    teamPrincipalId: string,
+    principalType: 'User' | 'Group' = 'Group',
+    roleDefinition: AKSRoleDefinition = 'aks-rbac-admin'
+  ): AzureServiceOperatorRoleAssignment {
+    // Get role definition ID from the AKS_ROLE_DEFINITIONS mapping
+    const roleDefinitionId = `/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/${AKS_ROLE_DEFINITIONS[roleDefinition]}`;
+    
+    const manifest: AzureServiceOperatorRoleAssignment = {
+      apiVersion: 'authorization.azure.com/v1api20200801preview',
+      kind: 'RoleAssignment',
+      metadata: {
+        name: `${namespaceName}-${teamName}-admin`,
+        namespace: 'azure-system',
+        labels: {
+          'platform.io/managed': 'true',
+          'platform.io/namespace': namespaceName,
+          'platform.io/team': teamName,
+          'platform.io/environment': environment,
+          'platform.io/component': 'namespace-rbac',
+          'platform.io/created-by': 'platform-api'
+        },
+        annotations: {
+          'platform.io/created-at': new Date().toISOString(),
+          'platform.io/role-definition': roleDefinition,
+          'platform.io/principal-type': principalType
+        }
+      },
+      spec: {
+        principalId: teamPrincipalId,
+        principalType: principalType,
+        roleDefinitionId: roleDefinitionId,
+        scope: `/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod/namespaces/${namespaceName}`,
+        owner: {
+          armId: '/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod'
+        },
+        description: `Platform-generated RBAC assignment for ${teamName} team access to ${namespaceName} namespace`
+      }
+    };
+
+    return manifest;
   }
 
   private async applyASOManifests(manifests: AzureServiceOperatorRoleAssignment[]): Promise<void> {
@@ -532,6 +579,214 @@ export class RBACService {
 
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async validateManagedIdentityAuthentication(): Promise<void> {
+    try {
+      const managedIdentityService = getManagedIdentityAuthService();
+      const isValid = await managedIdentityService.validateAuthentication();
+      
+      if (!isValid) {
+        throw new RBACError(
+          'Managed identity authentication failed',
+          'AUTHENTICATION_FAILED',
+          401,
+          false
+        );
+      }
+
+      logger.info('Managed identity authentication validated successfully');
+    } catch (error) {
+      logger.error('Managed identity authentication validation failed', { error: error.message });
+      throw new RBACError(
+        `Authentication validation failed: ${error.message}`,
+        'AUTHENTICATION_FAILED',
+        401,
+        false
+      );
+    }
+  }
+
+  async validatePlatformApiPermissions(): Promise<boolean> {
+    try {
+      // Validate that the platform API service account has cluster admin permissions
+      const testNamespace = `platform-test-${Date.now()}`;
+      
+      // Try to create a test namespace
+      await this.k8sClient.createNamespace(testNamespace, {
+        'platform.io/test': 'true'
+      });
+      
+      // Clean up the test namespace
+      await this.k8sClient.deleteNamespace(testNamespace);
+      
+      logger.info('Platform API permissions validated successfully');
+      return true;
+      
+    } catch (error) {
+      logger.error('Platform API permissions validation failed', { error: error.message });
+      return false;
+    }
+  }
+
+  async createNamespaceWithEnhancedRBAC(
+    request: {
+      name: string;
+      teamName: string;
+      environment: string;
+      teamPrincipalId: string;
+      principalType?: 'User' | 'Group';
+      roleDefinition?: AKSRoleDefinition;
+      features?: string[];
+      resourceTier?: string;
+    }
+  ): Promise<RBACProvisioningResult> {
+    const startTime = Date.now();
+    
+    try {
+      // Validate managed identity authentication first
+      await this.validateManagedIdentityAuthentication();
+      
+      // Create the namespace
+      await this.k8sClient.createNamespace(request.name, {
+        'platform.io/managed': 'true',
+        'platform.io/team': request.teamName,
+        'platform.io/environment': request.environment,
+        'istio-injection': request.features?.includes('istio-injection') ? 'enabled' : 'disabled'
+      }, {
+        'platform.io/created-by': 'platform-api',
+        'platform.io/team-principal-id': request.teamPrincipalId
+      });
+
+      // Create namespace-scoped RBAC using ASO template
+      const rbacManifest = this.instantiateNamespaceRBACTemplate(
+        request.name,
+        request.teamName,
+        request.environment,
+        request.teamPrincipalId,
+        request.principalType || 'Group',
+        request.roleDefinition || 'aks-rbac-admin'
+      );
+
+      // Apply the ASO RoleAssignment manifest
+      await this.k8sClient.createCustomResource(rbacManifest);
+
+      // Apply resource quotas based on tier
+      if (request.resourceTier) {
+        await this.applyResourceQuotaForTier(request.name, request.resourceTier);
+      }
+
+      // Apply default network policies
+      await this.applyDefaultNetworkPolicies(request.name);
+
+      const result: RBACProvisioningResult = {
+        namespaceRBAC: {
+          namespaceName: request.name,
+          clusterName: 'uk8s-tsshared-weu-gt025-int-prod',
+          teamName: request.teamName,
+          environment: request.environment,
+          roleAssignments: [{
+            principalId: request.teamPrincipalId,
+            principalType: request.principalType || 'Group',
+            roleDefinitionId: `/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/${AKS_ROLE_DEFINITIONS[request.roleDefinition || 'aks-rbac-admin']}`,
+            scope: `/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod/namespaces/${request.name}`,
+            description: `Platform-generated RBAC assignment for ${request.teamName} team access to ${request.name} namespace`
+          }]
+        },
+        roleAssignmentIds: [rbacManifest.metadata.name],
+        asoManifests: [rbacManifest],
+        status: 'created',
+        message: `Namespace ${request.name} created successfully with RBAC in ${Date.now() - startTime}ms`,
+        createdAt: new Date()
+      };
+
+      logger.info('Enhanced namespace creation with RBAC completed successfully', {
+        namespaceName: request.name,
+        teamName: request.teamName,
+        duration: Date.now() - startTime
+      });
+
+      return result;
+
+    } catch (error) {
+      logger.error('Enhanced namespace creation with RBAC failed', {
+        namespaceName: request.name,
+        teamName: request.teamName,
+        error: error.message,
+        duration: Date.now() - startTime
+      });
+      throw error;
+    }
+  }
+
+  private async applyResourceQuotaForTier(namespaceName: string, tier: string): Promise<void> {
+    const quotaSpecs = {
+      small: {
+        hard: {
+          'requests.cpu': '2',
+          'requests.memory': '4Gi',
+          'limits.cpu': '4',
+          'limits.memory': '8Gi',
+          'persistentvolumeclaims': '4',
+          'services': '5',
+          'secrets': '10'
+        }
+      },
+      medium: {
+        hard: {
+          'requests.cpu': '4',
+          'requests.memory': '8Gi',
+          'limits.cpu': '8',
+          'limits.memory': '16Gi',
+          'persistentvolumeclaims': '10',
+          'services': '10',
+          'secrets': '20'
+        }
+      },
+      large: {
+        hard: {
+          'requests.cpu': '8',
+          'requests.memory': '16Gi',
+          'limits.cpu': '16',
+          'limits.memory': '32Gi',
+          'persistentvolumeclaims': '20',
+          'services': '20',
+          'secrets': '40'
+        }
+      }
+    };
+
+    const quotaSpec = quotaSpecs[tier] || quotaSpecs.small;
+    await this.k8sClient.createResourceQuota(namespaceName, quotaSpec);
+  }
+
+  private async applyDefaultNetworkPolicies(namespaceName: string): Promise<void> {
+    // Default deny all ingress traffic policy
+    const denyAllIngressPolicy = {
+      podSelector: {},
+      policyTypes: ['Ingress']
+    };
+
+    await this.k8sClient.createNetworkPolicy(
+      namespaceName,
+      'deny-all-ingress',
+      denyAllIngressPolicy
+    );
+
+    // Allow ingress from same namespace
+    const allowSameNamespacePolicy = {
+      podSelector: {},
+      ingress: [{
+        from: [{ namespaceSelector: { matchLabels: { name: namespaceName } } }]
+      }],
+      policyTypes: ['Ingress']
+    };
+
+    await this.k8sClient.createNetworkPolicy(
+      namespaceName,
+      'allow-same-namespace',
+      allowSameNamespacePolicy
+    );
   }
 }
 
