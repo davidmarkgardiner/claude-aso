@@ -113,6 +113,16 @@ coverage/
 tmp/
 temp/
 
+# Test and debug files
+test-*.js
+debug-*.js
+*-test.js
+*-debug.js
+simple-*.js
+final-*.js
+platform-api-*.js
+test-*.yaml
+demonstrate-*.js
 
 .mcp.json
 
