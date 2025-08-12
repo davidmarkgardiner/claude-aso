@@ -15,3 +15,17 @@ How can we integrate that with the platform API?
 
 ---
 
+
+need to sort ordering so ecrets injected etc
+
+eroor on argo
+4m40s       Warning   Failed                   pod/workflow-controller-699cbdc945-hh4zv    Error: secret "azure-workload-identity" not found
+
+
+error on ui
+
+e/external-secrets via  v22.16.0 via 🐍 v3.9.6 
+➜ kl platform-ui-757488f796-f9g2r      
+[Tue Aug 12 20:16:06 UTC 2025] Starting Platform UI with External Secrets integration
+[Tue Aug 12 20:16:06 UTC 2025] Validating configuration...
+/usr/local/bin/startup.sh: line 11: can't create /usr/share/nginx/html/config/config.json: Permission denied
