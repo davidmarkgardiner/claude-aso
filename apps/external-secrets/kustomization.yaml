@@ -10,9 +10,9 @@ resources:
   - helm-release.yaml
   - cluster-secret-store.yaml
   - rbac.yaml
-  - monitoring.yaml
-  - security.yaml
-  - disaster-recovery.yaml
+  # - monitoring.yaml
+  # - security.yaml
+  # - disaster-recovery.yaml
 
 # Production configuration
 configMapGenerator:
