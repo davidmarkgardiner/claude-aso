@@ -170,3 +170,4 @@ aks-admin-kubeconfig
 istio-app.json
 aks-admin
 platform-aks-kubeconfig
+.claude/agents
