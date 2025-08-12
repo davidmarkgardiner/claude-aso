@@ -1,0 +1,222 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-ui-config
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/version: "v1.1.0"
+data:
+  # Application Configuration
+  NODE_ENV: "production"
+  PORT: "8080"
+
+  # Platform API Configuration
+  REACT_APP_API_URL: "https://platform-api.platform-system.svc.cluster.local"
+  REACT_APP_API_BASE_PATH: "/api"
+  REACT_APP_API_TIMEOUT: "30000"
+
+  # Authentication Configuration
+  REACT_APP_AUTH_PROVIDER: "msal"
+  REACT_APP_AUTH_CLIENT_ID: "SET_YOUR_UI_CLIENT_ID"
+  REACT_APP_AUTH_AUTHORITY: "https://login.microsoftonline.com/SET_YOUR_TENANT_ID"
+  REACT_APP_AUTH_REDIRECT_URI: "https://platform.aks.local/auth/callback"
+  REACT_APP_AUTH_POST_LOGOUT_REDIRECT_URI: "https://platform.aks.local"
+  REACT_APP_AUTH_SCOPES: "User.Read,Directory.Read.All"
+
+  # Platform Configuration
+  REACT_APP_PLATFORM_NAME: "Platform Portal"
+  REACT_APP_PLATFORM_VERSION: "v1.1.0"
+  REACT_APP_PLATFORM_ENVIRONMENT: "production"
+  REACT_APP_PLATFORM_CLUSTER_NAME: "aks-platform-cluster"
+
+  # Feature Flags
+  REACT_APP_ENABLE_ANALYTICS: "true"
+  REACT_APP_ENABLE_COST_TRACKING: "true"
+  REACT_APP_ENABLE_RBAC: "true"
+  REACT_APP_ENABLE_WORKFLOWS: "true"
+  REACT_APP_ENABLE_SERVICE_CATALOG: "true"
+  REACT_APP_ENABLE_MONITORING: "true"
+  REACT_APP_ENABLE_DEBUG_MODE: "false"
+
+  # UI Configuration
+  REACT_APP_THEME_MODE: "light"
+  REACT_APP_SIDEBAR_COLLAPSED: "false"
+  REACT_APP_REFRESH_INTERVAL: "30000"
+  REACT_APP_MAX_ITEMS_PER_PAGE: "50"
+  REACT_APP_DEFAULT_RESOURCE_TIER: "small"
+
+  # Observability Configuration
+  REACT_APP_ENABLE_TELEMETRY: "true"
+  REACT_APP_TELEMETRY_ENDPOINT: "/api/telemetry"
+  REACT_APP_ERROR_REPORTING: "true"
+  REACT_APP_PERFORMANCE_MONITORING: "true"
+
+  # Content Security Policy
+  REACT_APP_CSP_ENABLED: "true"
+
+  # WebSocket Configuration (for real-time updates)
+  REACT_APP_WS_ENDPOINT: "wss://platform-api.platform-system.svc.cluster.local/ws"
+  REACT_APP_WS_HEARTBEAT_INTERVAL: "30000"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-ui-nginx-config
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "Nginx configuration for Platform UI with security headers"
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+        use epoll;
+        multi_accept on;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        # Logging Configuration
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for" '
+                        'rt=$request_time uct="$upstream_connect_time" '
+                        'uht="$upstream_header_time" urt="$upstream_response_time"';
+
+        access_log /var/log/nginx/access.log main;
+
+        # Basic Settings
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        client_max_body_size 16M;
+
+        # Gzip Settings
+        gzip on;
+        gzip_vary on;
+        gzip_proxied any;
+        gzip_comp_level 6;
+        gzip_types
+            text/plain
+            text/css
+            text/xml
+            text/javascript
+            application/javascript
+            application/xml+rss
+            application/json
+            application/xml
+            image/svg+xml;
+
+        # Security Headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "no-referrer-when-downgrade" always;
+        add_header X-Download-Options "noopen" always;
+        add_header X-Permitted-Cross-Domain-Policies "none" always;
+
+        # CSP Header
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://login.microsoftonline.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://login.microsoftonline.com https://platform-api.platform-system.svc.cluster.local wss://platform-api.platform-system.svc.cluster.local; frame-src 'self' https://login.microsoftonline.com;" always;
+
+        # Rate Limiting
+        limit_req_zone $binary_remote_addr zone=ui:10m rate=10r/s;
+        limit_req_status 429;
+
+        server {
+            listen 8080;
+            server_name _;
+            root /usr/share/nginx/html;
+            index index.html;
+
+            # Rate limiting
+            limit_req zone=ui burst=20 nodelay;
+
+            # Security headers for static assets
+            location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+                add_header X-Content-Type-Options "nosniff";
+            }
+
+            # API proxy to platform-api
+            location /api {
+                proxy_pass http://platform-api.platform-system.svc.cluster.local;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection 'upgrade';
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_cache_bypass $http_upgrade;
+                proxy_read_timeout 300s;
+                proxy_connect_timeout 75s;
+            }
+
+            # WebSocket proxy for real-time updates
+            location /ws {
+                proxy_pass http://platform-api.platform-system.svc.cluster.local;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_read_timeout 86400;
+            }
+
+            # Health check endpoint
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+
+            # Main SPA routing - serve index.html for all routes
+            location / {
+                try_files $uri $uri/ /index.html;
+                add_header Cache-Control "no-cache, no-store, must-revalidate";
+                add_header Pragma "no-cache";
+                add_header Expires "0";
+            }
+
+            # Error pages
+            error_page 404 /index.html;
+            error_page 500 502 503 504 /50x.html;
+            location = /50x.html {
+                root /usr/share/nginx/html;
+            }
+        }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-ui-identity-cm
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+data:
+  clientId: "SET_YOUR_UI_CLIENT_ID"
+  tenantId: "SET_YOUR_TENANT_ID"
