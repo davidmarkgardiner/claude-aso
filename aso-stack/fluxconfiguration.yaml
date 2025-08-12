@@ -8,7 +8,7 @@ spec:
   gitRepository:
     provider: Generic
     repositoryRef:
-      branch: experiment/test-cluster-build
+      branch: feature/external-secrets
     url: https://github.com/davidmarkgardiner/claude-aso
   kustomizations:
     external-dns:
@@ -18,10 +18,9 @@ spec:
       prune: true
       force: true
       postBuild:
-        substitute:
-          clientId: "1c0b7ee1-f55a-407c-946c-83254494df30"
-          principalId: "896eea23-4c9d-4070-b883-6706ca9fbea3"
-          tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
+        substituteFrom:
+          - kind: ConfigMap
+            name: external-dns-identity-cm
     cert-manager-base:
       path: ./apps/cert-manager-base
       timeoutInSeconds: 600
@@ -29,10 +28,9 @@ spec:
       prune: true
       force: true
       postBuild:
-        substitute:
-          clientId: "540fae85-49bc-4a56-946b-08518c7c5838"
-          principalId: "50cf8e5f-835b-419b-958f-62207aa2242e"
-          tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
+        substituteFrom:
+          - kind: ConfigMap
+            name: cert-manager-identity-cm
     cert-manager-config:
       dependsOn: ["cert-manager-base"]
       path: ./apps/cert-manager-config
@@ -41,17 +39,27 @@ spec:
       prune: true
       force: true
       postBuild:
-        substitute:
-          clientId: "540fae85-49bc-4a56-946b-08518c7c5838"
-          principalId: "50cf8e5f-835b-419b-958f-62207aa2242e"
-          tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
-    istio-apps:
+        substituteFrom:
+          - kind: ConfigMap
+            name: cert-manager-identity-cm
+    # istio-apps:
+    #   dependsOn: ["external-dns", "cert-manager-config"]
+    #   path: ./istio-apps
+    #   timeoutInSeconds: 600
+    #   syncIntervalInSeconds: 120
+    #   prune: true
+    #   force: true
+    apps:
       dependsOn: ["external-dns", "cert-manager-config"]
-      path: ./istio-apps
+      path: ./apps
       timeoutInSeconds: 600
       syncIntervalInSeconds: 120
       prune: true
       force: true
+      postBuild:
+        substituteFrom:
+          - kind: ConfigMap
+            name: platform-api-identity-cm
   namespace: azure-system
   owner:
     group: containerservice.azure.com

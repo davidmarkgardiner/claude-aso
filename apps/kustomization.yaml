@@ -15,9 +15,9 @@ resources:
 
   # Foundation: Secrets management / cert manager / extern dns (deploy first)
   - external-secrets/
-  - cert-manager-base/
-  - cert-manager-config
-  - external-dns/
+  # - cert-manager-base/
+  # - cert-manager-config
+  # - external-dns/
 
   # Core: Workflow engine (depends on secrets)
   - argo/

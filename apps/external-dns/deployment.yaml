@@ -44,12 +44,6 @@ spec:
           env:
             - name: AZURE_USE_WORKLOAD_IDENTITY_EXTENSION
               value: "true"
-            - name: AZURE_CLIENT_ID
-              value: "${clientId}"
-            - name: AZURE_TENANT_ID
-              value: "${tenantId}"
-            - name: AZURE_SUBSCRIPTION_ID
-              value: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
           ports:
             - name: http
               containerPort: 7979

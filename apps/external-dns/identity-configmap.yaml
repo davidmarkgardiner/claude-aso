@@ -4,6 +4,6 @@ metadata:
   name: external-dns-identity-cm
   namespace: external-dns
 data:
-  clientId: "${clientId}"
-  principalId: "${principalId}"
-  tenantId: "${tenantId}"
+  clientId: "0dee23d0-7d65-48fd-bece-af5b70493d5f"
+  principalId: "673bb40c-4302-4f9f-a94a-7aa85eccde2a"
+  tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"
