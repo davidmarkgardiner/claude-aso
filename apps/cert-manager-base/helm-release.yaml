@@ -87,7 +87,7 @@ spec:
           memory: 128Mi
 
     startupapicheck:
-      enabled: true
+      enabled: false
       serviceAccount:
         create: true
         annotations:
