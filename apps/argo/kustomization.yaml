@@ -29,14 +29,14 @@ resources:
   - service.yaml
 
   # 6. Security policies
-  - networkpolicy.yaml
-  - poddisruptionbudget.yaml
+  # - networkpolicy.yaml
+  # - poddisruptionbudget.yaml
 
   # 7. Workflow templates
-  - workflow-templates.yaml
+  # - workflow-templates.yaml
 
   # 8. Monitoring
-  - monitoring.yaml
+  # - monitoring.yaml
 
 # Common labels applied to all resources
 commonLabels:
