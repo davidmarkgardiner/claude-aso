@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: platform-api-identity-cm
-  namespace: platform-system
+  namespace: flux-system
   labels:
     platform.io/managed: "true"
     platform.io/component: "platform-api"

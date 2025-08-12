@@ -11,14 +11,14 @@ spec:
       branch: feature/external-secrets
     url: https://github.com/davidmarkgardiner/claude-aso
   kustomizations:
-    configuration:
+    configurations:
       path: ./apps/configuration
       timeoutInSeconds: 60
       syncIntervalInSeconds: 60
       prune: true
       force: true
     external-dns:
-      dependsOn: ["configuration"]
+      dependsOn: ["configurations"]
       path: ./apps/external-dns
       timeoutInSeconds: 60
       syncIntervalInSeconds: 60
@@ -29,7 +29,7 @@ spec:
           - kind: ConfigMap
             name: external-dns-identity-cm
     cert-manager-base:
-      dependsOn: ["configuration"]
+      dependsOn: ["configurations"]
       path: ./apps/cert-manager-base
       timeoutInSeconds: 60
       syncIntervalInSeconds: 120
