@@ -13,15 +13,15 @@ resources:
   - serviceaccount.yaml
   - rbac.yaml
   - configmap.yaml
-  - secret.yaml
+  # - secret.yaml
   - deployment.yaml
   - service.yaml
-  - hpa.yaml
-  - pdb.yaml
-  - networkpolicy.yaml
-  - istio.yaml
-  - monitoring.yaml
-  - ingress.yaml
+  # - hpa.yaml
+  # - pdb.yaml
+  # - networkpolicy.yaml
+  # - istio.yaml
+  # - monitoring.yaml
+  # - ingress.yaml
 
 commonLabels:
   app: platform-ui

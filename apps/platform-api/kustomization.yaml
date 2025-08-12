@@ -14,14 +14,14 @@ resources:
   - rbac.yaml
   - configmap.yaml
   # - identity-configmap.yaml
-  - secret.yaml
+  # - secret.yaml
   - deployment.yaml
   - service.yaml
-  - hpa.yaml
-  - pdb.yaml
-  - networkpolicy.yaml
-  - istio.yaml
-  - monitoring.yaml
+  # - hpa.yaml
+  # - pdb.yaml
+  # - networkpolicy.yaml
+  # - istio.yaml
+  # - monitoring.yaml
 
 commonLabels:
   app: platform-api
