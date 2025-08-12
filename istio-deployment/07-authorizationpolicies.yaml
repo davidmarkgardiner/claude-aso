@@ -5,8 +5,7 @@ kind: AuthorizationPolicy
 metadata:
   name: deny-all
   namespace: istio-demo
-spec:
-  {}
+spec: {}
 ---
 # Allow ingress traffic to podinfo in demo namespace
 apiVersion: security.istio.io/v1beta1
@@ -19,19 +18,19 @@ spec:
     matchLabels:
       app: podinfo
   rules:
-  - from:
-    - source:
-        namespaces: ["aks-istio-ingress"]
-    to:
-    - operation:
-        methods: ["GET", "POST"]
-        paths: ["/*"]
-  - from:
-    - source:
-        principals: ["cluster.local/ns/istio-demo/sa/podinfo"]
-    to:
-    - operation:
-        methods: ["GET"]
+    - from:
+        - source:
+            namespaces: ["aks-istio-ingress"]
+      to:
+        - operation:
+            methods: ["GET", "POST"]
+            paths: ["/*"]
+    - from:
+        - source:
+            principals: ["cluster.local/ns/istio-demo/sa/podinfo"]
+      to:
+        - operation:
+            methods: ["GET"]
 ---
 # Allow cross-namespace communication from staging to demo
 apiVersion: security.istio.io/v1beta1
@@ -44,14 +43,14 @@ spec:
     matchLabels:
       app: podinfo
   rules:
-  - from:
-    - source:
-        namespaces: ["istio-staging"]
-        principals: ["cluster.local/ns/istio-staging/sa/podinfo"]
-    to:
-    - operation:
-        methods: ["GET"]
-        paths: ["/healthz", "/readyz", "/metrics"]
+    - from:
+        - source:
+            namespaces: ["istio-staging"]
+            principals: ["cluster.local/ns/istio-staging/sa/podinfo"]
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/healthz", "/readyz", "/metrics"]
 ---
 # Staging namespace policies
 apiVersion: security.istio.io/v1beta1
@@ -64,19 +63,19 @@ spec:
     matchLabels:
       app: podinfo
   rules:
-  - from:
-    - source:
-        namespaces: ["aks-istio-ingress"]
-    to:
-    - operation:
-        methods: ["GET", "POST", "PUT", "DELETE"]
-        paths: ["/*"]
-  - from:
-    - source:
-        principals: ["cluster.local/ns/istio-staging/sa/podinfo"]
-    to:
-    - operation:
-        methods: ["GET", "POST"]
+    - from:
+        - source:
+            namespaces: ["aks-istio-ingress"]
+      to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "DELETE"]
+            paths: ["/*"]
+    - from:
+        - source:
+            principals: ["cluster.local/ns/istio-staging/sa/podinfo"]
+      to:
+        - operation:
+            methods: ["GET", "POST"]
 ---
 # Production namespace - strict security
 apiVersion: security.istio.io/v1beta1
@@ -89,16 +88,16 @@ spec:
     matchLabels:
       app: podinfo
   rules:
-  - from:
-    - source:
-        namespaces: ["aks-istio-ingress"]
-    to:
-    - operation:
-        methods: ["GET", "POST"]
-        paths: ["/*"]
-    when:
-    - key: request.headers[user-agent]
-      notValues: ["curl/*", "wget/*"]
+    - from:
+        - source:
+            namespaces: ["aks-istio-ingress"]
+      to:
+        - operation:
+            methods: ["GET", "POST"]
+            paths: ["/*"]
+      when:
+        - key: request.headers[user-agent]
+          notValues: ["curl/*", "wget/*"]
 ---
 # Allow production internal communication
 apiVersion: security.istio.io/v1beta1
@@ -111,13 +110,13 @@ spec:
     matchLabels:
       app: podinfo
   rules:
-  - from:
-    - source:
-        principals: ["cluster.local/ns/istio-production/sa/podinfo"]
-    to:
-    - operation:
-        methods: ["GET", "POST"]
-        paths: ["/api/*", "/health*"]
+    - from:
+        - source:
+            principals: ["cluster.local/ns/istio-production/sa/podinfo"]
+      to:
+        - operation:
+            methods: ["GET", "POST"]
+            paths: ["/api/*", "/health*"]
 ---
 # Global policy for istio-system access
 apiVersion: security.istio.io/v1beta1
@@ -127,9 +126,15 @@ metadata:
   namespace: aks-istio-system
 spec:
   rules:
-  - from:
-    - source:
-        namespaces: ["istio-demo", "istio-staging", "istio-production", "aks-istio-ingress"]
-    to:
-    - operation:
-        methods: ["GET", "POST"]
+    - from:
+        - source:
+            namespaces:
+              [
+                "istio-demo",
+                "istio-staging",
+                "istio-production",
+                "aks-istio-ingress",
+              ]
+      to:
+        - operation:
+            methods: ["GET", "POST"]

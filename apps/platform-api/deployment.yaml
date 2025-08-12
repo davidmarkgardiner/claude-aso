@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,9 +7,17 @@ metadata:
   labels:
     app: platform-api
     platform.io/component: "platform-api"
-    version: v1
+    version: v1.1.0
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    platform.io/description: "Platform API deployment for namespace-as-a-service"
 spec:
-  replicas: 2
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
       app: platform-api
@@ -17,141 +26,338 @@ spec:
       labels:
         app: platform-api
         platform.io/component: "platform-api"
-        version: v1
+        version: v1.1.0
         azure.workload.identity/use: "true"
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "3000"
         prometheus.io/path: "/metrics"
+        sidecar.istio.io/inject: "true"
+        sidecar.istio.io/proxyCPU: "10m"
+        sidecar.istio.io/proxyMemory: "64Mi"
     spec:
       serviceAccountName: platform-api
+      automountServiceAccountToken: true
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
+        runAsGroup: 65534
         fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - platform-api
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: platform-api
       containers:
-      - name: platform-api
-        image: davidgardiner/platform-api:latest  # Will be built and pushed to Docker Hub
-        imagePullPolicy: Always
-        ports:
-        - name: http
-          containerPort: 3000
-          protocol: TCP
-        env:
-        # Azure Workload Identity
-        - name: AZURE_CLIENT_ID
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-identity-cm
-              key: clientId
-        - name: AZURE_TENANT_ID
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-identity-cm
-              key: tenantId
-        # Platform API Configuration (from ConfigMap)
-        - name: NODE_ENV
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-config
-              key: NODE_ENV
-        - name: KUBE_CONTEXT
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-config
-              key: KUBE_CONTEXT
-        - name: KUBE_NAMESPACE
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-config
-              key: KUBE_NAMESPACE
-        - name: JWT_ISSUER
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-config
-              key: JWT_ISSUER
-        - name: JWT_AUDIENCE
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-config
-              key: JWT_AUDIENCE
-        - name: JWT_EXPIRES_IN
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-config
-              key: JWT_EXPIRES_IN
-        - name: CORS_ORIGINS
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-config
-              key: CORS_ORIGINS
-        - name: LOG_LEVEL
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-config
-              key: LOG_LEVEL
-        - name: LOG_FORMAT
-          valueFrom:
-            configMapKeyRef:
-              name: platform-api-config
-              key: LOG_FORMAT
-        # Secrets from Kubernetes secrets
-        - name: JWT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: platform-api-secrets
-              key: jwt-secret
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: platform-api-secrets
-              key: db-password
-        - name: REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: platform-api-secrets
-              key: redis-password
-              optional: true
-        # Database configuration
-        - name: DB_HOST
-          value: "postgresql.database.svc.cluster.local"  # TODO: Update with actual database
-        - name: DB_PORT
-          value: "5432"
-        - name: DB_NAME
-          value: "platform"
-        - name: DB_USER
-          value: "platform"
-        # Redis configuration
-        - name: REDIS_URL
-          value: "redis://redis.database.svc.cluster.local:6379"  # TODO: Update with actual Redis
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: http
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /health/ready
-            port: http
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-            - ALL
+        - name: platform-api
+          image: davidgardiner/platform-api:v1.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            # Azure Workload Identity
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-identity-cm
+                  key: clientId
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-identity-cm
+                  key: tenantId
+            - name: AZURE_SUBSCRIPTION_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-identity-cm
+                  key: subscriptionId
+            # Kubernetes Context
+            - name: KUBE_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            # Platform API Configuration (from ConfigMap)
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: NODE_ENV
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: PORT
+            - name: KUBE_CONTEXT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: KUBE_CONTEXT
+            - name: JWT_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: JWT_ISSUER
+            - name: JWT_AUDIENCE
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: JWT_AUDIENCE
+            - name: JWT_EXPIRES_IN
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: JWT_EXPIRES_IN
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: CORS_ORIGINS
+            - name: PLATFORM_DEFAULT_TIER
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: PLATFORM_DEFAULT_TIER
+            - name: PLATFORM_MAX_NAMESPACES_PER_TEAM
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: PLATFORM_MAX_NAMESPACES_PER_TEAM
+            - name: PLATFORM_ALLOWED_FEATURES
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: PLATFORM_ALLOWED_FEATURES
+            - name: PLATFORM_COST_TRACKING
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: PLATFORM_COST_TRACKING
+            - name: PLATFORM_AUDIT_RETENTION_DAYS
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: PLATFORM_AUDIT_RETENTION_DAYS
+            - name: PLATFORM_ENABLE_ANALYTICS
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: PLATFORM_ENABLE_ANALYTICS
+            - name: PLATFORM_ENABLE_RBAC
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: PLATFORM_ENABLE_RBAC
+            - name: RATE_LIMIT_WINDOW_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: RATE_LIMIT_WINDOW_MS
+            - name: RATE_LIMIT_MAX_REQUESTS
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: RATE_LIMIT_MAX_REQUESTS
+            - name: RATE_LIMIT_SKIP_SUCCESS
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: RATE_LIMIT_SKIP_SUCCESS
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: LOG_LEVEL
+            - name: LOG_FORMAT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: LOG_FORMAT
+            # Database configuration
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: DB_USER
+            - name: DB_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: DB_SSL
+            - name: DB_POOL_MIN
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: DB_POOL_MIN
+            - name: DB_POOL_MAX
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: DB_POOL_MAX
+            # Redis configuration
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: REDIS_PORT
+            - name: REDIS_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: REDIS_DB
+            # Argo Workflows configuration
+            - name: ARGO_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: ARGO_NAMESPACE
+            - name: ARGO_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: ARGO_SERVER_URL
+            # Observability configuration
+            - name: METRICS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: METRICS_ENABLED
+            - name: TRACING_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: TRACING_ENABLED
+            - name: HEALTH_CHECK_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-api-config
+                  key: HEALTH_CHECK_TIMEOUT
+            # Secrets from External Secrets Operator
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: platform-api-secrets
+                  key: jwt-secret
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: platform-api-secrets
+                  key: db-password
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: platform-api-secrets
+                  key: redis-password
+                  optional: true
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: platform-api-secrets
+                  key: azure-client-secret
+                  optional: true
+            - name: ARGO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: platform-api-secrets
+                  key: argo-token
+                  optional: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+            successThreshold: 1
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+            - name: var-cache-volume
+              mountPath: /var/cache
+      volumes:
+        - name: tmp-volume
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: var-cache-volume
+          emptyDir:
+            sizeLimit: 1Gi
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst

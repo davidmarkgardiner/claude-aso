@@ -1,11 +1,47 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
+metadata:
+  name: platform-stack
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    platform.io/stack-version: "v1.1.0"
+    platform.io/description: "Complete Platform Engineering Stack for AKS"
+
+# Production-ready resource ordering for GitOps deployment
 resources:
+  # Infrastructure namespace
   - namespace.yaml
-  # - cert-manager/
-  # - external-dns/
 
-# Note: istio-apps should be deployed separately due to complexity
-# Use: kubectl apply -k ../istio-apps/
+  # Foundation: Secrets management / cert manager / extern dns (deploy first)
+  - external-secrets/
+  - cert-manager-base/
+  - cert-manager-config
+  - external-dns/
 
+  # Core: Workflow engine (depends on secrets)
+  - argo/
+
+  # Applications: Platform services (depends on secrets + workflow engine)
+  - platform-api/
+  - platform-ui/
+
+commonLabels:
+  platform.io/stack: "platform-engineering"
+  platform.io/version: "v1.1.0"
+  app.kubernetes.io/part-of: "namespace-as-a-service-platform"
+
+commonAnnotations:
+  platform.io/managed-by: "gitops-flux"
+  platform.io/deployment-method: "kustomize"
+  platform.io/docs: "https://github.com/davidmarkgardiner/claude-aso"
+
+# Images to be managed by Kustomize
+images:
+  - name: davidgardiner/platform-api
+    newTag: v1.1.0
+  - name: davidgardiner/platform-ui
+    newTag: v1.1.0
+# Resource ordering for dependencies
+# External Secrets → Argo Workflows → Platform API/UI
 

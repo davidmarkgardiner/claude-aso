@@ -6,7 +6,7 @@ apiVersion: authorization.azure.com/v1api20200801preview
 kind: RoleAssignment
 metadata:
   name: "{{ .namespaceName }}-{{ .teamName }}-admin"
-  namespace: azure-system  # ASO resources must be in azure-system namespace
+  namespace: azure-system # ASO resources must be in azure-system namespace
   labels:
     platform.io/managed: "true"
     platform.io/namespace: "{{ .namespaceName }}"
@@ -21,7 +21,7 @@ metadata:
 spec:
   # Team's Azure AD principal ID (User or Group)
   principalId: "{{ .teamPrincipalId }}"
-  principalType: "{{ .principalType }}"  # User or Group
+  principalType: "{{ .principalType }}" # User or Group
   # Role definition ID for the specified AKS RBAC role
   roleDefinitionId: "{{ .roleDefinitionId }}"
   # Scope: specific namespace within the AKS cluster

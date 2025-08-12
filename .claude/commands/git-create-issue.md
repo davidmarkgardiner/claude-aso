@@ -7,6 +7,7 @@ Create a clear, actionable GitHub issue that any engineer can pick up and work o
 1. **ALWAYS start by running `git status`** to understand the current state
 
 2. **Use this template for issue creation:**
+
    ```bash
    gh issue create \
      --title "Clear, specific title describing the work" \
@@ -20,7 +21,7 @@ Create a clear, actionable GitHub issue that any engineer can pick up and work o
    - [ ] Specific, testable requirement 3
 
    ## Technical Details
-   - Files/components that need changes: 
+   - Files/components that need changes:
    - API endpoints affected:
    - Dependencies/libraries involved:
 
@@ -34,10 +35,11 @@ Create a clear, actionable GitHub issue that any engineer can pick up and work o
    ```
 
 3. **Add appropriate labels:**
+
    ```bash
    # Add labels during creation
    gh issue create --label "bug,high-priority" --title "..." --body "..."
-   
+
    # Or add labels after creation
    gh issue edit <issue-number> --add-label "enhancement,backend"
    ```
@@ -51,12 +53,14 @@ Create a clear, actionable GitHub issue that any engineer can pick up and work o
 ## Issue Title Guidelines
 
 **Good titles (specific and actionable):**
+
 - `Add user profile image upload functionality`
 - `Fix memory leak in data processing pipeline`
 - `Implement email notification system for order updates`
 - `Optimize database queries for user dashboard`
 
 **Bad titles (vague and unclear):**
+
 - `Fix bug`
 - `Update UI`
 - `Improve performance`
@@ -65,11 +69,13 @@ Create a clear, actionable GitHub issue that any engineer can pick up and work o
 ## Writing Clear Acceptance Criteria
 
 **Make each criterion:**
+
 - **Specific** - No ambiguity about what "done" looks like
 - **Testable** - Can be verified through testing or demonstration
 - **Actionable** - Clear what needs to be implemented
 
 **Example - Good Acceptance Criteria:**
+
 ```
 - [ ] User can upload profile images up to 5MB in JPEG/PNG format
 - [ ] Images are automatically resized to 300x300px
@@ -79,6 +85,7 @@ Create a clear, actionable GitHub issue that any engineer can pick up and work o
 ```
 
 **Example - Bad Acceptance Criteria:**
+
 ```
 - [ ] Make upload work
 - [ ] Handle errors
@@ -88,6 +95,7 @@ Create a clear, actionable GitHub issue that any engineer can pick up and work o
 ## Technical Details Section
 
 Always include:
+
 - **Files/directories** that likely need changes
 - **Database tables** that might be affected
 - **API endpoints** to be created/modified
@@ -121,7 +129,7 @@ Users currently cannot reset their passwords if forgotten. We need to implement 
 - [ ] Rate limiting prevents abuse (max 3 requests per hour per email)
 
 ## Technical Details
-- Files/components that need changes: 
+- Files/components that need changes:
   - \`/routes/auth.js\` - Add reset endpoints
   - \`/models/User.js\` - Add reset token fields
   - \`/views/reset-password.ejs\` - New reset form
@@ -147,6 +155,7 @@ EOF
 ## Quality Checklist
 
 Before creating the issue, ensure:
+
 - [ ] Title clearly describes the work to be done
 - [ ] Problem statement explains the "why"
 - [ ] Acceptance criteria are specific and testable

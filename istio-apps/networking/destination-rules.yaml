@@ -34,27 +34,27 @@ spec:
       minHealthPercent: 30
       splitExternalLocalOriginErrors: false
   subsets:
-  - name: v1
-    labels:
-      version: v1
-    trafficPolicy:
-      connectionPool:
-        tcp:
-          maxConnections: 50
-        http:
-          http1MaxPendingRequests: 5
-  - name: v2
-    labels:
-      version: v2
-    trafficPolicy:
-      loadBalancer:
-        simple: ROUND_ROBIN
-      connectionPool:
-        tcp:
-          maxConnections: 20
-        http:
-          http1MaxPendingRequests: 3
-          maxRequestsPerConnection: 1
+    - name: v1
+      labels:
+        version: v1
+      trafficPolicy:
+        connectionPool:
+          tcp:
+            maxConnections: 50
+          http:
+            http1MaxPendingRequests: 5
+    - name: v2
+      labels:
+        version: v2
+      trafficPolicy:
+        loadBalancer:
+          simple: ROUND_ROBIN
+        connectionPool:
+          tcp:
+            maxConnections: 20
+          http:
+            http1MaxPendingRequests: 3
+            maxRequestsPerConnection: 1
 ---
 # Tenant B DestinationRule - Development with relaxed policies
 apiVersion: networking.istio.io/v1beta1
@@ -86,15 +86,15 @@ spec:
       baseEjectionTime: 60s
       maxEjectionPercent: 30
   subsets:
-  - name: v1
-    labels:
-      version: v1
-  - name: v2
-    labels:
-      version: v2
-    trafficPolicy:
-      loadBalancer:
-        simple: PASSTHROUGH
+    - name: v1
+      labels:
+        version: v1
+    - name: v2
+      labels:
+        version: v2
+      trafficPolicy:
+        loadBalancer:
+          simple: PASSTHROUGH
 ---
 # Shared Services DestinationRule - Infrastructure services
 apiVersion: networking.istio.io/v1beta1
@@ -164,18 +164,18 @@ spec:
   host: "*.typicode.com"
   trafficPolicy:
     portLevelSettings:
-    - port:
-        number: 443
-      tls:
-        mode: SIMPLE
-        sni: jsonplaceholder.typicode.com
-    - port:
-        number: 80
-      connectionPool:
-        tcp:
-          maxConnections: 5
-        http:
-          http1MaxPendingRequests: 2
+      - port:
+          number: 443
+        tls:
+          mode: SIMPLE
+          sni: jsonplaceholder.typicode.com
+      - port:
+          number: 80
+        connectionPool:
+          tcp:
+            maxConnections: 5
+          http:
+            http1MaxPendingRequests: 2
 ---
 # Testing DestinationRule - Chaos engineering
 apiVersion: networking.istio.io/v1beta1

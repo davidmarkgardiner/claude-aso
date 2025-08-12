@@ -40,9 +40,9 @@ kind: ClusterRole
 metadata:
   name: platform-api-rbac
 rules:
-- apiGroups: ["authorization.azure.com"]
-  resources: ["roleassignments"]
-  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: ["authorization.azure.com"]
+    resources: ["roleassignments"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
 ```
 
 ## 🔧 Environment Configuration
@@ -103,18 +103,18 @@ spec:
     matchLabels:
       app: platform-api
   policyTypes:
-  - Ingress
-  - Egress
+    - Ingress
+    - Egress
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: ingress-system
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-system
   egress:
-  - to: []  # Azure AD Graph API
-    ports:
-    - protocol: TCP
-      port: 443
+    - to: [] # Azure AD Graph API
+      ports:
+        - protocol: TCP
+          port: 443
 ```
 
 ## 📊 Production Monitoring
@@ -125,19 +125,19 @@ spec:
 // Application Insights Configuration
 const config = {
   metrics: [
-    'rbac_requests_total',
-    'rbac_requests_duration',
-    'azure_ad_validation_success_rate',
-    'aso_deployment_success_rate',
-    'principal_validation_errors_total'
+    "rbac_requests_total",
+    "rbac_requests_duration",
+    "azure_ad_validation_success_rate",
+    "aso_deployment_success_rate",
+    "principal_validation_errors_total",
   ],
   alerts: [
     {
-      name: 'RBAC Assignment Failure Rate High',
-      condition: 'rbac_failure_rate > 5%',
-      severity: 'high'
-    }
-  ]
+      name: "RBAC Assignment Failure Rate High",
+      condition: "rbac_failure_rate > 5%",
+      severity: "high",
+    },
+  ],
 };
 ```
 

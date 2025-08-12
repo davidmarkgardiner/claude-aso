@@ -9,6 +9,6 @@ resources:
   - istio-apps/networking/destination-rules.yaml
 
 labels:
-- includeSelectors: false
-  pairs:
-    test: true
+  - includeSelectors: false
+    pairs:
+      test: true

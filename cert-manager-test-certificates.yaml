@@ -15,7 +15,7 @@ spec:
     kind: ClusterIssuer
     group: cert-manager.io
   dnsNames:
-  - test-dns01.davidmarkgardiner.co.uk
+    - test-dns01.davidmarkgardiner.co.uk
 ---
 # Test certificate using DNS-01 solver for wildcard
 apiVersion: cert-manager.io/v1
@@ -33,4 +33,4 @@ spec:
     kind: ClusterIssuer
     group: cert-manager.io
   dnsNames:
-  - "*.test.davidmarkgardiner.co.uk"
+    - "*.test.davidmarkgardiner.co.uk"

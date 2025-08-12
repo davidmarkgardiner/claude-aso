@@ -13,15 +13,17 @@ run this command `az aks get-credentials --resource-group at39473-weu-dev-prod -
 Merged "uk8s-tsshared-weu-gt025-int-prod-admin" as current context in aks-admin-kubeconfig`
 
 kgns
-aks-istio-egress    Active   152m
-aks-istio-ingress   Active   152m
-aks-istio-system    Active   152m
+aks-istio-egress Active 152m
+aks-istio-ingress Active 152m
+aks-istio-system Active 152m
 
 DO NOT SWITCH TO ANY OTHER CLUSTER
 Execute the following agents with continuous memory sharing via Memory-Istio:
 
 ### Prerequisites Check
+
 Before starting, verify:
+
 ```bash
 # Verify Kubernetes cluster context
 kubectl config current-context
@@ -41,9 +43,11 @@ istioctl version
 ## Deployment Pipeline
 
 ### 1. Istio Deployment Agent 🚀
+
 **Role**: Deploy comprehensive Istio service mesh configuration
 
 **Execution Steps**:
+
 1. Query Memory-Istio for previous deployment patterns
 2. Discover Istio capabilities and version
 3. Gather deployment requirements:
@@ -64,15 +68,18 @@ istioctl version
 7. **Handoff**: Signal test agent with deployment complete status
 
 **Success Criteria**:
+
 - ✅ All requested CRDs deployed successfully
 - ✅ Multi-tenant namespaces configured
 - ✅ Test applications responding
 - ✅ Memory updated with deployment patterns
 
 ### 2. Istio Test Agent 🧪
+
 **Role**: Comprehensive testing and validation of Istio configuration
 
 **Execution Steps**:
+
 1. Query Memory-Istio for deployment context
 2. Retrieve test targets from deployment data
 3. Execute test categories:
@@ -87,11 +94,12 @@ istioctl version
    - Compliance checking
    - Risk scoring
 5. Store all test results in Memory-Istio immediately
-6. **Decision Point**: 
+6. **Decision Point**:
    - If pass rate ≥ 80% and no critical issues → Proceed to documentation
    - If failures detected → Return to deployment agent with remediation requirements
 
 **Failure Handling**:
+
 ```yaml
 if test_failures_detected:
   remediation_request:
@@ -105,15 +113,18 @@ if test_failures_detected:
 ```
 
 **Success Criteria**:
+
 - ✅ Test pass rate ≥ 80%
 - ✅ No critical security issues
 - ✅ Performance within SLA
 - ✅ All findings stored in Memory-Istio
 
 ### 3. Istio Documentation Agent 📚
+
 **Role**: Generate comprehensive documentation from deployment and test data
 
 **Execution Steps**:
+
 1. Query Memory-Istio for all data:
    - Deployment configurations
    - Test results and coverage
@@ -134,6 +145,7 @@ if test_failures_detected:
 5. **Handoff**: Provide final status and documentation location
 
 **Success Criteria**:
+
 - ✅ All sections generated completely
 - ✅ Documentation stored in memory
 - ✅ Files saved for distribution
@@ -142,6 +154,7 @@ if test_failures_detected:
 ## Feedback Loop Architecture
 
 ### Issue Resolution Flow
+
 ```mermaid
 graph LR
     A[Deployment Agent] -->|Deploy CRDs| B[Test Agent]
@@ -154,6 +167,7 @@ graph LR
 ```
 
 ### Remediation Protocol
+
 When test agent finds issues:
 
 1. **Categorize Issues**:
@@ -163,6 +177,7 @@ When test agent finds issues:
    - Security violations → Update policies
 
 2. **Create Remediation Request**:
+
 ```python
 remediation = {
     "source_agent": "istio-test-agent",
@@ -188,7 +203,9 @@ remediation = {
    - Signal test agent to re-validate
 
 ## Configuration Variables
+
 These should be set or confirmed during deployment:
+
 - **Domain**: Your ingress domain (e.g., example.com)
 - **Certificate Management**: cert-manager/manual/none
 - **Namespaces**: List of tenant namespaces to create
@@ -199,7 +216,9 @@ These should be set or confirmed during deployment:
 ## Memory-Istio Coordination
 
 ### Shared Memory Entities
+
 All agents read and write to these entity types:
+
 - `deployment-plan`: Deployment configurations and status
 - `crd-patterns`: Working CRD configurations
 - `test-results`: Test execution outcomes
@@ -210,6 +229,7 @@ All agents read and write to these entity types:
 - `handoff-guide`: Inter-agent communication
 
 ### Memory Query Patterns
+
 ```bash
 # Deployment agent stores
 "istio deployment-plan {cluster-name} {timestamp}"
@@ -225,6 +245,7 @@ All agents read and write to these entity types:
 ```
 
 ## Success Criteria - Overall Pipeline
+
 - ✅ **Deployment**: All CRDs deployed and configured
 - ✅ **Testing**: ≥80% pass rate, no critical issues
 - ✅ **Security**: Risk level LOW or MEDIUM
@@ -236,6 +257,7 @@ All agents read and write to these entity types:
 ## Error Handling Strategy
 
 ### Stage Failures
+
 1. **Deployment Failure**:
    - Debug with `kubectl describe` and events
    - Check Istio control plane health
@@ -256,6 +278,7 @@ All agents read and write to these entity types:
    - Flag missing sections
 
 ### Maximum Retry Policy
+
 - Deployment fixes: Max 3 attempts
 - Test retries: Max 2 attempts per category
 - If still failing: Generate failure report with root causes
@@ -263,34 +286,35 @@ All agents read and write to these entity types:
 ## Final Output
 
 ### Comprehensive Summary Including:
+
 ```yaml
 Deployment Summary:
-  - Istio Version: {version}
-  - CRDs Deployed: {count}
-  - Namespaces: {list}
-  - Domain: {domain}
-  
+  - Istio Version: { version }
+  - CRDs Deployed: { count }
+  - Namespaces: { list }
+  - Domain: { domain }
+
 Test Summary:
-  - Pass Rate: {percentage}
-  - Categories Tested: {count}
-  - Security Risk: {level}
-  - Performance: {sla_status}
-  
+  - Pass Rate: { percentage }
+  - Categories Tested: { count }
+  - Security Risk: { level }
+  - Performance: { sla_status }
+
 Issues Resolved:
-  - Initial Failures: {count}
-  - Remediation Cycles: {count}
-  - Final Status: {status}
-  
+  - Initial Failures: { count }
+  - Remediation Cycles: { count }
+  - Final Status: { status }
+
 Documentation:
-  - Location: {file_path}
-  - Sections: {count}
-  - Memory Reference: {entity_name}
-  
+  - Location: { file_path }
+  - Sections: { count }
+  - Memory Reference: { entity_name }
+
 Operational Status:
-  - Production Ready: {yes/no}
-  - Outstanding Issues: {list}
-  - Recommendations: {list}
-  
+  - Production Ready: { yes/no }
+  - Outstanding Issues: { list }
+  - Recommendations: { list }
+
 Next Steps:
   - Application deployment guidance
   - Monitoring setup
@@ -312,6 +336,7 @@ Next Steps:
 ```
 
 ## Time Estimates
+
 - **Deployment Phase**: 10-15 minutes
 - **Testing Phase**: 5-10 minutes
 - **Documentation Phase**: 2-3 minutes

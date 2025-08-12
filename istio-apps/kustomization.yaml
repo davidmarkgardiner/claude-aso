@@ -5,23 +5,23 @@ resources:
   # Infrastructure
   - base/namespaces.yaml
   - base/rbac.yaml
-  
+
   # GitOps Enhancements
   - flux/health-checks.yaml
-  
+
   # Core Istio CRDs
   - networking/gateways.yaml
   - networking/virtual-services.yaml
   - networking/destination-rules.yaml
   - networking/service-entries.yaml
   - networking/sidecars.yaml
-  
+
   # Security Enhancements
   - security/authorization-policies.yaml
   - security/peer-authentication.yaml
   - security/certificate-management.yaml
   - security/mtls-strict-enforcement.yaml
-  
+
   # Applications - Multi-tenant podinfo
   - apps/tenant-a/
   - apps/tenant-b/

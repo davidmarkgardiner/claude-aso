@@ -22,31 +22,31 @@ spec:
         version: v1
     spec:
       containers:
-      - name: podinfo
-        image: stefanprodan/podinfo:6.6.0
-        ports:
-        - containerPort: 9898
-          protocol: TCP
-        env:
-        - name: PODINFO_UI_COLOR
-          value: "#34577c"  # Blue for v1
-        - name: PODINFO_UI_MESSAGE
-          value: "Podinfo V1 - Tenant A"
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "10m"
-          limits:
-            memory: "128Mi"
-            cpu: "100m"
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 9898
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 9898
+        - name: podinfo
+          image: stefanprodan/podinfo:6.6.0
+          ports:
+            - containerPort: 9898
+              protocol: TCP
+          env:
+            - name: PODINFO_UI_COLOR
+              value: "#34577c" # Blue for v1
+            - name: PODINFO_UI_MESSAGE
+              value: "Podinfo V1 - Tenant A"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9898
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 9898
 ---
 # Podinfo V2 - Canary version for Tenant A
 apiVersion: apps/v1
@@ -72,23 +72,23 @@ spec:
         version: v2
     spec:
       containers:
-      - name: podinfo
-        image: stefanprodan/podinfo:6.6.1
-        ports:
-        - containerPort: 9898
-          protocol: TCP
-        env:
-        - name: PODINFO_UI_COLOR
-          value: "#ff6b35"  # Orange for v2
-        - name: PODINFO_UI_MESSAGE
-          value: "Podinfo V2 CANARY - Tenant A"
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "10m"
-          limits:
-            memory: "128Mi"
-            cpu: "100m"
+        - name: podinfo
+          image: stefanprodan/podinfo:6.6.1
+          ports:
+            - containerPort: 9898
+              protocol: TCP
+          env:
+            - name: PODINFO_UI_COLOR
+              value: "#ff6b35" # Orange for v2
+            - name: PODINFO_UI_MESSAGE
+              value: "Podinfo V2 CANARY - Tenant A"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
 ---
 # Podinfo V1 for Tenant B
 apiVersion: apps/v1
@@ -114,31 +114,31 @@ spec:
         version: v1
     spec:
       containers:
-      - name: podinfo
-        image: stefanprodan/podinfo:6.6.0
-        ports:
-        - containerPort: 9898
-          protocol: TCP
-        env:
-        - name: PODINFO_UI_COLOR
-          value: "#28a745"  # Green for Tenant B
-        - name: PODINFO_UI_MESSAGE
-          value: "Podinfo V1 - Tenant B"
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "10m"
-          limits:
-            memory: "128Mi"
-            cpu: "100m"
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 9898
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 9898
+        - name: podinfo
+          image: stefanprodan/podinfo:6.6.0
+          ports:
+            - containerPort: 9898
+              protocol: TCP
+          env:
+            - name: PODINFO_UI_COLOR
+              value: "#28a745" # Green for Tenant B
+            - name: PODINFO_UI_MESSAGE
+              value: "Podinfo V1 - Tenant B"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9898
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 9898
 ---
 # Service for Tenant A
 apiVersion: v1
@@ -152,14 +152,14 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 9898
-    targetPort: 9898
-    protocol: TCP
-    name: http
-  - port: 9999
-    targetPort: 9999
-    protocol: TCP
-    name: grpc
+    - port: 9898
+      targetPort: 9898
+      protocol: TCP
+      name: http
+    - port: 9999
+      targetPort: 9999
+      protocol: TCP
+      name: grpc
   selector:
     app: podinfo
 ---
@@ -175,13 +175,13 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 9898
-    targetPort: 9898
-    protocol: TCP
-    name: http
-  - port: 9999
-    targetPort: 9999
-    protocol: TCP
-    name: grpc
+    - port: 9898
+      targetPort: 9898
+      protocol: TCP
+      name: http
+    - port: 9999
+      targetPort: 9999
+      protocol: TCP
+      name: grpc
   selector:
     app: podinfo

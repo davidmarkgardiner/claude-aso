@@ -18,6 +18,7 @@ This is deployed after `cert-manager-base` to ensure the cert-manager CRDs are a
 ## Features
 
 Both ClusterIssuers use:
+
 - DNS01 ACME challenge via Azure DNS
 - Azure workload identity for authentication
 - Support for `davidmarkgardiner.co.uk` and wildcard certificates

@@ -12,6 +12,7 @@ This plan provides a comprehensive approach to setting up the enterprise Istio a
 
 ```markdown
 # Claude Code Command
+
 Please set up a complete Minikube development environment for Istio service mesh testing with the following requirements:
 
 1. Install/verify Minikube with adequate resources (8GB RAM, 4 CPUs)
@@ -23,12 +24,14 @@ Please set up a complete Minikube development environment for Istio service mesh
 7. Set up kubectl context and verify cluster connectivity
 
 Use these environment variables:
+
 - AZURE_SUBSCRIPTION_ID=133d5755-4074-4d6e-ad38-eb2a6ad12903
 - DNS_ZONE=davidmarkgardiner.co.uk
 - DNS_RESOURCE_GROUP=dns
 ```
 
 **Expected Deliverables**:
+
 - Fully configured Minikube environment
 - Cert-Manager deployment with CRDs
 - Azure Service Operator installation
@@ -41,6 +44,7 @@ Use these environment variables:
 
 ```markdown
 # Claude Code Command
+
 Create an Azure Kubernetes Service cluster with Istio add-on enabled for our enterprise agent team project:
 
 1. Create resource group for AKS cluster
@@ -53,6 +57,7 @@ Create an Azure Kubernetes Service cluster with Istio add-on enabled for our ent
 8. Create kubeconfig contexts for different agent roles
 
 Requirements:
+
 - Cluster name: istio-agents-cluster
 - Location: East US 2
 - Node count: 3 (Standard_D4s_v3)
@@ -62,6 +67,7 @@ Requirements:
 ```
 
 **Expected Deliverables**:
+
 - AKS cluster with Istio add-on operational
 - Proper DNS and certificate management
 - Monitoring and logging configured
@@ -75,6 +81,7 @@ Requirements:
 
 ```markdown
 # Claude Code Command
+
 Create a comprehensive RBAC setup for our 5-agent enterprise team with proper role segregation and least-privilege access:
 
 1. **Deployment Engineer Agent**:
@@ -107,9 +114,10 @@ Create a comprehensive RBAC setup for our 5-agent enterprise team with proper ro
    - Resource stress testing permissions
 
 Create proper namespace isolation:
+
 - istio-system (system components)
 - tenant-a (production workloads)
-- tenant-b (development workloads) 
+- tenant-b (development workloads)
 - shared-services (common infrastructure)
 - testing (chaos and validation)
 
@@ -117,6 +125,7 @@ Generate kubeconfig files for each agent with appropriate contexts.
 ```
 
 **Expected Deliverables**:
+
 - 5 distinct ServiceAccounts with tailored permissions
 - RoleBindings and ClusterRoleBindings for each agent
 - Namespace-based access controls
@@ -129,6 +138,7 @@ Generate kubeconfig files for each agent with appropriate contexts.
 
 ```markdown
 # Claude Code Command
+
 Create custom slash commands for each agent type to automate their specific workflows:
 
 1. **Deployment Commands** (.claude/commands/deploy-istio.md):
@@ -167,6 +177,7 @@ Include proper error handling and logging for each command.
 
 ```markdown
 # Claude Code Command
+
 Deploy comprehensive test applications and infrastructure for our Istio agent validation:
 
 1. **Multi-Version Applications**:
@@ -199,6 +210,7 @@ Generate test data and validation scripts for each component.
 
 ```markdown
 # Claude Code Command
+
 Create a comprehensive testing and validation framework for our agent team:
 
 1. **Automated Test Suites**:
@@ -239,6 +251,7 @@ Include comprehensive logging and audit trails for all agent activities.
 
 ```markdown
 # Claude Code Command
+
 Integrate our agent team setup with enterprise change management and governance processes:
 
 1. **Documentation Automation**:
@@ -278,13 +291,16 @@ Include proper security controls and access logging throughout.
 # Istio Enterprise Agent Team Project
 
 ## Project Overview
+
 Enterprise-grade Istio service mesh deployment and testing using specialized agent teams.
 
 ## Cluster Contexts
+
 - `minikube`: Development environment
 - `istio-agents-cluster`: AKS production environment
 
 ## Agent Roles
+
 - **deployment-engineer**: Full Istio CRD deployment permissions
 - **test-engineer**: Validation and testing capabilities
 - **sre-agent**: Troubleshooting and diagnostic access
@@ -292,29 +308,34 @@ Enterprise-grade Istio service mesh deployment and testing using specialized age
 - **chaos-engineer**: Controlled failure testing
 
 ## Key Commands
+
 - `make setup-minikube`: Initialize development environment
 - `make deploy-aks`: Deploy AKS cluster with Istio
 - `make setup-agents`: Configure agent RBAC and access
 - `make validate-setup`: Run full validation suite
 
 ## Environment Variables
+
 - AZURE_SUBSCRIPTION_ID: Azure subscription for resources
 - DNS_ZONE: davidmarkgardiner.co.uk
 - CLUSTER_NAME: istio-agents-cluster
 
 ## Code Style
+
 - Use Kubernetes YAML manifests with proper validation
 - Include comprehensive comments and documentation
 - Follow security best practices with least privilege access
 - Implement proper error handling and logging
 
 ## Testing Approach
+
 - Automated validation for all deployments
 - Comprehensive integration testing between agents
 - Security boundary testing and validation
 - Performance and chaos engineering testing
 
 ## Repository Structure
+
 - `/clusters/`: Kubernetes cluster configurations
 - `/agents/`: Agent-specific RBAC and configurations
 - `/apps/`: Test applications and supporting infrastructure
@@ -326,6 +347,7 @@ Enterprise-grade Istio service mesh deployment and testing using specialized age
 ## Implementation Approach with Claude Code
 
 ### Step 1: Project Initialization
+
 Create the project structure with CLAUDE.md configuration to provide context for all subsequent Claude Code interactions:
 
 ```bash
@@ -336,6 +358,7 @@ claude init
 ```
 
 ### Step 2: Incremental Implementation
+
 Execute each Claude Code task sequentially, allowing for validation and iteration:
 
 ```bash
@@ -343,7 +366,7 @@ Execute each Claude Code task sequentially, allowing for validation and iteratio
 claude "Execute Infrastructure Prerequisites tasks 1-2"
 
 # Phase 2: RBAC and Access
-claude "Execute Agent Identity and Access Management tasks 3-4" 
+claude "Execute Agent Identity and Access Management tasks 3-4"
 
 # Phase 3: Applications
 claude "Execute Application and Testing Infrastructure tasks 5-6"
@@ -353,6 +376,7 @@ claude "Execute Enterprise Workflow Integration task 7"
 ```
 
 ### Step 3: Validation and Documentation
+
 Use Claude Code's ability to run tests and generate documentation to validate the complete setup:
 
 ```bash
@@ -366,13 +390,15 @@ claude "Create complete documentation package for change management approval"
 ## Expected Outcomes
 
 ### Technical Deliverables
+
 1. **Complete Multi-Environment Setup**: Both Minikube development and AKS production environments
 2. **Comprehensive RBAC**: Proper role-based access for each agent type
 3. **Automated Workflows**: Custom Claude Code commands for each agent specialty
 4. **Testing Infrastructure**: Complete validation and testing framework
 5. **Enterprise Integration**: Change management and governance processes
 
-### Business Deliverables  
+### Business Deliverables
+
 1. **Risk Mitigation**: Comprehensive testing and validation processes
 2. **Compliance**: Audit trails and security attestation
 3. **Operational Excellence**: Automated troubleshooting and recovery procedures

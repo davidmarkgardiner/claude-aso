@@ -1,6 +1,7 @@
 # Technology Stack
 
 ## Infrastructure & Cloud
+
 - **Azure Service Operator (ASO)**: Primary tool for managing Azure resources via Kubernetes CRDs
 - **Crossplane**: Multi-cloud infrastructure provisioning
 - **Kubernetes**: Container orchestration (AWS EKS, Azure AKS, GCP GKE, Kind)
@@ -10,6 +11,7 @@
 - **External DNS**: Automatic DNS record management
 
 ## Development Environment
+
 - **Devbox**: Reproducible development environments
 - **Nushell**: Cross-platform shell and scripting language
 - **Cloud CLIs**: Azure CLI, AWS CLI, Google Cloud SDK
@@ -17,6 +19,7 @@
 - **Secrets Management**: Teller for secret injection
 
 ## Platform API Backend (Node.js/TypeScript)
+
 - **Runtime**: Node.js 18+
 - **Framework**: Express.js with TypeScript
 - **Kubernetes Integration**: @kubernetes/client-node
@@ -30,6 +33,7 @@
 - **Build**: TypeScript compiler, nodemon for development
 
 ## Platform UI Frontend (React/TypeScript)
+
 - **Framework**: React 19+ with TypeScript
 - **Build Tool**: Vite
 - **Styling**: TailwindCSS with PostCSS
@@ -41,6 +45,7 @@
 - **Development**: Hot module replacement with Vite
 
 ## Infrastructure as Code
+
 - **Manifests**: YAML-based Kubernetes and ASO resource definitions
 - **Package Management**: Helm charts for complex applications
 - **Templating**: Kustomize for configuration management

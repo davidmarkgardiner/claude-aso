@@ -7,6 +7,7 @@ This repository includes automated secret detection tools to prevent accidental 
 A Git pre-commit hook automatically scans files for secrets before each commit.
 
 ### What it detects:
+
 - AWS Access Keys (`AKIA...`)
 - AWS Secret Keys (40-character base64 strings)
 - Azure Subscription/Client/Tenant IDs (UUID format)
@@ -17,6 +18,7 @@ A Git pre-commit hook automatically scans files for secrets before each commit.
 - Dangerous files (`.env`, `credentials.json`, `.pem`, etc.)
 
 ### How it works:
+
 The hook runs automatically when you try to commit:
 
 ```bash
@@ -24,6 +26,7 @@ git commit -m "your commit message"
 ```
 
 If secrets are detected:
+
 ```
 🚨 COMMIT BLOCKED: 2 potential secret(s) detected!
 
@@ -36,6 +39,7 @@ To fix this:
 ```
 
 ### Bypassing the hook (use carefully):
+
 If you're certain the detected items are false positives:
 
 ```bash
@@ -54,6 +58,7 @@ A comprehensive scanner tool checks all tracked files for secrets.
 ```
 
 ### Output:
+
 - Colored terminal output showing detected issues
 - Detailed report saved to `scan-results/secret-scan-YYYYMMDD-HHMMSS.txt`
 - Summary of files scanned and issues found
@@ -61,12 +66,15 @@ A comprehensive scanner tool checks all tracked files for secrets.
 ## 🛡️ Best Practices
 
 ### ✅ Recommended Practices:
+
 1. **Use environment variables** for secrets:
+
    ```bash
    export API_KEY="your-secret-key"
    ```
 
 2. **Use Azure Key Vault** for production secrets:
+
    ```yaml
    apiVersion: v1
    kind: Secret
@@ -77,6 +85,7 @@ A comprehensive scanner tool checks all tracked files for secrets.
    ```
 
 3. **Use `.env` files locally** (but don't commit them):
+
    ```bash
    echo ".env" >> .gitignore
    echo ".env.local" >> .gitignore
@@ -90,6 +99,7 @@ A comprehensive scanner tool checks all tracked files for secrets.
    ```
 
 ### ❌ Avoid These Patterns:
+
 ```bash
 # Don't hardcode secrets
 export API_KEY="sk-1234567890abcdef"
@@ -109,14 +119,16 @@ service-account.json
 The following files are automatically excluded from secret scanning:
 
 ### File Types:
+
 - `*.sample`
-- `*.example` 
+- `*.example`
 - `*.template`
 - `*.md` (Markdown files)
 - `*.txt`
 - `*.log`
 
 ### Specific Files:
+
 - `.gitignore`
 - `LICENSE`
 - `README*`
@@ -125,6 +137,7 @@ The following files are automatically excluded from secret scanning:
 ## 🚨 Common Secret Patterns Detected
 
 ### AWS Credentials:
+
 ```bash
 # AWS Access Key
 AKIAIOSFODNN7EXAMPLE
@@ -134,6 +147,7 @@ aws_secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 ```
 
 ### Azure Credentials:
+
 ```bash
 # Subscription ID
 subscription_id = "12345678-1234-1234-1234-123456789012"
@@ -143,6 +157,7 @@ client_secret = "ABC123~1234567890abcdefghijklmnopqrstuvwxyz"
 ```
 
 ### Generic Patterns:
+
 ```bash
 # API Keys
 api_key = "1234567890abcdef1234567890abcdef12345678"
@@ -157,6 +172,7 @@ token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZS
 ```
 
 ### Dangerous Files:
+
 - `.env` (environment files)
 - `credentials.json` (service account files)
 - `*.pem` (private key files)
@@ -174,6 +190,7 @@ If the scanner detects false positives:
 ## 📊 Reporting
 
 ### Pre-commit Hook Output:
+
 ```
 🔒 Running secret detection pre-commit hook...
 🔍 Checking: config/database.yml
@@ -183,6 +200,7 @@ If the scanner detects false positives:
 ```
 
 ### Scanner Report Structure:
+
 ```
 Secret Scan Report - 2024-01-15 14:30:25
 ======================================
@@ -200,7 +218,9 @@ Scan completed: 2024-01-15 14:30:28
 ## 🛠️ Maintenance
 
 ### Updating Detection Patterns:
+
 Edit the hook file to add new patterns:
+
 ```bash
 # .git/hooks/pre-commit
 # Add new pattern in check_secrets() function
@@ -211,6 +231,7 @@ fi
 ```
 
 ### Hook Management:
+
 ```bash
 # Disable hook temporarily
 chmod -x .git/hooks/pre-commit

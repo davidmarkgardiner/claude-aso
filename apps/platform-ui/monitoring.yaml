@@ -1,0 +1,257 @@
+---
+# ServiceMonitor for Prometheus monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: platform-ui-monitor
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+    prometheus: kube-prometheus
+  annotations:
+    platform.io/description: "ServiceMonitor for Platform UI Prometheus metrics collection"
+spec:
+  selector:
+    matchLabels:
+      app: platform-ui
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "platform_ui_(.*)"
+          targetLabel: __name__
+          replacement: "${1}"
+
+---
+# PrometheusRule for Platform UI alerting
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-ui-alerts
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+    prometheus: kube-prometheus
+  annotations:
+    platform.io/description: "Prometheus alerting rules for Platform UI"
+spec:
+  groups:
+    - name: platform-ui
+      rules:
+        - alert: PlatformUIDown
+          expr: up{job="platform-ui"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            service: platform-ui
+          annotations:
+            summary: "Platform UI is down"
+            description: "Platform UI has been down for more than 1 minute."
+
+        - alert: PlatformUIHighErrorRate
+          expr: rate(nginx_http_requests_total{job="platform-ui",status=~"5.."}[5m]) / rate(nginx_http_requests_total{job="platform-ui"}[5m]) > 0.1
+          for: 2m
+          labels:
+            severity: warning
+            service: platform-ui
+          annotations:
+            summary: "Platform UI high error rate"
+            description: "Platform UI error rate is above 10% for more than 2 minutes."
+
+        - alert: PlatformUIHighLatency
+          expr: histogram_quantile(0.95, rate(nginx_http_request_duration_seconds_bucket{job="platform-ui"}[5m])) > 5
+          for: 2m
+          labels:
+            severity: warning
+            service: platform-ui
+          annotations:
+            summary: "Platform UI high latency"
+            description: "Platform UI 95th percentile latency is above 5 seconds for more than 2 minutes."
+
+        - alert: PlatformUIHighMemoryUsage
+          expr: container_memory_usage_bytes{pod=~"platform-ui-.*"} / container_spec_memory_limit_bytes > 0.9
+          for: 5m
+          labels:
+            severity: warning
+            service: platform-ui
+          annotations:
+            summary: "Platform UI high memory usage"
+            description: "Platform UI memory usage is above 90% for more than 5 minutes."
+
+        - alert: PlatformUIHighCPUUsage
+          expr: rate(container_cpu_usage_seconds_total{pod=~"platform-ui-.*"}[5m]) / container_spec_cpu_quota * container_spec_cpu_period > 0.8
+          for: 5m
+          labels:
+            severity: warning
+            service: platform-ui
+          annotations:
+            summary: "Platform UI high CPU usage"
+            description: "Platform UI CPU usage is above 80% for more than 5 minutes."
+
+        - alert: PlatformUILowReplicas
+          expr: kube_deployment_status_replicas_available{deployment="platform-ui"} < 2
+          for: 1m
+          labels:
+            severity: warning
+            service: platform-ui
+          annotations:
+            summary: "Platform UI low replica count"
+            description: "Platform UI has less than 2 available replicas."
+
+        - alert: PlatformUIRestartLoop
+          expr: increase(kube_pod_container_status_restarts_total{pod=~"platform-ui-.*"}[15m]) > 3
+          for: 0m
+          labels:
+            severity: warning
+            service: platform-ui
+          annotations:
+            summary: "Platform UI pod restart loop"
+            description: "Platform UI pod {{ $labels.pod }} has restarted more than 3 times in 15 minutes."
+
+---
+# Grafana Dashboard ConfigMap for Platform UI
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-ui-dashboard
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+    grafana_dashboard: "1"
+  annotations:
+    platform.io/description: "Grafana dashboard for Platform UI monitoring"
+data:
+  dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Platform UI Dashboard",
+        "tags": ["platform", "ui", "frontend"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "HTTP Request Rate",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+            "targets": [
+              {
+                "expr": "rate(nginx_http_requests_total{job=\"platform-ui\"}[5m])",
+                "legendFormat": "{{method}} {{status}}"
+              }
+            ]
+          },
+          {
+            "title": "HTTP Error Rate",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+            "targets": [
+              {
+                "expr": "rate(nginx_http_requests_total{job=\"platform-ui\",status=~\"5..\"}[5m]) / rate(nginx_http_requests_total{job=\"platform-ui\"}[5m])",
+                "legendFormat": "Error Rate (%)"
+              }
+            ]
+          },
+          {
+            "title": "Response Time",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(nginx_http_request_duration_seconds_bucket{job=\"platform-ui\"}[5m]))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.50, rate(nginx_http_request_duration_seconds_bucket{job=\"platform-ui\"}[5m]))",
+                "legendFormat": "50th percentile"
+              }
+            ]
+          },
+          {
+            "title": "Active Connections",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+            "targets": [
+              {
+                "expr": "nginx_connections_active{job=\"platform-ui\"}",
+                "legendFormat": "Active Connections"
+              }
+            ]
+          },
+          {
+            "title": "Memory Usage",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+            "targets": [
+              {
+                "expr": "container_memory_usage_bytes{pod=~\"platform-ui-.*\"} / 1024 / 1024",
+                "legendFormat": "Memory Usage (MB) - {{pod}}"
+              }
+            ]
+          },
+          {
+            "title": "CPU Usage",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total{pod=~\"platform-ui-.*\"}[5m]) * 100",
+                "legendFormat": "CPU Usage (%) - {{pod}}"
+              }
+            ]
+          },
+          {
+            "title": "Pod Status",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 6, "x": 0, "y": 24},
+            "targets": [
+              {
+                "expr": "kube_deployment_status_replicas_available{deployment=\"platform-ui\"}",
+                "legendFormat": "Available Replicas"
+              }
+            ]
+          },
+          {
+            "title": "Restart Count",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 6, "x": 6, "y": 24},
+            "targets": [
+              {
+                "expr": "sum(increase(kube_pod_container_status_restarts_total{pod=~\"platform-ui-.*\"}[1h]))",
+                "legendFormat": "Restarts (1h)"
+              }
+            ]
+          },
+          {
+            "title": "Network I/O",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+            "targets": [
+              {
+                "expr": "rate(container_network_receive_bytes_total{pod=~\"platform-ui-.*\"}[5m])",
+                "legendFormat": "Received - {{pod}}"
+              },
+              {
+                "expr": "rate(container_network_transmit_bytes_total{pod=~\"platform-ui-.*\"}[5m])",
+                "legendFormat": "Transmitted - {{pod}}"
+              }
+            ]
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }

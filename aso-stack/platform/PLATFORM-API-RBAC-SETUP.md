@@ -12,6 +12,7 @@ The Platform API has been successfully tested with AKS cluster integration:
 ## Production Architecture Goals 🎯
 
 ### Current State (Development)
+
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Platform API  │────│  Personal User   │────│   AKS Cluster   │
@@ -20,6 +21,7 @@ The Platform API has been successfully tested with AKS cluster integration:
 ```
 
 ### Target State (Production)
+
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Platform API  │────│ Managed Identity │────│   AKS Cluster   │
@@ -38,6 +40,7 @@ The Platform API has been successfully tested with AKS cluster integration:
 ### Phase 1: Managed Identity Setup (using ASO)
 
 #### 1.1 Create Platform API Managed Identity
+
 ```yaml
 # aso-stack/platform/platform-identity.yaml
 apiVersion: managedidentity.azure.com/v1api20230131
@@ -53,6 +56,7 @@ spec:
 ```
 
 #### 1.2 Configure Workload Identity Federation
+
 ```yaml
 # aso-stack/platform/platform-federated-credential.yaml
 apiVersion: managedidentity.azure.com/v1api20230131
@@ -70,6 +74,7 @@ spec:
 ```
 
 Apply the ASO manifests:
+
 ```bash
 kubectl apply -f aso-stack/platform/platform-identity.yaml
 kubectl apply -f aso-stack/platform/platform-federated-credential.yaml
@@ -78,6 +83,7 @@ kubectl apply -f aso-stack/platform/platform-federated-credential.yaml
 ### Phase 2: AKS Cluster RBAC Setup (using ASO)
 
 #### 2.1 Assign Cluster Admin Role to Platform API Identity
+
 ```yaml
 # aso-stack/platform/platform-cluster-rbac.yaml
 apiVersion: authorization.azure.com/v1api20200801preview
@@ -95,7 +101,9 @@ spec:
 ```
 
 #### 2.2 Remove Development User Permissions (using ASO)
+
 Note: To remove existing role assignments using ASO, we would need to identify and delete the corresponding RoleAssignment resource. For cleanup of manually created assignments:
+
 ```bash
 # Manual cleanup (run once during migration)
 az role assignment delete \
@@ -105,6 +113,7 @@ az role assignment delete \
 ```
 
 Apply the ASO RBAC assignment:
+
 ```bash
 kubectl apply -f aso-stack/platform/platform-cluster-rbac.yaml
 ```
@@ -112,6 +121,7 @@ kubectl apply -f aso-stack/platform/platform-cluster-rbac.yaml
 ### Phase 3: Platform API Kubernetes Deployment
 
 #### 3.1 Create Platform System Namespace
+
 ```yaml
 # platform-system-namespace.yaml
 apiVersion: v1
@@ -124,6 +134,7 @@ metadata:
 ```
 
 #### 3.2 Create Service Account with Workload Identity
+
 ```yaml
 # platform-api-serviceaccount.yaml
 apiVersion: v1
@@ -138,6 +149,7 @@ metadata:
 ```
 
 #### 3.3 Deploy Platform API with Workload Identity
+
 ```yaml
 # platform-api-deployment.yaml
 apiVersion: apps/v1
@@ -158,36 +170,37 @@ spec:
     spec:
       serviceAccountName: platform-api
       containers:
-      - name: platform-api
-        image: platform-api:latest
-        env:
-        - name: AZURE_CLIENT_ID
-          value: "${PLATFORM_IDENTITY_CLIENT_ID}"
-        - name: KUBE_CONTEXT
-          value: "current"
-        - name: NODE_ENV
-          value: "production"
-        ports:
-        - containerPort: 3000
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        - name: platform-api
+          image: platform-api:latest
+          env:
+            - name: AZURE_CLIENT_ID
+              value: "${PLATFORM_IDENTITY_CLIENT_ID}"
+            - name: KUBE_CONTEXT
+              value: "current"
+            - name: NODE_ENV
+              value: "production"
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
 ```
 
 ### Phase 4: Namespace-Scoped RBAC with ASO
 
 #### 4.1 Create ASO RoleAssignment Template
+
 ```yaml
 # aso-stack/platform/namespace-rbac-template.yaml
 apiVersion: authorization.azure.com/v1api20200801preview
 kind: RoleAssignment
 metadata:
   name: "{{ .namespaceName }}-admin-assignment"
-  namespace: azure-system  # ASO resources in azure-system namespace
+  namespace: azure-system # ASO resources in azure-system namespace
 spec:
   principalId: "{{ .teamPrincipalId }}"
   principalType: Group
@@ -198,70 +211,81 @@ spec:
 ```
 
 #### 4.2 Enhanced Platform API Namespace Creation Logic (ASO-enabled)
+
 ```typescript
 // Enhanced namespace creation with ASO RBAC
-async function createNamespaceWithRBAC(request: NamespaceRequest): Promise<NamespaceResponse> {
-    // 1. Create the namespace
-    const namespace = await k8sClient.createNamespace({
-        metadata: {
-            name: request.name,
-            labels: {
-                'platform.managed': 'true',
-                'platform.team': request.team,
-                'platform.environment': request.environment,
-                'istio-injection': request.features.includes('istio-injection') ? 'enabled' : 'disabled'
-            },
-            annotations: {
-                'platform.owner': request.owner.email,
-                'platform.created-by': 'platform-api'
-            }
-        }
-    });
+async function createNamespaceWithRBAC(
+  request: NamespaceRequest,
+): Promise<NamespaceResponse> {
+  // 1. Create the namespace
+  const namespace = await k8sClient.createNamespace({
+    metadata: {
+      name: request.name,
+      labels: {
+        "platform.managed": "true",
+        "platform.team": request.team,
+        "platform.environment": request.environment,
+        "istio-injection": request.features.includes("istio-injection")
+          ? "enabled"
+          : "disabled",
+      },
+      annotations: {
+        "platform.owner": request.owner.email,
+        "platform.created-by": "platform-api",
+      },
+    },
+  });
 
-    // 2. Create ASO RoleAssignment for namespace-scoped admin access
-    const roleAssignmentManifest = {
-        apiVersion: 'authorization.azure.com/v1api20200801preview',
-        kind: 'RoleAssignment',
-        metadata: {
-            name: `${request.name}-admin-assignment`,
-            namespace: 'azure-system'
-        },
-        spec: {
-            principalId: await getTeamPrincipalId(request.team),
-            principalType: 'Group',
-            roleDefinitionId: '/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b',
-            scope: `/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod/namespaces/${request.name}`,
-            owner: {
-                armId: '/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod'
-            }
-        }
-    };
+  // 2. Create ASO RoleAssignment for namespace-scoped admin access
+  const roleAssignmentManifest = {
+    apiVersion: "authorization.azure.com/v1api20200801preview",
+    kind: "RoleAssignment",
+    metadata: {
+      name: `${request.name}-admin-assignment`,
+      namespace: "azure-system",
+    },
+    spec: {
+      principalId: await getTeamPrincipalId(request.team),
+      principalType: "Group",
+      roleDefinitionId:
+        "/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/b1ff04bb-8a4e-4dc4-8eb5-8693973ce19b",
+      scope: `/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod/namespaces/${request.name}`,
+      owner: {
+        armId:
+          "/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ContainerService/managedClusters/uk8s-tsshared-weu-gt025-int-prod",
+      },
+    },
+  };
 
-    const roleAssignment = await k8sClient.createCustomObject(roleAssignmentManifest);
+  const roleAssignment = await k8sClient.createCustomObject(
+    roleAssignmentManifest,
+  );
 
-    // 3. Create resource quotas and network policies
-    await applyResourceQuota(request.name, request.resourceTier);
-    await applyNetworkPolicies(request.name, request.networkPolicy);
+  // 3. Create resource quotas and network policies
+  await applyResourceQuota(request.name, request.resourceTier);
+  await applyNetworkPolicies(request.name, request.networkPolicy);
 
-    return {
-        status: 'success',
-        namespaceName: request.name,
-        rbacAssignmentId: roleAssignment.metadata.name
-    };
+  return {
+    status: "success",
+    namespaceName: request.name,
+    rbacAssignmentId: roleAssignment.metadata.name,
+  };
 }
 ```
 
 ### Phase 5: Security & Compliance
 
 #### 5.1 RBAC Role Definitions
-| Role | Scope | Use Case | Permissions |
-|------|--------|----------|-------------|
-| `AKS RBAC Cluster Admin` | Cluster | Platform API Service | Create/delete namespaces, manage cluster resources |
-| `AKS RBAC Admin` | Namespace | Team Members | Full namespace admin (except quotas) |
-| `AKS RBAC Writer` | Namespace | Developers | Deploy apps, manage workloads |
-| `AKS RBAC Reader` | Namespace | Read-only access | View resources, logs |
+
+| Role                     | Scope     | Use Case             | Permissions                                        |
+| ------------------------ | --------- | -------------------- | -------------------------------------------------- |
+| `AKS RBAC Cluster Admin` | Cluster   | Platform API Service | Create/delete namespaces, manage cluster resources |
+| `AKS RBAC Admin`         | Namespace | Team Members         | Full namespace admin (except quotas)               |
+| `AKS RBAC Writer`        | Namespace | Developers           | Deploy apps, manage workloads                      |
+| `AKS RBAC Reader`        | Namespace | Read-only access     | View resources, logs                               |
 
 #### 5.2 Security Controls
+
 - ✅ **Workload Identity**: No service account keys or secrets
 - ✅ **Namespace Isolation**: Teams can only access their namespaces
 - ✅ **Resource Quotas**: Prevent resource exhaustion
@@ -271,13 +295,14 @@ async function createNamespaceWithRBAC(request: NamespaceRequest): Promise<Names
 ### Phase 6: Testing & Validation
 
 #### 6.1 Integration Tests
+
 ```bash
 # Test Platform API with Managed Identity
 curl -X POST http://platform-api.platform-system.svc.cluster.local/api/v1/namespaces \
   -H "Content-Type: application/json" \
   -d '{
     "name": "test-team-dev",
-    "team": "test-team", 
+    "team": "test-team",
     "environment": "development",
     "resourceTier": "small",
     "features": ["istio-injection"],
@@ -286,31 +311,36 @@ curl -X POST http://platform-api.platform-system.svc.cluster.local/api/v1/namesp
 ```
 
 #### 6.2 RBAC Validation
+
 ```bash
 # Verify team member can access their namespace
 kubectl auth can-i "*" --as="azure:team-member@company.com" -n test-team-dev
 
-# Verify team member cannot access other namespaces  
+# Verify team member cannot access other namespaces
 kubectl auth can-i "*" --as="azure:team-member@company.com" -n other-team-prod
 ```
 
 ## Migration Strategy 📋
 
 ### Step 1: Deploy Alongside Current Setup
+
 - Deploy Platform API with Managed Identity alongside current development setup
 - Test all functionality without disrupting current operations
 
 ### Step 2: Gradual Permission Migration
+
 - Create namespaces with new RBAC model
 - Migrate existing namespaces to use ASO RoleAssignments
 - Validate team access to their namespaces
 
 ### Step 3: Remove Development Permissions
+
 - Remove personal user cluster admin role
 - Ensure all operations work through Platform API service account
 - Update documentation and runbooks
 
 ### Step 4: Production Hardening
+
 - Enable audit logging for all Platform API operations
 - Implement resource quotas and limits
 - Set up monitoring and alerting
@@ -319,7 +349,7 @@ kubectl auth can-i "*" --as="azure:team-member@company.com" -n other-team-prod
 
 1. **Security**: No personal accounts with cluster admin privileges
 2. **Automation**: ASO manages RBAC assignments as code
-3. **Scalability**: Teams get appropriate namespace-scoped permissions  
+3. **Scalability**: Teams get appropriate namespace-scoped permissions
 4. **Compliance**: All access auditable and traceable
 5. **Maintainability**: Infrastructure as Code for all RBAC configurations
 

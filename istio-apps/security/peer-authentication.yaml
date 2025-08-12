@@ -52,7 +52,7 @@ spec:
     matchLabels:
       app: podinfo
   mtls:
-    mode: PERMISSIVE  # Allows both mTLS and plain text for development
+    mode: PERMISSIVE # Allows both mTLS and plain text for development
   portLevelMtls:
     "9898":
       mode: PERMISSIVE
@@ -72,9 +72,9 @@ spec:
   mtls:
     mode: STRICT
   portLevelMtls:
-    "9090":  # Prometheus
+    "9090": # Prometheus
       mode: STRICT
-    "3000":  # Grafana
+    "3000": # Grafana
       mode: STRICT
     "16686": # Jaeger
       mode: STRICT
@@ -92,7 +92,7 @@ metadata:
     tenant: external
 spec:
   mtls:
-    mode: DISABLE  # No mTLS for external services
+    mode: DISABLE # No mTLS for external services
 ---
 # Testing mTLS policy - Permissive for chaos testing
 apiVersion: security.istio.io/v1beta1
@@ -107,7 +107,7 @@ metadata:
     tenant: testing
 spec:
   mtls:
-    mode: PERMISSIVE  # Allow mixed traffic for testing
+    mode: PERMISSIVE # Allow mixed traffic for testing
 ---
 # Ingress Gateway mTLS policy - Disable for external traffic
 apiVersion: security.istio.io/v1beta1
@@ -124,7 +124,7 @@ spec:
     matchLabels:
       istio: aks-istio-ingressgateway-internal
   mtls:
-    mode: DISABLE  # Disable mTLS for ingress gateway to handle external traffic
+    mode: DISABLE # Disable mTLS for ingress gateway to handle external traffic
   portLevelMtls:
     "80":
       mode: DISABLE
@@ -150,4 +150,4 @@ spec:
       app: legacy-app
       version: v1
   mtls:
-    mode: DISABLE  # Disable mTLS for specific legacy applications
+    mode: DISABLE # Disable mTLS for specific legacy applications

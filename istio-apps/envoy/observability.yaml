@@ -11,49 +11,112 @@ metadata:
     test-scenario: comprehensive-metrics
 spec:
   configPatches:
-  # Enhanced stats configuration for all proxies
-  - applyTo: BOOTSTRAP
-    patch:
-      operation: MERGE
-      value:
-        stats_config:
-          stats_tags:
-          - tag_name: cluster_name
-            regex: "^cluster\\.((.+?(\\..+?\\.svc\\.cluster\\.local)?)\\.)"
-          - tag_name: tcp_prefix
-            regex: "^tcp\\.((.*?)\\.)\\w+?$"
-          - tag_name: response_code
-            regex: "_cx_([1-5]xx)$"
-          - tag_name: response_code_class
-            regex: ".*_cx_([1-5])\\d\\d$"
-          - tag_name: http_conn_manager_listener_prefix
-            regex: "^listener(?=\\.).*?\\.http_conn_manager\\.(.+?)\\."
-          - tag_name: http_conn_manager_prefix
-            regex: "^http\\.(((?:[_.[:alnum:]])+)\\.).*"
-          - tag_name: listener_address
-            regex: "^listener\\.(((?:[_.[:alnum:]])+)\\.).*"
-          - tag_name: mongo_prefix
-            regex: "^mongo\\.(.+?)\\.(collection|cmd|cx_|op_|delays_|decoding_)(.*?)$"
-          - tag_name: reporter
-            fixed_value: destination
-          - tag_name: source_namespace
-            regex: "source_namespace=([^;]+)"
-          - tag_name: source_workload
-            regex: "source_workload=([^;]+)"
-          - tag_name: destination_namespace
-            regex: "destination_namespace=([^;]+)"
-          - tag_name: destination_workload
-            regex: "destination_workload=([^;]+)"
-          histogram_bucket_settings:
-          - match:
-              prefix: "cluster.outbound"
-            buckets: [0.5, 1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000, 300000, 600000, 1800000, 3600000]
-          - match:
-              prefix: "cluster.inbound"
-            buckets: [0.5, 1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000, 300000, 600000, 1800000, 3600000]
-          - match:
-              prefix: "http"
-            buckets: [0.5, 1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000, 300000, 600000, 1800000, 3600000]
+    # Enhanced stats configuration for all proxies
+    - applyTo: BOOTSTRAP
+      patch:
+        operation: MERGE
+        value:
+          stats_config:
+            stats_tags:
+              - tag_name: cluster_name
+                regex: "^cluster\\.((.+?(\\..+?\\.svc\\.cluster\\.local)?)\\.)"
+              - tag_name: tcp_prefix
+                regex: "^tcp\\.((.*?)\\.)\\w+?$"
+              - tag_name: response_code
+                regex: "_cx_([1-5]xx)$"
+              - tag_name: response_code_class
+                regex: ".*_cx_([1-5])\\d\\d$"
+              - tag_name: http_conn_manager_listener_prefix
+                regex: "^listener(?=\\.).*?\\.http_conn_manager\\.(.+?)\\."
+              - tag_name: http_conn_manager_prefix
+                regex: "^http\\.(((?:[_.[:alnum:]])+)\\.).*"
+              - tag_name: listener_address
+                regex: "^listener\\.(((?:[_.[:alnum:]])+)\\.).*"
+              - tag_name: mongo_prefix
+                regex: "^mongo\\.(.+?)\\.(collection|cmd|cx_|op_|delays_|decoding_)(.*?)$"
+              - tag_name: reporter
+                fixed_value: destination
+              - tag_name: source_namespace
+                regex: "source_namespace=([^;]+)"
+              - tag_name: source_workload
+                regex: "source_workload=([^;]+)"
+              - tag_name: destination_namespace
+                regex: "destination_namespace=([^;]+)"
+              - tag_name: destination_workload
+                regex: "destination_workload=([^;]+)"
+            histogram_bucket_settings:
+              - match:
+                  prefix: "cluster.outbound"
+                buckets:
+                  [
+                    0.5,
+                    1,
+                    5,
+                    10,
+                    25,
+                    50,
+                    100,
+                    250,
+                    500,
+                    1000,
+                    2500,
+                    5000,
+                    10000,
+                    30000,
+                    60000,
+                    300000,
+                    600000,
+                    1800000,
+                    3600000,
+                  ]
+              - match:
+                  prefix: "cluster.inbound"
+                buckets:
+                  [
+                    0.5,
+                    1,
+                    5,
+                    10,
+                    25,
+                    50,
+                    100,
+                    250,
+                    500,
+                    1000,
+                    2500,
+                    5000,
+                    10000,
+                    30000,
+                    60000,
+                    300000,
+                    600000,
+                    1800000,
+                    3600000,
+                  ]
+              - match:
+                  prefix: "http"
+                buckets:
+                  [
+                    0.5,
+                    1,
+                    5,
+                    10,
+                    25,
+                    50,
+                    100,
+                    250,
+                    500,
+                    1000,
+                    2500,
+                    5000,
+                    10000,
+                    30000,
+                    60000,
+                    300000,
+                    600000,
+                    1800000,
+                    3600000,
+                  ]
 ---
 # OpenTelemetry Tracing EnvoyFilter
 apiVersion: networking.istio.io/v1alpha3
@@ -71,83 +134,83 @@ spec:
     labels:
       component: monitoring
   configPatches:
-  # Configure OpenTelemetry tracing
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_INBOUND
-      listener:
-        filterChain:
-          filter:
-            name: envoy.filters.network.http_connection_manager
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.wasm
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
-          config:
-            name: "otel_tracing"
-            root_id: "otel_tracing"
-            configuration:
-              "@type": type.googleapis.com/google.protobuf.StringValue
-              value: |
-                {
-                  "service_name": "shared-services",
-                  "service_namespace": "shared-services", 
-                  "tracer": {
-                    "jaeger": {
-                      "endpoint": "http://jaeger-collector.shared-services.svc.cluster.local:14268/api/traces"
+    # Configure OpenTelemetry tracing
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.wasm
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+            config:
+              name: "otel_tracing"
+              root_id: "otel_tracing"
+              configuration:
+                "@type": type.googleapis.com/google.protobuf.StringValue
+                value: |
+                  {
+                    "service_name": "shared-services",
+                    "service_namespace": "shared-services", 
+                    "tracer": {
+                      "jaeger": {
+                        "endpoint": "http://jaeger-collector.shared-services.svc.cluster.local:14268/api/traces"
+                      }
+                    },
+                    "custom_tags": {
+                      "tenant": "shared",
+                      "environment": "infrastructure",
+                      "deployment_agent": "istio-engineer"
                     }
-                  },
-                  "custom_tags": {
-                    "tenant": "shared",
-                    "environment": "infrastructure",
-                    "deployment_agent": "istio-engineer"
                   }
-                }
-            vm_config:
-              vm_id: "otel_tracing"
-              runtime: "envoy.wasm.runtime.v8"
-              code:
-                local:
-                  inline_string: |
-                    class OTelTracingRoot {
-                      constructor(rootContext, id) {
-                        this.rootContext = rootContext;
-                      }
-                      
-                      onHttpRequestHeaders() {
-                        const headers = this.getRequestHeaders();
-                        const traceId = this.generateTraceId();
-                        const spanId = this.generateSpanId();
+              vm_config:
+                vm_id: "otel_tracing"
+                runtime: "envoy.wasm.runtime.v8"
+                code:
+                  local:
+                    inline_string: |
+                      class OTelTracingRoot {
+                        constructor(rootContext, id) {
+                          this.rootContext = rootContext;
+                        }
                         
-                        // Add custom tracing headers
-                        this.addRequestHeader("x-trace-id", traceId);
-                        this.addRequestHeader("x-span-id", spanId);
-                        this.addRequestHeader("x-tenant", "shared");
+                        onHttpRequestHeaders() {
+                          const headers = this.getRequestHeaders();
+                          const traceId = this.generateTraceId();
+                          const spanId = this.generateSpanId();
+                          
+                          // Add custom tracing headers
+                          this.addRequestHeader("x-trace-id", traceId);
+                          this.addRequestHeader("x-span-id", spanId);
+                          this.addRequestHeader("x-tenant", "shared");
+                          
+                          return FilterHeadersStatus.Continue;
+                        }
                         
-                        return FilterHeadersStatus.Continue;
-                      }
-                      
-                      onHttpResponseHeaders() {
-                        const responseCode = this.getResponseHeader(":status");
-                        const duration = Date.now() - this.requestStartTime;
+                        onHttpResponseHeaders() {
+                          const responseCode = this.getResponseHeader(":status");
+                          const duration = Date.now() - this.requestStartTime;
+                          
+                          // Add response tracing headers
+                          this.addResponseHeader("x-response-time", duration.toString());
+                          this.addResponseHeader("x-trace-completed", "true");
+                          
+                          return FilterHeadersStatus.Continue;
+                        }
                         
-                        // Add response tracing headers
-                        this.addResponseHeader("x-response-time", duration.toString());
-                        this.addResponseHeader("x-trace-completed", "true");
+                        generateTraceId() {
+                          return Math.random().toString(36).substr(2, 16);
+                        }
                         
-                        return FilterHeadersStatus.Continue;
+                        generateSpanId() {
+                          return Math.random().toString(36).substr(2, 8);
+                        }
                       }
-                      
-                      generateTraceId() {
-                        return Math.random().toString(36).substr(2, 16);
-                      }
-                      
-                      generateSpanId() {
-                        return Math.random().toString(36).substr(2, 8);
-                      }
-                    }
 ---
 # Custom Metrics Collection EnvoyFilter
 apiVersion: networking.istio.io/v1alpha3
@@ -165,88 +228,88 @@ spec:
     labels:
       app: podinfo
   configPatches:
-  # Add custom metrics collection
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_INBOUND
-      listener:
-        filterChain:
-          filter:
-            name: envoy.filters.network.http_connection_manager
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.wasm
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
-          config:
-            name: "custom_metrics"
-            root_id: "custom_metrics"
-            configuration:
-              "@type": type.googleapis.com/google.protobuf.StringValue
-              value: |
-                {
-                  "metric_prefix": "podinfo_custom",
-                  "tenant": "tenant-a",
-                  "environment": "production",
-                  "metrics": [
-                    {
-                      "name": "api_requests_total",
-                      "type": "counter",
-                      "labels": ["method", "path", "response_code", "tenant"]
-                    },
-                    {
-                      "name": "api_request_duration_seconds",
-                      "type": "histogram", 
-                      "labels": ["method", "path", "tenant"],
-                      "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
-                    },
-                    {
-                      "name": "active_connections",
-                      "type": "gauge",
-                      "labels": ["tenant"]
-                    }
-                  ]
-                }
-            vm_config:
-              vm_id: "custom_metrics"
-              runtime: "envoy.wasm.runtime.v8"
-              code:
-                local:
-                  inline_string: |
-                    class CustomMetricsRoot {
-                      constructor(rootContext, id) {
-                        this.rootContext = rootContext;
-                        this.startTime = 0;
+    # Add custom metrics collection
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.wasm
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+            config:
+              name: "custom_metrics"
+              root_id: "custom_metrics"
+              configuration:
+                "@type": type.googleapis.com/google.protobuf.StringValue
+                value: |
+                  {
+                    "metric_prefix": "podinfo_custom",
+                    "tenant": "tenant-a",
+                    "environment": "production",
+                    "metrics": [
+                      {
+                        "name": "api_requests_total",
+                        "type": "counter",
+                        "labels": ["method", "path", "response_code", "tenant"]
+                      },
+                      {
+                        "name": "api_request_duration_seconds",
+                        "type": "histogram", 
+                        "labels": ["method", "path", "tenant"],
+                        "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+                      },
+                      {
+                        "name": "active_connections",
+                        "type": "gauge",
+                        "labels": ["tenant"]
                       }
-                      
-                      onHttpRequestHeaders() {
-                        this.startTime = Date.now();
-                        const method = this.getRequestHeader(":method");
-                        const path = this.getRequestHeader(":path");
+                    ]
+                  }
+              vm_config:
+                vm_id: "custom_metrics"
+                runtime: "envoy.wasm.runtime.v8"
+                code:
+                  local:
+                    inline_string: |
+                      class CustomMetricsRoot {
+                        constructor(rootContext, id) {
+                          this.rootContext = rootContext;
+                          this.startTime = 0;
+                        }
                         
-                        // Increment active connections
-                        this.incrementMetric("active_connections", 1, ["tenant-a"]);
+                        onHttpRequestHeaders() {
+                          this.startTime = Date.now();
+                          const method = this.getRequestHeader(":method");
+                          const path = this.getRequestHeader(":path");
+                          
+                          // Increment active connections
+                          this.incrementMetric("active_connections", 1, ["tenant-a"]);
+                          
+                          return FilterHeadersStatus.Continue;
+                        }
                         
-                        return FilterHeadersStatus.Continue;
+                        onHttpResponseHeaders() {
+                          const method = this.getRequestHeader(":method");
+                          const path = this.getRequestHeader(":path");
+                          const responseCode = this.getResponseHeader(":status");
+                          const duration = (Date.now() - this.startTime) / 1000;
+                          
+                          // Record metrics
+                          this.incrementMetric("api_requests_total", 1, 
+                            [method, path, responseCode, "tenant-a"]);
+                          this.recordHistogram("api_request_duration_seconds", duration,
+                            [method, path, "tenant-a"]);
+                          this.decrementMetric("active_connections", 1, ["tenant-a"]);
+                          
+                          return FilterHeadersStatus.Continue;
+                        }
                       }
-                      
-                      onHttpResponseHeaders() {
-                        const method = this.getRequestHeader(":method");
-                        const path = this.getRequestHeader(":path");
-                        const responseCode = this.getResponseHeader(":status");
-                        const duration = (Date.now() - this.startTime) / 1000;
-                        
-                        // Record metrics
-                        this.incrementMetric("api_requests_total", 1, 
-                          [method, path, responseCode, "tenant-a"]);
-                        this.recordHistogram("api_request_duration_seconds", duration,
-                          [method, path, "tenant-a"]);
-                        this.decrementMetric("active_connections", 1, ["tenant-a"]);
-                        
-                        return FilterHeadersStatus.Continue;
-                      }
-                    }
 ---
 # Health Check Metrics EnvoyFilter
 apiVersion: networking.istio.io/v1alpha3
@@ -264,33 +327,33 @@ spec:
     labels:
       app: podinfo
   configPatches:
-  # Add health check specific metrics
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_INBOUND
-      listener:
-        filterChain:
-          filter:
-            name: envoy.filters.network.http_connection_manager
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.health_check
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.http.health_check.v3.HealthCheck
-          pass_through_mode: false
-          cache_time: 2.5s
-          cluster_min_healthy_percentages:
-            podinfo: 50.0
-          headers:
-          - name: ":path"
-            string_match:
-              exact: "/healthz"
-          - name: "user-agent"
-            string_match:
-              prefix: "envoy/health-checker"
+    # Add health check specific metrics
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.health_check
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.health_check.v3.HealthCheck
+            pass_through_mode: false
+            cache_time: 2.5s
+            cluster_min_healthy_percentages:
+              podinfo: 50.0
+            headers:
+              - name: ":path"
+                string_match:
+                  exact: "/healthz"
+              - name: "user-agent"
+                string_match:
+                  prefix: "envoy/health-checker"
 ---
-# Circuit Breaker Metrics EnvoyFilter  
+# Circuit Breaker Metrics EnvoyFilter
 apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
@@ -306,21 +369,21 @@ spec:
     labels:
       app: chaos-engineering
   configPatches:
-  # Enhanced circuit breaker metrics
-  - applyTo: BOOTSTRAP
-    patch:
-      operation: MERGE
-      value:
-        stats_config:
-          stats_tags:
-          - tag_name: circuit_breaker_state
-            regex: "cluster\\..*?\\.(circuit_breakers\\.(default|high)\\.(cx_open|rq_pending_open|rq_retry_open))"
-          - tag_name: outlier_detection
-            regex: "cluster\\..*?\\.(outlier_detection\\.(ejections_active|ejections_total))"
-          - tag_name: upstream_rq_retry
-            regex: "cluster\\..*?\\.(upstream_rq_retry.*)"
-          - tag_name: upstream_rq_timeout
-            regex: "cluster\\..*?\\.(upstream_rq_timeout.*)"
+    # Enhanced circuit breaker metrics
+    - applyTo: BOOTSTRAP
+      patch:
+        operation: MERGE
+        value:
+          stats_config:
+            stats_tags:
+              - tag_name: circuit_breaker_state
+                regex: "cluster\\..*?\\.(circuit_breakers\\.(default|high)\\.(cx_open|rq_pending_open|rq_retry_open))"
+              - tag_name: outlier_detection
+                regex: "cluster\\..*?\\.(outlier_detection\\.(ejections_active|ejections_total))"
+              - tag_name: upstream_rq_retry
+                regex: "cluster\\..*?\\.(upstream_rq_retry.*)"
+              - tag_name: upstream_rq_timeout
+                regex: "cluster\\..*?\\.(upstream_rq_timeout.*)"
 ---
 # External Service Metrics EnvoyFilter
 apiVersion: networking.istio.io/v1alpha3
@@ -335,34 +398,34 @@ metadata:
     test-scenario: external-connectivity-metrics
 spec:
   configPatches:
-  # External service specific metrics
-  - applyTo: BOOTSTRAP
-    patch:
-      operation: MERGE
-      value:
-        stats_config:
-          stats_tags:
-          - tag_name: external_service
-            regex: "cluster\\.(outbound\\|.*?\\|(.*?)\\.).*"
-          - tag_name: external_response_code
-            regex: "cluster\\.outbound.*?\\.upstream_rq_([1-5]xx)"
-          - tag_name: external_timeout
-            regex: "cluster\\.outbound.*?\\.(upstream_rq_timeout.*)"
-          - tag_name: tls_handshake
-            regex: "cluster\\.outbound.*?\\.(ssl\\.(handshake.*|connection_error))"
-        stats_matches:
-        - name: "external_service_stats"
-          actions:
-          - name: "external_service_metrics"
-            action:
-              "@type": type.googleapis.com/envoy.config.core.v3.StatsAction
-            stats_matches:
-            - name: "external_requests"
-              match:
-                regex: "cluster\\.outbound.*?\\.upstream_rq_total"
-            - name: "external_errors" 
-              match:
-                regex: "cluster\\.outbound.*?\\.upstream_rq_[4-5]xx"
-            - name: "external_timeouts"
-              match:
-                regex: "cluster\\.outbound.*?\\.upstream_rq_timeout"
+    # External service specific metrics
+    - applyTo: BOOTSTRAP
+      patch:
+        operation: MERGE
+        value:
+          stats_config:
+            stats_tags:
+              - tag_name: external_service
+                regex: "cluster\\.(outbound\\|.*?\\|(.*?)\\.).*"
+              - tag_name: external_response_code
+                regex: "cluster\\.outbound.*?\\.upstream_rq_([1-5]xx)"
+              - tag_name: external_timeout
+                regex: "cluster\\.outbound.*?\\.(upstream_rq_timeout.*)"
+              - tag_name: tls_handshake
+                regex: "cluster\\.outbound.*?\\.(ssl\\.(handshake.*|connection_error))"
+          stats_matches:
+            - name: "external_service_stats"
+              actions:
+                - name: "external_service_metrics"
+                  action:
+                    "@type": type.googleapis.com/envoy.config.core.v3.StatsAction
+                  stats_matches:
+                    - name: "external_requests"
+                      match:
+                        regex: "cluster\\.outbound.*?\\.upstream_rq_total"
+                    - name: "external_errors"
+                      match:
+                        regex: "cluster\\.outbound.*?\\.upstream_rq_[4-5]xx"
+                    - name: "external_timeouts"
+                      match:
+                        regex: "cluster\\.outbound.*?\\.upstream_rq_timeout"

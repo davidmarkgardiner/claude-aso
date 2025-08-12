@@ -12,23 +12,23 @@ spec:
   selector:
     istio: aks-istio-ingressgateway
   servers:
-  - port:
-      number: 443
-      name: https
-      protocol: HTTPS
-    tls:
-      mode: SIMPLE
-      credentialName: davidmarkgardiner-co-uk-tls
-    hosts:
-    - "*.davidmarkgardiner.co.uk"
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - "*.davidmarkgardiner.co.uk"
-    redirect:
-      httpsRedirect: true
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: davidmarkgardiner-co-uk-tls
+      hosts:
+        - "*.davidmarkgardiner.co.uk"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.davidmarkgardiner.co.uk"
+      redirect:
+        httpsRedirect: true
 ---
 # Certificate for domain
 apiVersion: cert-manager.io/v1
@@ -40,13 +40,13 @@ metadata:
     deployment-agent: istio-engineer
     component: cert-management
 spec:
-  secretName: davidmarkgardiner-co-uk-tls  # pragma: allowlist secret
+  secretName: davidmarkgardiner-co-uk-tls # pragma: allowlist secret
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-  - "*.davidmarkgardiner.co.uk"
-  - "davidmarkgardiner.co.uk"
+    - "*.davidmarkgardiner.co.uk"
+    - "davidmarkgardiner.co.uk"
 ---
 # 2. VirtualService - Multi-tenant routing for Tenant A
 apiVersion: networking.istio.io/v1
@@ -61,28 +61,28 @@ metadata:
     tenant: tenant-a
 spec:
   hosts:
-  - "podinfo.tenant-a.davidmarkgardiner.co.uk"
+    - "podinfo.tenant-a.davidmarkgardiner.co.uk"
   gateways:
-  - aks-istio-system/main-gateway
+    - aks-istio-system/main-gateway
   http:
-  # Canary deployment: 90% v1, 10% v2
-  - match:
-    - headers:
-        canary:
-          exact: "true"
-    route:
-    - destination:
-        host: podinfo
-        subset: v2
-  - route:
-    - destination:
-        host: podinfo
-        subset: v1
-      weight: 90
-    - destination:
-        host: podinfo
-        subset: v2
-      weight: 10
+    # Canary deployment: 90% v1, 10% v2
+    - match:
+        - headers:
+            canary:
+              exact: "true"
+      route:
+        - destination:
+            host: podinfo
+            subset: v2
+    - route:
+        - destination:
+            host: podinfo
+            subset: v1
+          weight: 90
+        - destination:
+            host: podinfo
+            subset: v2
+          weight: 10
 ---
 # 3. VirtualService - Multi-tenant routing for Tenant B
 apiVersion: networking.istio.io/v1
@@ -97,14 +97,14 @@ metadata:
     tenant: tenant-b
 spec:
   hosts:
-  - "podinfo.tenant-b.davidmarkgardiner.co.uk"
+    - "podinfo.tenant-b.davidmarkgardiner.co.uk"
   gateways:
-  - aks-istio-system/main-gateway
+    - aks-istio-system/main-gateway
   http:
-  - route:
-    - destination:
-        host: podinfo
-        subset: v1
+    - route:
+        - destination:
+            host: podinfo
+            subset: v1
 ---
 # 4. DestinationRule - Traffic policies for Tenant A
 apiVersion: networking.istio.io/v1
@@ -134,15 +134,15 @@ spec:
       baseEjectionTime: 30s
       maxEjectionPercent: 50
   subsets:
-  - name: v1
-    labels:
-      version: v1
-  - name: v2
-    labels:
-      version: v2
-    trafficPolicy:
-      loadBalancer:
-        simple: ROUND_ROBIN
+    - name: v1
+      labels:
+        version: v1
+    - name: v2
+      labels:
+        version: v2
+      trafficPolicy:
+        loadBalancer:
+          simple: ROUND_ROBIN
 ---
 # 5. DestinationRule - Traffic policies for Tenant B
 apiVersion: networking.istio.io/v1
@@ -161,9 +161,9 @@ spec:
     loadBalancer:
       simple: RANDOM
   subsets:
-  - name: v1
-    labels:
-      version: v1
+    - name: v1
+      labels:
+        version: v1
 ---
 # 6. ServiceEntry - External service access
 apiVersion: networking.istio.io/v1
@@ -177,15 +177,15 @@ metadata:
     test-scenario: external-services
 spec:
   hosts:
-  - httpbin.org
-  - jsonplaceholder.typicode.com
+    - httpbin.org
+    - jsonplaceholder.typicode.com
   ports:
-  - number: 80
-    name: http
-    protocol: HTTP
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 80
+      name: http
+      protocol: HTTP
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -201,14 +201,14 @@ metadata:
     test-scenario: external-services
 spec:
   hosts:
-  - httpbin.org
+    - httpbin.org
   ports:
-  - number: 80
-    name: http
-    protocol: HTTP
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 80
+      name: http
+      protocol: HTTP
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -225,10 +225,10 @@ metadata:
     tenant: tenant-a
 spec:
   egress:
-  - hosts:
-    - "./*"                    # Same namespace
-    - "aks-istio-system/*"     # AKS Istio control plane
-    - "shared-services/*"      # Common services
+    - hosts:
+        - "./*" # Same namespace
+        - "aks-istio-system/*" # AKS Istio control plane
+        - "shared-services/*" # Common services
 ---
 # 9. Sidecar - Namespace isolation for Tenant B
 apiVersion: networking.istio.io/v1
@@ -243,10 +243,10 @@ metadata:
     tenant: tenant-b
 spec:
   egress:
-  - hosts:
-    - "./*"                    # Same namespace
-    - "aks-istio-system/*"     # AKS Istio control plane
-    - "shared-services/*"      # Common services
+    - hosts:
+        - "./*" # Same namespace
+        - "aks-istio-system/*" # AKS Istio control plane
+        - "shared-services/*" # Common services
 ---
 # 10. AuthorizationPolicy - Strict isolation for Tenant A
 apiVersion: security.istio.io/v1
@@ -262,22 +262,22 @@ metadata:
 spec:
   action: ALLOW
   rules:
-  # Allow same-namespace traffic
-  - from:
-    - source:
-        namespaces: ["tenant-a"]
-  # Allow shared services
-  - from:
-    - source:
-        namespaces: ["shared-services"]
-    to:
-    - operation:
-        methods: ["GET"]
-        paths: ["/health", "/metrics"]
-  # Allow ingress gateway
-  - from:
-    - source:
-        namespaces: ["aks-istio-system"]
+    # Allow same-namespace traffic
+    - from:
+        - source:
+            namespaces: ["tenant-a"]
+    # Allow shared services
+    - from:
+        - source:
+            namespaces: ["shared-services"]
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/health", "/metrics"]
+    # Allow ingress gateway
+    - from:
+        - source:
+            namespaces: ["aks-istio-system"]
 ---
 # 11. AuthorizationPolicy - Strict isolation for Tenant B
 apiVersion: security.istio.io/v1
@@ -293,19 +293,19 @@ metadata:
 spec:
   action: ALLOW
   rules:
-  # Allow same-namespace traffic
-  - from:
-    - source:
-        namespaces: ["tenant-b"]
-  # Allow shared services
-  - from:
-    - source:
-        namespaces: ["shared-services"]
-    to:
-    - operation:
-        methods: ["GET"]
-        paths: ["/health", "/metrics"]
-  # Allow ingress gateway
-  - from:
-    - source:
-        namespaces: ["aks-istio-system"]
+    # Allow same-namespace traffic
+    - from:
+        - source:
+            namespaces: ["tenant-b"]
+    # Allow shared services
+    - from:
+        - source:
+            namespaces: ["shared-services"]
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/health", "/metrics"]
+    # Allow ingress gateway
+    - from:
+        - source:
+            namespaces: ["aks-istio-system"]

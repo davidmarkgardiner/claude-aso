@@ -1,200 +1,229 @@
-import { Router } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import { getKubernetesClient } from '../services/kubernetesClient';
-import { ArgoWorkflowsClient } from '../services/argoWorkflowsClient';
-import { logger } from '../utils/logger';
-import { config } from '../config/config';
+import { Router } from "express";
+import { asyncHandler } from "../middleware/errorHandler";
+import { getKubernetesClient } from "../services/kubernetesClient";
+import { ArgoWorkflowsClient } from "../services/argoWorkflowsClient";
+import { logger } from "../utils/logger";
+import { config } from "../config/config";
 
 const router = Router();
 
 // GET /health - Basic health check
-router.get('/',
+router.get(
+  "/",
   asyncHandler(async (_req, res) => {
     res.json({
-      status: 'healthy',
+      status: "healthy",
       timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      environment: config.nodeEnv
+      version: "1.0.0",
+      environment: config.nodeEnv,
     });
-  })
+  }),
 );
 
 // GET /health/detailed - Detailed health check including dependencies
-router.get('/detailed',
+router.get(
+  "/detailed",
   asyncHandler(async (_req, res) => {
     const checks = await Promise.allSettled([
       checkKubernetes(),
       checkArgoWorkflows(),
       checkRedis(),
-      checkDatabase()
+      checkDatabase(),
     ]);
 
     const healthChecks = {
       kubernetes: getCheckResult(checks[0]),
       argoWorkflows: getCheckResult(checks[1]),
       redis: getCheckResult(checks[2]),
-      database: getCheckResult(checks[3])
+      database: getCheckResult(checks[3]),
     };
 
-    const overallHealthy = Object.values(healthChecks).every(check => check.healthy);
+    const overallHealthy = Object.values(healthChecks).every(
+      (check) => check.healthy,
+    );
     const httpStatus = overallHealthy ? 200 : 503;
 
     res.status(httpStatus).json({
-      status: overallHealthy ? 'healthy' : 'unhealthy',
+      status: overallHealthy ? "healthy" : "unhealthy",
       timestamp: new Date().toISOString(),
-      version: '1.0.0',
+      version: "1.0.0",
       environment: config.nodeEnv,
       checks: healthChecks,
       uptime: process.uptime(),
       memory: {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
-      }
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+      },
     });
-  })
+  }),
 );
 
 // GET /health/ready - Kubernetes readiness probe
-router.get('/ready',
+router.get(
+  "/ready",
   asyncHandler(async (_req, res) => {
     try {
       // Check if critical services are available
       const k8sClient = getKubernetesClient();
       const k8sHealth = await k8sClient.healthCheck();
-      
+
       if (!k8sHealth.healthy) {
-        throw new Error('Kubernetes connection not ready');
+        throw new Error("Kubernetes connection not ready");
       }
 
       res.json({
-        status: 'ready',
-        timestamp: new Date().toISOString()
+        status: "ready",
+        timestamp: new Date().toISOString(),
       });
     } catch (error: unknown) {
-      logger.error('Readiness check failed:', error);
+      logger.error("Readiness check failed:", error);
       res.status(503).json({
-        status: 'not ready',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
+        status: "not ready",
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
       });
     }
-  })
+  }),
 );
 
 // GET /health/live - Kubernetes liveness probe
-router.get('/live',
+router.get(
+  "/live",
   asyncHandler(async (_req, res) => {
     // Basic liveness check - just verify the service is running
     res.json({
-      status: 'alive',
-      timestamp: new Date().toISOString()
+      status: "alive",
+      timestamp: new Date().toISOString(),
     });
-  })
+  }),
 );
 
 // Helper functions for health checks
-async function checkKubernetes(): Promise<{ healthy: boolean; message?: string; details?: any }> {
+async function checkKubernetes(): Promise<{
+  healthy: boolean;
+  message?: string;
+  details?: any;
+}> {
   try {
     const k8sClient = getKubernetesClient();
     const health = await k8sClient.healthCheck();
-    
+
     return {
       healthy: health.healthy,
-      message: health.healthy ? 'Connected' : 'Connection failed',
+      message: health.healthy ? "Connected" : "Connection failed",
       details: {
         context: health.context,
-        server: health.server
-      }
+        server: health.server,
+      },
     };
   } catch (error: unknown) {
     return {
       healthy: false,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      details: { error: 'Connection error' }
+      message: error instanceof Error ? error.message : "Unknown error",
+      details: { error: "Connection error" },
     };
   }
 }
 
-async function checkArgoWorkflows(): Promise<{ healthy: boolean; message?: string; details?: any }> {
+async function checkArgoWorkflows(): Promise<{
+  healthy: boolean;
+  message?: string;
+  details?: any;
+}> {
   try {
     const argoClient = new ArgoWorkflowsClient();
     const health = await argoClient.healthCheck();
-    
+
     return {
       healthy: health.healthy,
-      message: health.healthy ? 'Connected' : 'Connection failed',
+      message: health.healthy ? "Connected" : "Connection failed",
       details: {
-        version: health.version || 'unknown'
-      }
+        version: health.version || "unknown",
+      },
     };
   } catch (error: unknown) {
     return {
       healthy: false,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      details: { error: 'Connection error' }
+      message: error instanceof Error ? error.message : "Unknown error",
+      details: { error: "Connection error" },
     };
   }
 }
 
-async function checkRedis(): Promise<{ healthy: boolean; message?: string; details?: any }> {
+async function checkRedis(): Promise<{
+  healthy: boolean;
+  message?: string;
+  details?: any;
+}> {
   try {
     // In production, you would actually test Redis connection
     // For now, just check if Redis URL is configured
     const redisConfigured = !!config.redis.url;
-    
+
     return {
       healthy: redisConfigured,
-      message: redisConfigured ? 'Configured' : 'Not configured',
+      message: redisConfigured ? "Configured" : "Not configured",
       details: {
-        url: config.redis.url ? 'configured' : 'not configured'
-      }
+        url: config.redis.url ? "configured" : "not configured",
+      },
     };
   } catch (error: unknown) {
     return {
       healthy: false,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      details: { error: 'Configuration error' }
+      message: error instanceof Error ? error.message : "Unknown error",
+      details: { error: "Configuration error" },
     };
   }
 }
 
-async function checkDatabase(): Promise<{ healthy: boolean; message?: string; details?: any }> {
+async function checkDatabase(): Promise<{
+  healthy: boolean;
+  message?: string;
+  details?: any;
+}> {
   try {
     // In production, you would actually test database connection
     // For now, just check if database is configured
     const dbConfigured = !!(config.database.host && config.database.database);
-    
+
     return {
       healthy: dbConfigured,
-      message: dbConfigured ? 'Configured' : 'Not configured',
+      message: dbConfigured ? "Configured" : "Not configured",
       details: {
-        host: config.database.host || 'not configured',
-        database: config.database.database || 'not configured'
-      }
+        host: config.database.host || "not configured",
+        database: config.database.database || "not configured",
+      },
     };
   } catch (error: unknown) {
     return {
       healthy: false,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      details: { error: 'Configuration error' }
+      message: error instanceof Error ? error.message : "Unknown error",
+      details: { error: "Configuration error" },
     };
   }
 }
 
-function getCheckResult(settledResult: PromiseSettledResult<{ healthy: boolean; message?: string; details?: any }>): any {
-  if (settledResult.status === 'fulfilled') {
+function getCheckResult(
+  settledResult: PromiseSettledResult<{
+    healthy: boolean;
+    message?: string;
+    details?: any;
+  }>,
+): any {
+  if (settledResult.status === "fulfilled") {
     return settledResult.value;
   } else {
     return {
       healthy: false,
-      message: 'Health check failed',
-      details: { error: settledResult.reason?.message || 'Unknown error' }
+      message: "Health check failed",
+      details: { error: settledResult.reason?.message || "Unknown error" },
     };
   }
 }
 
 // GET /health/metrics - Prometheus-style metrics endpoint
-router.get('/metrics',
+router.get(
+  "/metrics",
   asyncHandler(async (_req, res) => {
     // In production, this would expose actual Prometheus metrics
     const metrics = `
@@ -229,9 +258,9 @@ platform_namespace_provisioning_duration_seconds_bucket{le="+Inf"} 89
 platform_api_info{version="1.0.0",environment="${config.nodeEnv}"} 1
 `.trim();
 
-    res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
     res.send(metrics);
-  })
+  }),
 );
 
 export { router as healthRouter };

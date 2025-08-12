@@ -1,0 +1,377 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-ui
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    platform.io/description: "Platform UI deployment for self-service developer portal"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: platform-ui
+  template:
+    metadata:
+      labels:
+        app: platform-ui
+        platform.io/component: "platform-ui"
+        version: v1.1.0
+        azure.workload.identity/use: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+        sidecar.istio.io/inject: "true"
+        sidecar.istio.io/proxyCPU: "10m"
+        sidecar.istio.io/proxyMemory: "64Mi"
+        config.reload/nginx: "true"
+    spec:
+      serviceAccountName: platform-ui
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - platform-ui
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: platform-ui
+      containers:
+        - name: platform-ui
+          image: davidgardiner/platform-ui:v1.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # Azure Workload Identity
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-identity-cm
+                  key: clientId
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-identity-cm
+                  key: tenantId
+            # Kubernetes Context
+            - name: KUBE_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            # Platform UI Configuration (from ConfigMap)
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: NODE_ENV
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: PORT
+            - name: REACT_APP_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_API_URL
+            - name: REACT_APP_API_BASE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_API_BASE_PATH
+            - name: REACT_APP_API_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_API_TIMEOUT
+            - name: REACT_APP_AUTH_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_AUTH_PROVIDER
+            - name: REACT_APP_AUTH_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_AUTH_CLIENT_ID
+            - name: REACT_APP_AUTH_AUTHORITY
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_AUTH_AUTHORITY
+            - name: REACT_APP_AUTH_REDIRECT_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_AUTH_REDIRECT_URI
+            - name: REACT_APP_AUTH_POST_LOGOUT_REDIRECT_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_AUTH_POST_LOGOUT_REDIRECT_URI
+            - name: REACT_APP_AUTH_SCOPES
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_AUTH_SCOPES
+            - name: REACT_APP_PLATFORM_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_PLATFORM_NAME
+            - name: REACT_APP_PLATFORM_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_PLATFORM_VERSION
+            - name: REACT_APP_PLATFORM_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_PLATFORM_ENVIRONMENT
+            - name: REACT_APP_PLATFORM_CLUSTER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_PLATFORM_CLUSTER_NAME
+            - name: REACT_APP_ENABLE_ANALYTICS
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_ENABLE_ANALYTICS
+            - name: REACT_APP_ENABLE_COST_TRACKING
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_ENABLE_COST_TRACKING
+            - name: REACT_APP_ENABLE_RBAC
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_ENABLE_RBAC
+            - name: REACT_APP_ENABLE_WORKFLOWS
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_ENABLE_WORKFLOWS
+            - name: REACT_APP_ENABLE_SERVICE_CATALOG
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_ENABLE_SERVICE_CATALOG
+            - name: REACT_APP_ENABLE_MONITORING
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_ENABLE_MONITORING
+            - name: REACT_APP_ENABLE_DEBUG_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_ENABLE_DEBUG_MODE
+            - name: REACT_APP_THEME_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_THEME_MODE
+            - name: REACT_APP_SIDEBAR_COLLAPSED
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_SIDEBAR_COLLAPSED
+            - name: REACT_APP_REFRESH_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_REFRESH_INTERVAL
+            - name: REACT_APP_MAX_ITEMS_PER_PAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_MAX_ITEMS_PER_PAGE
+            - name: REACT_APP_DEFAULT_RESOURCE_TIER
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_DEFAULT_RESOURCE_TIER
+            - name: REACT_APP_ENABLE_TELEMETRY
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_ENABLE_TELEMETRY
+            - name: REACT_APP_TELEMETRY_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_TELEMETRY_ENDPOINT
+            - name: REACT_APP_ERROR_REPORTING
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_ERROR_REPORTING
+            - name: REACT_APP_PERFORMANCE_MONITORING
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_PERFORMANCE_MONITORING
+            - name: REACT_APP_CSP_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_CSP_ENABLED
+            - name: REACT_APP_WS_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_WS_ENDPOINT
+            - name: REACT_APP_WS_HEARTBEAT_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-config
+                  key: REACT_APP_WS_HEARTBEAT_INTERVAL
+            # Secrets from External Secrets Operator
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: platform-ui-secrets
+                  key: azure-client-secret
+                  optional: true
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: platform-ui-secrets
+                  key: session-secret
+                  optional: true
+            - name: JWT_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: platform-ui-secrets
+                  key: jwt-public-key
+                  optional: true
+            - name: APPINSIGHTS_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: platform-ui-secrets
+                  key: appinsights-connection-string
+                  optional: true
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+            successThreshold: 1
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: tmp-volume
+              mountPath: /tmp
+            - name: var-cache-volume
+              mountPath: /var/cache/nginx
+            - name: var-run-volume
+              mountPath: /var/run
+            - name: var-log-volume
+              mountPath: /var/log/nginx
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: platform-ui-nginx-config
+            defaultMode: 0644
+        - name: tmp-volume
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: var-cache-volume
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: var-run-volume
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: var-log-volume
+          emptyDir:
+            sizeLimit: 1Gi
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst

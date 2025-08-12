@@ -13,18 +13,18 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-prod-dns01
     solvers:
-    - dns01:
-        azureDNS:
-          subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
-          resourceGroupName: "dns"
-          hostedZoneName: "davidmarkgardiner.co.uk"
-          # Using workload identity - no clientSecretSecretRef needed
-          managedIdentity:
-            clientID: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
-      selector:
-        dnsZones:
-        - "davidmarkgardiner.co.uk"
-        - "*.davidmarkgardiner.co.uk"
+      - dns01:
+          azureDNS:
+            subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+            resourceGroupName: "dns"
+            hostedZoneName: "davidmarkgardiner.co.uk"
+            # Using workload identity - no clientSecretSecretRef needed
+            managedIdentity:
+              clientID: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
+        selector:
+          dnsZones:
+            - "davidmarkgardiner.co.uk"
+            - "*.davidmarkgardiner.co.uk"
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -40,15 +40,15 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-staging-dns01
     solvers:
-    - dns01:
-        azureDNS:
-          subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
-          resourceGroupName: "dns"
-          hostedZoneName: "davidmarkgardiner.co.uk"
-          # Using workload identity - no clientSecretSecretRef needed
-          managedIdentity:
-            clientID: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
-      selector:
-        dnsZones:
-        - "davidmarkgardiner.co.uk"
-        - "*.davidmarkgardiner.co.uk"
+      - dns01:
+          azureDNS:
+            subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+            resourceGroupName: "dns"
+            hostedZoneName: "davidmarkgardiner.co.uk"
+            # Using workload identity - no clientSecretSecretRef needed
+            managedIdentity:
+              clientID: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
+        selector:
+          dnsZones:
+            - "davidmarkgardiner.co.uk"
+            - "*.davidmarkgardiner.co.uk"

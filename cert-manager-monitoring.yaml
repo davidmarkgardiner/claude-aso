@@ -14,9 +14,9 @@ spec:
       app.kubernetes.io/name: cert-manager
       app.kubernetes.io/instance: cert-manager
   endpoints:
-  - port: tcp-prometheus-servicemonitor
-    interval: 60s
-    path: /metrics
+    - port: tcp-prometheus-servicemonitor
+      interval: 60s
+      path: /metrics
 ---
 # ServiceMonitor for cert-manager webhook
 apiVersion: monitoring.coreos.com/v1
@@ -33,12 +33,12 @@ spec:
       app.kubernetes.io/name: webhook
       app.kubernetes.io/instance: cert-manager
   endpoints:
-  - port: https
-    interval: 60s
-    path: /metrics
-    scheme: https
-    tlsConfig:
-      insecureSkipVerify: true
+    - port: https
+      interval: 60s
+      path: /metrics
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
 ---
 # ServiceMonitor for cert-manager cainjector
 apiVersion: monitoring.coreos.com/v1
@@ -55,9 +55,9 @@ spec:
       app.kubernetes.io/name: cainjector
       app.kubernetes.io/instance: cert-manager
   endpoints:
-  - port: tcp-prometheus-servicemonitor
-    interval: 60s
-    path: /metrics
+    - port: tcp-prometheus-servicemonitor
+      interval: 60s
+      path: /metrics
 ---
 # PrometheusRule for cert-manager alerts
 apiVersion: monitoring.coreos.com/v1
@@ -70,59 +70,59 @@ metadata:
     component: monitoring
 spec:
   groups:
-  - name: cert-manager.rules
-    interval: 60s
-    rules:
-    - alert: CertManagerAbsent
-      expr: absent(up{job="cert-manager"})
-      for: 10m
-      labels:
-        severity: critical
-      annotations:
-        summary: "Cert-manager is down"
-        description: "Cert-manager has been down for more than 10 minutes."
-    
-    - alert: CertManagerCertExpirySoon
-      expr: ((certmanager_certificate_expiration_timestamp_seconds - time()) / 86400) < 21
-      for: 1h
-      labels:
-        severity: warning
-      annotations:
-        summary: "Certificate {{ $labels.name }} expiring soon"
-        description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} expires in {{ $value }} days."
-    
-    - alert: CertManagerCertExpirySoonCritical
-      expr: ((certmanager_certificate_expiration_timestamp_seconds - time()) / 86400) < 7
-      for: 1h
-      labels:
-        severity: critical
-      annotations:
-        summary: "Certificate {{ $labels.name }} expiring very soon"
-        description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} expires in {{ $value }} days."
-    
-    - alert: CertManagerCertNotReady
-      expr: certmanager_certificate_ready_status{condition="False"} == 1
-      for: 10m
-      labels:
-        severity: critical
-      annotations:
-        summary: "Certificate {{ $labels.name }} not ready"
-        description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} is not ready."
-    
-    - alert: CertManagerHittingRateLimits
-      expr: increase(certmanager_http_acme_client_request_count{status=~"4.."}[1h]) > 100
-      for: 5m
-      labels:
-        severity: critical
-      annotations:
-        summary: "Cert-manager hitting rate limits"
-        description: "Cert-manager is hitting Let's Encrypt rate limits. Rate limit counter: {{ $value }}"
-    
-    - alert: CertManagerChallengeFailure
-      expr: increase(certmanager_acme_client_request_count{status!="200"}[1h]) > 10
-      for: 5m
-      labels:
-        severity: warning
-      annotations:
-        summary: "Cert-manager ACME challenge failures"
-        description: "Cert-manager is experiencing ACME challenge failures. Failure count: {{ $value }}"
+    - name: cert-manager.rules
+      interval: 60s
+      rules:
+        - alert: CertManagerAbsent
+          expr: absent(up{job="cert-manager"})
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Cert-manager is down"
+            description: "Cert-manager has been down for more than 10 minutes."
+
+        - alert: CertManagerCertExpirySoon
+          expr: ((certmanager_certificate_expiration_timestamp_seconds - time()) / 86400) < 21
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.name }} expiring soon"
+            description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} expires in {{ $value }} days."
+
+        - alert: CertManagerCertExpirySoonCritical
+          expr: ((certmanager_certificate_expiration_timestamp_seconds - time()) / 86400) < 7
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.name }} expiring very soon"
+            description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} expires in {{ $value }} days."
+
+        - alert: CertManagerCertNotReady
+          expr: certmanager_certificate_ready_status{condition="False"} == 1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.name }} not ready"
+            description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} is not ready."
+
+        - alert: CertManagerHittingRateLimits
+          expr: increase(certmanager_http_acme_client_request_count{status=~"4.."}[1h]) > 100
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Cert-manager hitting rate limits"
+            description: "Cert-manager is hitting Let's Encrypt rate limits. Rate limit counter: {{ $value }}"
+
+        - alert: CertManagerChallengeFailure
+          expr: increase(certmanager_acme_client_request_count{status!="200"}[1h]) > 10
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Cert-manager ACME challenge failures"
+            description: "Cert-manager is experiencing ACME challenge failures. Failure count: {{ $value }}"

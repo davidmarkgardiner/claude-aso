@@ -1,0 +1,411 @@
+# Disaster Recovery configuration for External Secrets Operator
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-secrets-backup-config
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets
+    platform.io/component: external-secrets
+    platform.io/tier: system
+    platform.io/backup: "critical"
+  annotations:
+    platform.io/description: "Backup configuration for External Secrets"
+data:
+  backup-schedule: "0 2 * * *" # Daily at 2 AM
+  retention-days: "30"
+  backup-storage: "azure-blob"
+  critical-resources: |
+    - external-secrets.io/v1beta1/ExternalSecret
+    - external-secrets.io/v1beta1/SecretStore
+    - external-secrets.io/v1beta1/ClusterSecretStore
+    - v1/Secret
+    - v1/ConfigMap
+
+---
+# Velero Schedule for External Secrets backup
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: external-secrets-daily-backup
+  namespace: velero
+  labels:
+    platform.io/component: external-secrets
+    platform.io/tier: system
+    platform.io/backup: "critical"
+  annotations:
+    platform.io/description: "Daily backup schedule for External Secrets"
+spec:
+  schedule: "0 2 * * *" # Daily at 2 AM UTC
+  template:
+    metadata:
+      labels:
+        backup-type: "external-secrets"
+        environment: "production"
+    spec:
+      # Include External Secrets namespace and related resources
+      includedNamespaces:
+        - external-secrets-system
+        - platform-system # Platform API secrets
+        - cert-manager # Certificate secrets
+        - external-dns # DNS credentials
+        - istio-system # Istio TLS secrets
+        - monitoring # Monitoring secrets
+
+      # Include specific resources across all namespaces
+      includedResources:
+        - externalsecrets.external-secrets.io
+        - secretstores.external-secrets.io
+        - clustersecretstores.external-secrets.io
+        - secrets
+        - configmaps
+
+      # Exclude development secrets
+      labelSelector:
+        matchExpressions:
+          - key: platform.io/environment
+            operator: NotIn
+            values: ["development", "test"]
+
+      # Storage location
+      storageLocation: production-backup-location
+
+      # Snapshot volumes containing secrets
+      snapshotVolumes: true
+
+      # TTL for backup retention
+      ttl: 720h # 30 days
+
+      # Include cluster-scoped resources
+      includeClusterResources: true
+
+      # Hooks for consistent backup
+      hooks:
+        resources:
+          - name: external-secrets-backup-hook
+            includedNamespaces:
+              - external-secrets-system
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: external-secrets
+            pre:
+              - exec:
+                  container: external-secrets
+                  command:
+                    - /bin/sh
+                    - -c
+                    - |
+                      echo "Starting External Secrets backup..."
+                      # Flush any pending reconciliations
+                      kill -USR1 1
+                      sleep 5
+                      echo "External Secrets backup hook completed"
+            post:
+              - exec:
+                  container: external-secrets
+                  command:
+                    - /bin/sh
+                    - -c
+                    - |
+                      echo "External Secrets backup completed"
+                      # Resume normal operations
+                      kill -USR2 1
+
+---
+# Disaster Recovery runbook as ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-secrets-dr-runbook
+  namespace: external-secrets-system
+  labels:
+    platform.io/component: external-secrets
+    platform.io/tier: system
+    platform.io/runbook: "disaster-recovery"
+  annotations:
+    platform.io/description: "Disaster recovery runbook for External Secrets"
+data:
+  disaster-recovery.md: |
+    # External Secrets Disaster Recovery Runbook
+
+    ## Overview
+    This runbook provides step-by-step procedures for recovering External Secrets Operator
+    in case of disaster or complete cluster failure.
+
+    ## Prerequisites
+    - Access to Azure Key Vault: aks-prod-keyvault
+    - Access to backup storage location
+    - Velero CLI installed and configured
+    - kubectl access to recovery cluster
+
+    ## Recovery Scenarios
+
+    ### Scenario 1: External Secrets Operator Pod Failure
+    1. Check pod status:
+       ```bash
+       kubectl get pods -n external-secrets-system
+       kubectl describe pod -n external-secrets-system -l app.kubernetes.io/name=external-secrets
+       ```
+
+    2. Check logs for errors:
+       ```bash
+       kubectl logs -n external-secrets-system -l app.kubernetes.io/name=external-secrets --previous
+       ```
+
+    3. If Azure Key Vault connectivity issues:
+       ```bash
+       # Check workload identity
+       kubectl get federatedidentitycredential -n azure-system
+       
+       # Verify service account annotations
+       kubectl get serviceaccount external-secrets -n external-secrets-system -o yaml
+       
+       # Test Key Vault access
+       kubectl exec -n external-secrets-system deployment/external-secrets -- \
+         curl -H "Authorization: Bearer $(cat /var/run/secrets/azure/tokens/azure-identity-token)" \
+         "https://aks-prod-keyvault.vault.azure.net/secrets?api-version=7.3"
+       ```
+
+    ### Scenario 2: Complete Namespace Loss
+    1. Restore from Velero backup:
+       ```bash
+       # List available backups
+       velero backup get
+       
+       # Restore External Secrets namespace
+       velero restore create external-secrets-restore \
+         --from-backup external-secrets-daily-backup-<timestamp> \
+         --include-namespaces external-secrets-system
+       
+       # Monitor restore progress
+       velero restore describe external-secrets-restore
+       ```
+
+    2. Verify External Secrets are functioning:
+       ```bash
+       kubectl get externalsecrets -A
+       kubectl get clustersecretstore
+       ```
+
+    ### Scenario 3: Complete Cluster Loss
+    1. Deploy External Secrets to new cluster:
+       ```bash
+       # Apply External Secrets manifests
+       kubectl apply -f apps/external-secrets/
+       
+       # Wait for operator to be ready
+       kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=external-secrets -n external-secrets-system --timeout=300s
+       ```
+
+    2. Restore application secrets:
+       ```bash
+       # Restore critical namespaces
+       velero restore create full-secrets-restore \
+         --from-backup external-secrets-daily-backup-<timestamp> \
+         --include-namespaces platform-system,cert-manager,external-dns,istio-system
+       ```
+
+    3. Verify secret synchronization:
+       ```bash
+       # Check ExternalSecret status
+       kubectl get externalsecrets -A -o wide
+       
+       # Verify secrets are created
+       kubectl get secrets -n platform-system platform-api-secrets
+       kubectl get secrets -n cert-manager acme-account-key
+       ```
+
+    ### Scenario 4: Azure Key Vault Issues
+    1. Check Key Vault health:
+       ```bash
+       az keyvault show --name aks-prod-keyvault --query "properties.networkAcls"
+       az keyvault secret list --vault-name aks-prod-keyvault --query "length(@)"
+       ```
+
+    2. Verify network connectivity:
+       ```bash
+       # Test from cluster
+       kubectl run debug-pod --image=nicolaka/netshoot --rm -it -- \
+         curl -v https://aks-prod-keyvault.vault.azure.net/
+       ```
+
+    3. Check RBAC permissions:
+       ```bash
+       # Get External Secrets identity
+       IDENTITY_CLIENT_ID=$(kubectl get serviceaccount external-secrets -n external-secrets-system -o jsonpath='{.metadata.annotations.azure\.workload\.identity/client-id}')
+       
+       # Check role assignments
+       az role assignment list --assignee $IDENTITY_CLIENT_ID --scope /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.KeyVault/vaults/aks-prod-keyvault
+       ```
+
+    ## Recovery Validation
+    After any recovery procedure:
+
+    1. **Health Check**:
+       ```bash
+       kubectl get pods -n external-secrets-system
+       kubectl get externalsecrets -A --field-selector metadata.namespace!=kube-system
+       ```
+
+    2. **Functional Test**:
+       Create a test ExternalSecret to verify end-to-end functionality:
+       ```yaml
+       apiVersion: external-secrets.io/v1beta1
+       kind: ExternalSecret
+       metadata:
+         name: dr-test-secret
+         namespace: external-secrets-system
+       spec:
+         refreshInterval: 1m
+         secretStoreRef:
+           name: azure-keyvault
+           kind: ClusterSecretStore
+         target:
+           name: dr-test-secret
+           creationPolicy: Owner
+         data:
+         - secretKey: test
+           remoteRef:
+             key: platform-api-key  # Use existing key for test
+       ```
+
+    3. **Monitoring Validation**:
+       - Check Prometheus metrics: `externalsecret_sync_calls_total`
+       - Verify Grafana dashboard shows healthy status
+       - Confirm alerts are not firing
+
+    ## Emergency Contacts
+    - Platform Team: platform-team@company.com
+    - Azure Support: +44-800-xxx-xxxx
+    - On-call Engineer: Use PagerDuty escalation
+
+    ## Regular Testing
+    - Monthly DR drill: Test backup restoration
+    - Quarterly full DR test: Complete cluster rebuild
+    - Annual Key Vault rotation test
+
+    ## Documentation Updates
+    This runbook should be updated whenever:
+    - External Secrets version is upgraded
+    - New secrets are added to Key Vault
+    - Backup procedures change
+    - Network or security configurations change
+
+---
+# External Secrets health check Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-secrets-health
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Health check service for External Secrets"
+spec:
+  selector:
+    app.kubernetes.io/name: external-secrets
+  ports:
+    - name: health
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+    - name: metrics
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+---
+# External Secrets readiness check
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: external-secrets-health-check
+  namespace: external-secrets-system
+  labels:
+    platform.io/component: external-secrets
+    platform.io/tier: system
+    platform.io/check: "health"
+  annotations:
+    platform.io/description: "Health check cron job for External Secrets"
+spec:
+  schedule: "*/5 * * * *" # Every 5 minutes
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            platform.io/component: external-secrets
+            platform.io/check: "health"
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: external-secrets-health-check
+          containers:
+            - name: health-check
+              image: curlimages/curl:8.4.0
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  echo "Starting External Secrets health check..."
+
+                  # Check controller health endpoint
+                  curl -f -s http://external-secrets-health:8081/healthz || {
+                    echo "ERROR: Controller health check failed"
+                    exit 1
+                  }
+
+                  # Check readiness endpoint
+                  curl -f -s http://external-secrets-health:8081/readyz || {
+                    echo "ERROR: Controller readiness check failed"
+                    exit 1
+                  }
+
+                  # Check metrics endpoint
+                  curl -f -s http://external-secrets-health:8080/metrics > /tmp/metrics || {
+                    echo "ERROR: Metrics endpoint check failed"
+                    exit 1
+                  }
+
+                  # Verify some basic metrics exist
+                  grep -q "externalsecret_sync_calls_total" /tmp/metrics || {
+                    echo "ERROR: Expected metrics not found"
+                    exit 1
+                  }
+
+                  echo "All health checks passed successfully"
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 50m
+                  memory: 64Mi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65534
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+
+---
+# ServiceAccount for health check job
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-secrets-health-check
+  namespace: external-secrets-system
+  labels:
+    platform.io/component: external-secrets
+    platform.io/tier: system
+    platform.io/check: "health"
+  annotations:
+    platform.io/description: "Service account for External Secrets health check job"

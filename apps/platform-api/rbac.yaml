@@ -1,0 +1,146 @@
+---
+# ClusterRole for Platform API to manage namespaces and resources across the cluster
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: platform-api-cluster-role
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "Cluster role for Platform API to manage namespaces and resources"
+rules:
+  # Namespace management
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces/status"]
+    verbs: ["get", "update", "patch"]
+
+  # Resource quota and limit range management
+  - apiGroups: [""]
+    resources: ["resourcequotas", "limitranges"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Network policy management
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # RBAC management for created namespaces
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Service account management for namespace provisioning
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Secret management (for namespace setup)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # ConfigMap management (for namespace setup)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Pod management for debugging and analytics
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/status"]
+    verbs: ["get", "list", "watch"]
+
+  # Event access for auditing
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create"]
+
+  # Node information for resource planning
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+
+  # Custom Resource Definitions for extensibility
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+
+  # Metrics access for monitoring
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+
+  # Argo Workflows integration
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflows", "workflowtemplates", "cronworkflows"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Istio integration (if Istio is installed)
+  - apiGroups: ["security.istio.io"]
+    resources: ["authorizationpolicies", "peerauthentications"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["virtualservices", "destinationrules", "gateways"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+# ClusterRoleBinding to associate the Platform API service account with the cluster role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: platform-api-cluster-role-binding
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "Cluster role binding for Platform API service account"
+subjects:
+  - kind: ServiceAccount
+    name: platform-api
+    namespace: platform-system
+roleRef:
+  kind: ClusterRole
+  name: platform-api-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Additional role for platform-system namespace specific operations
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: platform-api-namespace-role
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+rules:
+  # Full access to platform-system namespace resources
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+
+---
+# RoleBinding for platform-system namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-api-namespace-role-binding
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+subjects:
+  - kind: ServiceAccount
+    name: platform-api
+    namespace: platform-system
+roleRef:
+  kind: Role
+  name: platform-api-namespace-role
+  apiGroup: rbac.authorization.k8s.io

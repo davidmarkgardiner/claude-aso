@@ -12,21 +12,21 @@ spec:
   selector:
     istio: aks-istio-ingressgateway
   servers:
-  - port:
-      number: 443
-      name: https
-      protocol: HTTPS
-    tls:
-      mode: SIMPLE
-      credentialName: davidmarkgardiner-co-uk-tls
-    hosts:
-    - "*.davidmarkgardiner.co.uk"
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - "*.davidmarkgardiner.co.uk"
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: davidmarkgardiner-co-uk-tls
+      hosts:
+        - "*.davidmarkgardiner.co.uk"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.davidmarkgardiner.co.uk"
 ---
 # HTTP to HTTPS redirect VirtualService
 apiVersion: networking.istio.io/v1
@@ -40,12 +40,12 @@ metadata:
     test-scenario: https-redirect
 spec:
   hosts:
-  - "*.davidmarkgardiner.co.uk"
+    - "*.davidmarkgardiner.co.uk"
   gateways:
-  - main-gateway
+    - main-gateway
   http:
-  - match:
-    - port: 80
-    redirect:
-      port: 443
-      scheme: https
+    - match:
+        - port: 80
+      redirect:
+        port: 443
+        scheme: https

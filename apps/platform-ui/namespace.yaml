@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-system
+  labels:
+    name: platform-system
+    istio-injection: enabled
+    platform.io/managed-by: "flux"
+    platform.io/component: "platform-ui"
+  annotations:
+    platform.io/description: "Platform system namespace for UI and API components"

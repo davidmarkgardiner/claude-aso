@@ -16,61 +16,61 @@ spec:
   minReplicas: 2
   maxReplicas: 50
   metrics:
-  # CPU utilization
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  # Memory utilization
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
-  # Custom metrics - requests per second
-  - type: Pods
-    pods:
-      metric:
-        name: istio_requests_per_second
-        selector:
-          matchLabels:
-            destination_service_name: podinfo
-      target:
-        type: AverageValue
-        averageValue: "100"
-  # Network I/O based scaling
-  - type: External
-    external:
-      metric:
-        name: istio_request_bytes_per_second
-        selector:
-          matchLabels:
-            service: podinfo
-      target:
-        type: AverageValue
-        averageValue: "1M"
+    # CPU utilization
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # Memory utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    # Custom metrics - requests per second
+    - type: Pods
+      pods:
+        metric:
+          name: istio_requests_per_second
+          selector:
+            matchLabels:
+              destination_service_name: podinfo
+        target:
+          type: AverageValue
+          averageValue: "100"
+    # Network I/O based scaling
+    - type: External
+      external:
+        metric:
+          name: istio_request_bytes_per_second
+          selector:
+            matchLabels:
+              service: podinfo
+        target:
+          type: AverageValue
+          averageValue: "1M"
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300  # 5 minutes
+      stabilizationWindowSeconds: 300 # 5 minutes
       policies:
-      - type: Percent
-        value: 10  # Scale down by max 10% of current replicas
-        periodSeconds: 60
-      - type: Pods
-        value: 2   # Scale down by max 2 pods
-        periodSeconds: 60
+        - type: Percent
+          value: 10 # Scale down by max 10% of current replicas
+          periodSeconds: 60
+        - type: Pods
+          value: 2 # Scale down by max 2 pods
+          periodSeconds: 60
     scaleUp:
-      stabilizationWindowSeconds: 60   # 1 minute
+      stabilizationWindowSeconds: 60 # 1 minute
       policies:
-      - type: Percent
-        value: 50  # Scale up by max 50% of current replicas
-        periodSeconds: 60
-      - type: Pods
-        value: 5   # Scale up by max 5 pods
-        periodSeconds: 60
+        - type: Percent
+          value: 50 # Scale up by max 50% of current replicas
+          periodSeconds: 60
+        - type: Pods
+          value: 5 # Scale up by max 5 pods
+          periodSeconds: 60
 
 ---
 # Vertical Pod Autoscaling for Istio Proxy
@@ -91,24 +91,24 @@ spec:
     updateMode: "Auto"
   resourcePolicy:
     containerPolicies:
-    # Main application container
-    - containerName: podinfo
-      minAllowed:
-        cpu: 10m
-        memory: 32Mi
-      maxAllowed:
-        cpu: 2
-        memory: 2Gi
-      controlledResources: ["cpu", "memory"]
-    # Istio sidecar proxy
-    - containerName: istio-proxy
-      minAllowed:
-        cpu: 10m
-        memory: 64Mi
-      maxAllowed:
-        cpu: 500m
-        memory: 512Mi
-      controlledResources: ["cpu", "memory"]
+      # Main application container
+      - containerName: podinfo
+        minAllowed:
+          cpu: 10m
+          memory: 32Mi
+        maxAllowed:
+          cpu: 2
+          memory: 2Gi
+        controlledResources: ["cpu", "memory"]
+      # Istio sidecar proxy
+      - containerName: istio-proxy
+        minAllowed:
+          cpu: 10m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 500m
+          memory: 512Mi
+        controlledResources: ["cpu", "memory"]
 
 ---
 # Performance Tuning EnvoyFilter
@@ -125,56 +125,56 @@ spec:
     labels:
       app: podinfo
   configPatches:
-  # HTTP/2 optimization
-  - applyTo: HTTP_CONNECTION_MANAGER
-    match:
-      context: SIDECAR_INBOUND
-      listener:
-        filterChain:
-          filter:
-            name: envoy.filters.network.http_connection_manager
-    patch:
-      operation: MERGE
-      value:
-        http2_protocol_options:
-          # Enable HTTP/2 for better performance
-          max_concurrent_streams: 100
-          initial_stream_window_size: 1048576  # 1MB
-          initial_connection_window_size: 10485760  # 10MB
-        # Connection pooling
-        common_http_protocol_options:
-          idle_timeout: 60s
-          headers_timeout: 10s
-        # Request buffering
-        request_timeout: 30s
-        stream_idle_timeout: 300s
-        
-  # Optimize connection pooling
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_OUTBOUND
-      listener:
-        filterChain:
-          filter:
-            name: envoy.filters.network.http_connection_manager
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.adaptive_concurrency
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.http.adaptive_concurrency.v3.AdaptiveConcurrency
-          concurrency_limit:
-            # Adaptive concurrency control
-            gradient_controller:
-              sample_aggregate_percentile:
-                value: 95
-              concurrency_limit_params:
-                max_gradient: 2.0
-                max_concurrency_limit: 1000
-                concurrency_update_interval: 0.1s
-          enabled:
-            default_value: true
-            runtime_key: adaptive_concurrency_enabled
+    # HTTP/2 optimization
+    - applyTo: HTTP_CONNECTION_MANAGER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: MERGE
+        value:
+          http2_protocol_options:
+            # Enable HTTP/2 for better performance
+            max_concurrent_streams: 100
+            initial_stream_window_size: 1048576 # 1MB
+            initial_connection_window_size: 10485760 # 10MB
+          # Connection pooling
+          common_http_protocol_options:
+            idle_timeout: 60s
+            headers_timeout: 10s
+          # Request buffering
+          request_timeout: 30s
+          stream_idle_timeout: 300s
+
+    # Optimize connection pooling
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_OUTBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.adaptive_concurrency
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.adaptive_concurrency.v3.AdaptiveConcurrency
+            concurrency_limit:
+              # Adaptive concurrency control
+              gradient_controller:
+                sample_aggregate_percentile:
+                  value: 95
+                concurrency_limit_params:
+                  max_gradient: 2.0
+                  max_concurrency_limit: 1000
+                  concurrency_update_interval: 0.1s
+            enabled:
+              default_value: true
+              runtime_key: adaptive_concurrency_enabled
 
 ---
 # Circuit Breaker Optimization
@@ -204,8 +204,8 @@ spec:
         maxRequestsPerConnection: 10
         maxRetries: 3
         idleTimeout: 60s
-        h2UpgradePolicy: UPGRADE  # Prefer HTTP/2
-    
+        h2UpgradePolicy: UPGRADE # Prefer HTTP/2
+
     # Optimized circuit breaker settings
     outlierDetection:
       consecutiveErrors: 5
@@ -218,22 +218,22 @@ spec:
       # Consecutive gateway failures
       consecutive5xxErrors: 5
       consecutiveGatewayErrors: 5
-    
+
     # Load balancing optimization
     loadBalancer:
-      simple: LEAST_REQUEST  # Better for varied request sizes
+      simple: LEAST_REQUEST # Better for varied request sizes
       localityLbSetting:
         enabled: true
         # Prefer local zone for performance
         distribute:
-        - from: "region/*/zone/*"
-          to:
-            "region/westeurope/zone/1": 80
-            "region/westeurope/zone/2": 20
+          - from: "region/*/zone/*"
+            to:
+              "region/westeurope/zone/1": 80
+              "region/westeurope/zone/2": 20
         # Fast failover
         failover:
-        - from: "region/westeurope"
-          to: "region/eastus"
+          - from: "region/westeurope"
+            to: "region/eastus"
 
 ---
 # Resource Quotas for Performance Isolation
@@ -252,15 +252,15 @@ spec:
     requests.memory: 8Gi
     limits.cpu: "8"
     limits.memory: 16Gi
-    
+
     # Network resources
     services.loadbalancers: "2"
     services.nodeports: "0"
-    
+
     # Storage
     persistentvolumeclaims: "10"
     requests.storage: 100Gi
-    
+
     # Objects
     pods: "50"
     replicationcontrollers: "10"
@@ -279,33 +279,33 @@ metadata:
     component: performance-consistency
 spec:
   limits:
-  # Container limits
-  - type: Container
-    default:
-      cpu: "500m"
-      memory: "512Mi"
-    defaultRequest:
-      cpu: "100m"
-      memory: "128Mi"
-    max:
-      cpu: "2"
-      memory: "2Gi"
-    min:
-      cpu: "10m"
-      memory: "32Mi"
-  
-  # Pod limits
-  - type: Pod
-    max:
-      cpu: "4"
-      memory: "4Gi"
-  
-  # Persistent Volume Claims
-  - type: PersistentVolumeClaim
-    min:
-      storage: "1Gi"
-    max:
-      storage: "100Gi"
+    # Container limits
+    - type: Container
+      default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      max:
+        cpu: "2"
+        memory: "2Gi"
+      min:
+        cpu: "10m"
+        memory: "32Mi"
+
+    # Pod limits
+    - type: Pod
+      max:
+        cpu: "4"
+        memory: "4Gi"
+
+    # Persistent Volume Claims
+    - type: PersistentVolumeClaim
+      min:
+        storage: "1Gi"
+      max:
+        storage: "100Gi"
 
 ---
 # Network Policies for Performance Isolation
@@ -318,50 +318,50 @@ metadata:
     deployment-agent: istio-engineer
     component: performance-network-isolation
 spec:
-  podSelector: {}  # Apply to all pods in namespace
+  podSelector: {} # Apply to all pods in namespace
   policyTypes:
-  - Ingress
-  - Egress
+    - Ingress
+    - Egress
   ingress:
-  # Allow from Istio system
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: aks-istio-system
-  # Allow from same namespace
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: tenant-a
-  # Allow monitoring
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: shared-services
-    ports:
-    - protocol: TCP
-      port: 15090  # Istio proxy metrics
+    # Allow from Istio system
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aks-istio-system
+    # Allow from same namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: tenant-a
+    # Allow monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: shared-services
+      ports:
+        - protocol: TCP
+          port: 15090 # Istio proxy metrics
   egress:
-  # Allow to same namespace
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: tenant-a
-  # Allow to shared services (monitoring, etc.)
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: shared-services
-  # Allow to external services
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: external-services
-  # Allow DNS
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
+    # Allow to same namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: tenant-a
+    # Allow to shared services (monitoring, etc.)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: shared-services
+    # Allow to external services
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: external-services
+    # Allow DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
 
 ---
 # Performance Monitoring Dashboard ConfigMap
@@ -459,7 +459,7 @@ metadata:
     deployment-agent: istio-engineer
     component: high-availability
 spec:
-  minAvailable: 2  # Always keep at least 2 pods running
+  minAvailable: 2 # Always keep at least 2 pods running
   selector:
     matchLabels:
       app: podinfo

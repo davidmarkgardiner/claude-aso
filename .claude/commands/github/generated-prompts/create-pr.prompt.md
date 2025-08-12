@@ -13,12 +13,14 @@ Prepare the current branch for pull request creation against the specified branc
 1. **ALWAYS start by running `git status`** to check what branch you're on and see current changes
 
 2. **Ensure all changes are committed:**
+
    ```bash
    git add .
    git commit -m "Clear & descriptive commit message"
    ```
 
 3. **Push the current branch to remote:**
+
    ```bash
    git push origin <current-branch>
    ```

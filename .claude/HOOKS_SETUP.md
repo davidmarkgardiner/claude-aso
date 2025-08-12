@@ -8,7 +8,7 @@ This project now has Claude Code hooks integrated with ElevenLabs TTS support.
 
 1. **Complete Hooks System** - All 8 hook types:
    - `UserPromptSubmit` - Logs and can validate prompts
-   - `PreToolUse` - Can block dangerous commands 
+   - `PreToolUse` - Can block dangerous commands
    - `PostToolUse` - Logs tool usage and converts transcripts
    - `Notification` - TTS notifications when Claude needs input
    - `Stop` - TTS completion messages

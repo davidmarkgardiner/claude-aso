@@ -5,6 +5,7 @@ This runbook provides step-by-step procedures for operating, monitoring, and tro
 ## 🚨 Emergency Procedures
 
 ### RBAC Service Down
+
 ```bash
 # Check Platform API health
 curl -f https://platform-api.company.com/health/detailed
@@ -18,6 +19,7 @@ kubectl delete roleassignment <problematic-assignment> -n aso-system
 ```
 
 ### Mass RBAC Failure
+
 ```bash
 # Check Azure service status
 az account show --query state
@@ -33,6 +35,7 @@ kubectl rollout restart deployment/platform-api -n platform-system
 ## 📊 Daily Operations
 
 ### Morning Health Checks
+
 ```bash
 #!/bin/bash
 # File: scripts/rbac-health-check.sh
@@ -66,6 +69,7 @@ echo "=== Health Check Complete ==="
 ```
 
 ### Weekly Maintenance
+
 ```bash
 # 1. Clean up completed role assignments older than 90 days
 kubectl get roleassignments -n aso-system -o json | \
@@ -83,22 +87,23 @@ kubectl get certificates -n cert-manager -o custom-columns=NAME:.metadata.name,R
 
 ### Key Metrics to Monitor
 
-| Metric | Threshold | Action |
-|--------|-----------|---------|
-| RBAC request success rate | < 95% | Investigate error patterns |
-| Azure AD validation latency | > 5s | Check Graph API status |
-| ASO manifest application time | > 60s | Check Kubernetes API health |
-| Failed role assignments | > 5 in 1h | Review recent changes |
-| Audit log gaps | > 1h missing | Check log aggregation |
+| Metric                        | Threshold    | Action                      |
+| ----------------------------- | ------------ | --------------------------- |
+| RBAC request success rate     | < 95%        | Investigate error patterns  |
+| Azure AD validation latency   | > 5s         | Check Graph API status      |
+| ASO manifest application time | > 60s        | Check Kubernetes API health |
+| Failed role assignments       | > 5 in 1h    | Review recent changes       |
+| Audit log gaps                | > 1h missing | Check log aggregation       |
 
 ### Prometheus Queries
+
 ```promql
 # RBAC request success rate
-(sum(rate(platform_rbac_requests_total{status=~"2.."}[5m])) / 
+(sum(rate(platform_rbac_requests_total{status=~"2.."}[5m])) /
  sum(rate(platform_rbac_requests_total[5m]))) * 100
 
 # Average RBAC provisioning time
-histogram_quantile(0.95, 
+histogram_quantile(0.95,
   sum(rate(platform_rbac_provisioning_duration_seconds_bucket[5m])) by (le))
 
 # Failed Azure AD validations
@@ -106,37 +111,38 @@ sum(rate(platform_rbac_azure_ad_validation_failures_total[5m])) by (error_type)
 ```
 
 ### Alert Rules
+
 ```yaml
 # File: monitoring/rbac-alerts.yaml
 groups:
-- name: rbac_alerts
-  rules:
-  - alert: RBACHighFailureRate
-    expr: (1 - sum(rate(platform_rbac_requests_total{status=~"2.."}[5m])) / sum(rate(platform_rbac_requests_total[5m]))) > 0.05
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: High RBAC failure rate detected
-      description: "RBAC request failure rate is {{ $value | humanizePercentage }}"
+  - name: rbac_alerts
+    rules:
+      - alert: RBACHighFailureRate
+        expr: (1 - sum(rate(platform_rbac_requests_total{status=~"2.."}[5m])) / sum(rate(platform_rbac_requests_total[5m]))) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High RBAC failure rate detected
+          description: "RBAC request failure rate is {{ $value | humanizePercentage }}"
 
-  - alert: RBACProvisioningTimeout
-    expr: histogram_quantile(0.95, sum(rate(platform_rbac_provisioning_duration_seconds_bucket[5m])) by (le)) > 60
-    for: 10m
-    labels:
-      severity: critical
-    annotations:
-      summary: RBAC provisioning timeouts
-      description: "95th percentile provisioning time is {{ $value }}s"
+      - alert: RBACProvisioningTimeout
+        expr: histogram_quantile(0.95, sum(rate(platform_rbac_provisioning_duration_seconds_bucket[5m])) by (le)) > 60
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: RBAC provisioning timeouts
+          description: "95th percentile provisioning time is {{ $value }}s"
 
-  - alert: ASOControllerDown
-    expr: up{job="aso-controller"} == 0
-    for: 1m
-    labels:
-      severity: critical
-    annotations:
-      summary: ASO controller is down
-      description: "Azure Service Operator controller is not responding"
+      - alert: ASOControllerDown
+        expr: up{job="aso-controller"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: ASO controller is down
+          description: "Azure Service Operator controller is not responding"
 ```
 
 ## 🛠️ Troubleshooting Guide
@@ -144,11 +150,13 @@ groups:
 ### Issue: RBAC Request Fails with "Principal Not Found"
 
 **Symptoms:**
+
 ```
 Error: Invalid Azure AD principal: User 'user@company.com' not found
 ```
 
 **Diagnosis:**
+
 ```bash
 # 1. Check Azure AD connectivity
 curl -H "Authorization: Bearer $AZURE_AD_TOKEN" \
@@ -162,6 +170,7 @@ echo $AZURE_AD_TOKEN | base64 -d | jq '.exp'
 ```
 
 **Resolution:**
+
 1. Verify user exists in Azure AD tenant
 2. Ensure service principal has `User.Read.All` permission
 3. Refresh Azure AD token if expired
@@ -170,6 +179,7 @@ echo $AZURE_AD_TOKEN | base64 -d | jq '.exp'
 ### Issue: ASO Role Assignment Stuck in Pending
 
 **Symptoms:**
+
 ```bash
 kubectl get roleassignments -n aso-system
 NAME                          STATUS    AGE
@@ -177,6 +187,7 @@ rbac-frontend-prod-1         Pending    15m
 ```
 
 **Diagnosis:**
+
 ```bash
 # 1. Check ASO controller logs
 kubectl logs -n aso-system deployment/azureserviceoperator-controller-manager --tail=100
@@ -189,6 +200,7 @@ az deployment group list --resource-group $RESOURCE_GROUP --query "[?contains(na
 ```
 
 **Resolution:**
+
 1. Verify ASO controller has proper Azure permissions
 2. Check if target resource (AKS cluster) exists and is accessible
 3. Validate role assignment scope syntax
@@ -198,11 +210,13 @@ az deployment group list --resource-group $RESOURCE_GROUP --query "[?contains(na
 ### Issue: High Azure AD API Rate Limiting
 
 **Symptoms:**
+
 ```
 Error: Request rate limit exceeded (429)
 ```
 
 **Diagnosis:**
+
 ```bash
 # Check recent Azure AD request patterns
 kubectl logs -n platform-system deployment/platform-api --since=1h | \
@@ -214,6 +228,7 @@ kubectl logs -n platform-system deployment/platform-api --since=5m | \
 ```
 
 **Resolution:**
+
 ```bash
 # 1. Implement exponential backoff (already in enhanced code)
 # 2. Enable principal ID caching
@@ -393,13 +408,13 @@ kubectl logs -n platform-system deployment/platform-api --since=24h | \
 
 ## 📞 Contact Information
 
-| Issue Type | Contact | Response Time |
-|------------|---------|---------------|
-| Critical Outage | Platform Team On-Call | 15 minutes |
-| Security Incident | Security Team | 30 minutes |
-| Azure AD Issues | Identity Team | 1 hour |
-| Performance Issues | Platform Team | 4 hours |
-| Feature Requests | Product Team | Next sprint |
+| Issue Type         | Contact               | Response Time |
+| ------------------ | --------------------- | ------------- |
+| Critical Outage    | Platform Team On-Call | 15 minutes    |
+| Security Incident  | Security Team         | 30 minutes    |
+| Azure AD Issues    | Identity Team         | 1 hour        |
+| Performance Issues | Platform Team         | 4 hours       |
+| Feature Requests   | Product Team          | Next sprint   |
 
 ---
 

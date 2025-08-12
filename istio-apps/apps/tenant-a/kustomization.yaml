@@ -21,19 +21,19 @@ commonLabels:
   deployment-agent: istio-engineer
 
 images:
-- name: stefanprodan/podinfo
-  newTag: "6.6.0"
-- name: redis
-  newTag: "7-alpine"
+  - name: stefanprodan/podinfo
+    newTag: "6.6.0"
+  - name: redis
+    newTag: "7-alpine"
 
 # replicas already defined in base resources
 
 configMapGenerator:
-- name: podinfo-config
-  literals:
-  - PODINFO_LEVEL=info
-  - PODINFO_COLOR=#34577c
-  - PODINFO_MESSAGE="Production Podinfo - Tenant A"
-  - PODINFO_BACKEND_URL=http://redis.tenant-a.svc.cluster.local:6379
+  - name: podinfo-config
+    literals:
+      - PODINFO_LEVEL=info
+      - PODINFO_COLOR=#34577c
+      - PODINFO_MESSAGE="Production Podinfo - Tenant A"
+      - PODINFO_BACKEND_URL=http://redis.tenant-a.svc.cluster.local:6379
 
 patches: []

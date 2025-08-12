@@ -7,6 +7,7 @@ This plan outlines a specialized agent team that mirrors real-world enterprise D
 ## Infrastructure Prerequisites
 
 ### Minikube Development Environment
+
 - **DNS Zone**: `/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/dns/providers/Microsoft.Network/dnszones/davidmarkgardiner.co.uk`
 - **Cert-Manager**: Already installed and configured
 - **Azure Service Operator**: Already installed and configured
@@ -14,6 +15,7 @@ This plan outlines a specialized agent team that mirrors real-world enterprise D
 - **Test Applications**: Multi-version applications for comprehensive testing
 
 ### AKS Production Environment
+
 - **AKS Cluster**: With Istio add-on enabled
 - **Azure DNS Integration**: Automated via External-DNS
 - **Multi-Tenant Namespaces**: tenant-a, tenant-b, shared-services
@@ -22,9 +24,11 @@ This plan outlines a specialized agent team that mirrors real-world enterprise D
 ## Enterprise Agent Team Structure
 
 ### Agent 1: Deployment Engineer
+
 **Primary Role**: Istio CRD specialist and multi-namespace deployment expert
 
 **Responsibilities**:
+
 - Deep expertise in all six Istio CRDs (VirtualService, DestinationRule, Gateway, ServiceEntry, Sidecar, AuthorizationPolicy)
 - Deploy complex multi-tenant configurations across namespaces
 - Implement progressive traffic management strategies
@@ -33,14 +37,16 @@ This plan outlines a specialized agent team that mirrors real-world enterprise D
 - Collaborate with SRE when deployment issues arise
 
 **Key Deployment Scenarios**:
+
 ```yaml
 # Multi-tenant namespace deployment pattern
 # Tenant A: Production workloads with strict security
-# Tenant B: Development workloads with relaxed policies  
+# Tenant B: Development workloads with relaxed policies
 # Shared Services: Common infrastructure (logging, monitoring, auth)
 ```
 
 **Deliverables**:
+
 - Complete multi-tenant Istio configurations
 - Gateway and VirtualService routing implementations
 - Authorization policies for namespace isolation
@@ -48,10 +54,12 @@ This plan outlines a specialized agent team that mirrors real-world enterprise D
 - Service entries for external dependencies
 - Sidecar configurations for performance optimization
 
-### Agent 2: Test Engineer  
+### Agent 2: Test Engineer
+
 **Primary Role**: Ingress traffic validation and functional testing
 
 **Responsibilities**:
+
 - Execute comprehensive ingress endpoint testing
 - Validate HTTPS certificates and TLS termination
 - Test multi-tenant routing and isolation
@@ -60,16 +68,17 @@ This plan outlines a specialized agent team that mirrors real-world enterprise D
 - **Escalation**: Report issues to SRE Agent for investigation
 
 **Primary Test Categories**:
+
 ```bash
 # Functional Tests
 - HTTPS certificate validation
-- Host-based routing verification  
+- Host-based routing verification
 - Path-based routing validation
 - Load balancing distribution
 - Circuit breaker functionality
 - Authorization policy enforcement
 
-# Integration Tests  
+# Integration Tests
 - DNS resolution and propagation
 - Certificate auto-renewal
 - Cross-namespace communication
@@ -77,20 +86,24 @@ This plan outlines a specialized agent team that mirrors real-world enterprise D
 ```
 
 **Success Criteria**:
+
 - All ingress endpoints return 200 OK with valid TLS
 - Traffic routing matches configured policies
 - Security boundaries properly enforced
 - Performance metrics within acceptable ranges
 
 **Escalation Process**:
+
 ```yaml
 Issue Detection → Gather Evidence → Create Incident Report → Hand to SRE
 ```
 
 ### Agent 3: SRE (Site Reliability Engineer)
+
 **Primary Role**: Production troubleshooting and root cause analysis
 
 **Responsibilities**:
+
 - Investigate issues escalated from Test Engineer
 - Perform root cause analysis using Istio observability tools
 - Debug complex service mesh networking issues
@@ -99,6 +112,7 @@ Issue Detection → Gather Evidence → Create Incident Report → Hand to SRE
 - **Handback**: Provide solutions and recommendations to Deployment Engineer
 
 **SRE Investigation Workflow**:
+
 ```bash
 #!/bin/bash
 # SRE Troubleshooting Playbook
@@ -130,15 +144,18 @@ echo "📋 Root Cause Analysis Complete"
 ```
 
 **SRE Handback Process**:
+
 1. **Root Cause Identification**: Document exact cause of failure
 2. **Solution Recommendation**: Provide specific configuration fixes
 3. **Prevention Measures**: Suggest monitoring and alerting improvements
 4. **Knowledge Transfer**: Brief Deployment Engineer on resolution
 
 ### Agent 4: Documentation Engineer
+
 **Primary Role**: Evidence collection and change management preparation
 
 **Responsibilities**:
+
 - Document all successful deployments with evidence
 - Create comprehensive configuration guides
 - Maintain deployment runbooks and troubleshooting guides
@@ -149,16 +166,19 @@ echo "📋 Root Cause Analysis Complete"
 **Documentation Categories**:
 
 #### Deployment Evidence Package
+
 ```markdown
 # Istio Multi-Tenant Deployment - Evidence Report
 
 ## Deployment Summary
+
 - **Date**: 2025-01-XX
-- **Engineer**: Agent 1 (Deployment)  
+- **Engineer**: Agent 1 (Deployment)
 - **Environment**: AKS Production
 - **Components**: 6 Istio CRDs across 3 namespaces
 
 ## Test Results (from Test Engineer)
+
 - ✅ All ingress endpoints accessible
 - ✅ TLS certificates valid and auto-renewing
 - ✅ Multi-tenant isolation working
@@ -166,12 +186,14 @@ echo "📋 Root Cause Analysis Complete"
 - ✅ Circuit breakers functioning
 
 ## Configuration Files
+
 - [gateway.yaml] - HTTPS ingress configuration
-- [virtual-service.yaml] - Traffic routing rules  
+- [virtual-service.yaml] - Traffic routing rules
 - [authorization-policy.yaml] - Security policies
 - [destination-rule.yaml] - Circuit breaker settings
 
 ## Change Management Checklist
+
 - [ ] Security review completed
 - [ ] Performance benchmarks documented
 - [ ] Rollback procedures tested
@@ -179,16 +201,19 @@ echo "📋 Root Cause Analysis Complete"
 ```
 
 #### Troubleshooting Runbooks
+
 ```markdown
 # Common Istio Issues - SRE Runbook
 
 ## Issue: 503 Service Unavailable
+
 **Symptoms**: Ingress returns 503 errors
 **Investigation**: Check Envoy upstream clusters
 **Resolution**: Validate DestinationRule subsets
 **Prevention**: Monitor upstream health
 
 ## Issue: Certificate Not Found
+
 **Symptoms**: TLS handshake failures  
 **Investigation**: Check cert-manager logs
 **Resolution**: Verify DNS propagation
@@ -196,24 +221,28 @@ echo "📋 Root Cause Analysis Complete"
 ```
 
 **Change Management Integration**:
+
 - Risk assessments based on chaos engineering findings
 - Rollback procedures validated through testing
 - Business impact documentation
 - Compliance and security attestations
 
 ### Agent 5: Chaos Engineer
+
 **Primary Role**: Resilience testing and failure scenario validation
 
 **Responsibilities**:
+
 - Design and execute controlled failure scenarios
 - Test infrastructure resilience and recovery capabilities
-- Validate failover and disaster recovery procedures  
+- Validate failover and disaster recovery procedures
 - Stress test circuit breakers and rate limiting
 - **Reporting**: Document findings and recommendations to Documentation Engineer
 
 **Chaos Engineering Scenarios**:
 
 #### Infrastructure Failures
+
 ```bash
 #!/bin/bash
 # Chaos Engineering Test Suite
@@ -225,7 +254,7 @@ echo "Test 1: Random pod termination"
 kubectl delete pod -l app=web-app -n tenant-a --random
 # Monitor recovery time and traffic impact
 
-# Scenario 2: Node Failure Simulation  
+# Scenario 2: Node Failure Simulation
 echo "Test 2: Node drain simulation"
 kubectl drain <node-name> --ignore-daemonsets
 # Test workload redistribution
@@ -252,6 +281,7 @@ echo "Test 6: DNS resolution chaos"
 ```
 
 #### Security Chaos Testing
+
 ```bash
 #!/bin/bash
 # Security Resilience Testing
@@ -260,7 +290,7 @@ echo "Test 6: DNS resolution chaos"
 # Apply conflicting authorization rules
 # Verify security boundaries remain intact
 
-# Test 2: JWT token chaos  
+# Test 2: JWT token chaos
 # Inject expired/malformed tokens
 # Validate authentication pipeline resilience
 
@@ -270,6 +300,7 @@ echo "Test 6: DNS resolution chaos"
 ```
 
 **Chaos Findings Report Template**:
+
 ```yaml
 Test: Pod Failure Recovery
 Result: ✅ PASS
@@ -278,7 +309,7 @@ Impact: Zero downtime
 Recommendation: Consider faster readiness probes
 
 Test: Certificate Rotation
-Result: ⚠️ PARTIAL  
+Result: ⚠️ PARTIAL
 Recovery Time: 45 seconds
 Impact: Brief TLS errors
 Recommendation: Implement certificate pre-rotation
@@ -287,44 +318,51 @@ Recommendation: Implement certificate pre-rotation
 ## Enterprise Workflow Process
 
 ### Phase 1: Infrastructure Setup
+
 1. **Minikube Environment**: Deployment Engineer sets up development environment
 2. **AKS Deployment**: Deployment Engineer provisions AKS with Istio add-on
 3. **Base Configuration**: DNS, certificates, and monitoring integration
 
-### Phase 2: Multi-Tenant Deployment  
+### Phase 2: Multi-Tenant Deployment
+
 1. **Deployment Engineer**: Creates comprehensive multi-tenant Istio configurations
 2. **Namespace Strategy**: tenant-a (prod), tenant-b (dev), shared-services (infra)
 3. **Security Implementation**: Authorization policies and network isolation
 4. **Traffic Management**: Gateways, routing, and load balancing
 
 ### Phase 3: Validation & Testing
+
 1. **Test Engineer**: Executes comprehensive ingress and functionality tests
 2. **Success Path**: All tests pass → Hand to Documentation Engineer
 3. **Failure Path**: Issues detected → **Escalate to SRE Agent**
 
 ### Phase 4: SRE Investigation (When Issues Arise)
+
 1. **SRE Agent**: Receives detailed issue report from Test Engineer
 2. **Root Cause Analysis**: Deep troubleshooting using Istio observability
-3. **Solution Development**: Create specific fixes and recommendations  
+3. **Solution Development**: Create specific fixes and recommendations
 4. **Handback**: **Return to Deployment Engineer** with solutions
 
 ### Phase 5: Documentation & Evidence
+
 1. **Documentation Engineer**: Collects evidence of working configurations
 2. **Change Management Prep**: Creates comprehensive deployment documentation
 3. **Runbook Creation**: Documents troubleshooting procedures from SRE findings
 4. **Compliance Documentation**: Prepares security and operational attestations
 
 ### Phase 6: Chaos Engineering & Resilience
+
 1. **Chaos Engineer**: Executes controlled failure scenarios
 2. **Resilience Validation**: Tests recovery capabilities and failover procedures
 3. **Findings Report**: **Documents results and hands to Documentation Engineer**
 4. **Documentation Update**: Documentation Engineer incorporates chaos findings
 
 ### Phase 7: Final Documentation Package
+
 1. **Documentation Engineer**: Creates final evidence package including:
    - Deployment configurations and evidence
    - Test results and validation
-   - SRE troubleshooting findings  
+   - SRE troubleshooting findings
    - Chaos engineering resilience report
    - Change management documentation
    - Operational runbooks and procedures
@@ -332,13 +370,15 @@ Recommendation: Implement certificate pre-rotation
 ## Success Metrics
 
 ### Technical Success Criteria
+
 1. **Deployment**: All 6 Istio CRDs deployed across multi-tenant namespaces
 2. **Functionality**: 100% ingress endpoint availability with valid TLS
 3. **Security**: Multi-tenant isolation verified and documented
 4. **Resilience**: Recovery from controlled failures within SLA
 5. **Documentation**: Complete change management package ready
 
-### Business Value Metrics  
+### Business Value Metrics
+
 1. **Zero-Downtime Deployments**: Demonstrated through canary testing
 2. **Multi-Tenant Isolation**: Proven security boundaries for different teams
 3. **Automated Certificate Management**: Reduced operational overhead
@@ -350,7 +390,7 @@ Recommendation: Implement certificate pre-rotation
 ```mermaid
 graph TD
     A[Deployment Engineer] -->|Deploys Configuration| B[Test Engineer]
-    B -->|Tests Pass| E[Documentation Engineer]  
+    B -->|Tests Pass| E[Documentation Engineer]
     B -->|Issues Found| C[SRE Agent]
     C -->|Root Cause + Solution| A
     E -->|Evidence Package| F[Chaos Engineer]
@@ -359,6 +399,7 @@ graph TD
 ```
 
 This enterprise workflow ensures:
+
 - **Proper separation of concerns** between deployment, testing, and operations
 - **Clear escalation paths** when issues arise
 - **Comprehensive documentation** for change management and compliance
@@ -372,7 +413,7 @@ The end result is a production-ready, well-documented, and thoroughly tested Ist
 Based on the official Istio documentation, the six key Istio Custom Resource Definitions (CRDs) for comprehensive service mesh management are:
 
 1. **Virtual Services** - Define traffic routing rules and match conditions
-2. **Destination Rules** - Configure traffic policies and service subsets  
+2. **Destination Rules** - Configure traffic policies and service subsets
 3. **Gateways** - Manage ingress/egress traffic at mesh edge
 4. **Service Entries** - Add external services to mesh registry
 5. **Sidecars** - Configure proxy behavior and limit configuration scope
@@ -381,12 +422,14 @@ Based on the official Istio documentation, the six key Istio Custom Resource Def
 ## Infrastructure Prerequisites
 
 ### Existing Setup (Minikube)
+
 - **DNS Zone**: `/subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/dns/providers/Microsoft.Network/dnszones/davidmarkgardiner.co.uk`
 - **Cert-Manager**: Already installed and configured
 - **Azure Service Operator**: Already installed and configured
 - **Additional Required**: External-DNS for automated DNS record management
 
 ### Required Additional Components
+
 - **External-DNS**: Kubernetes controller to sync DNS records with Azure DNS
 - **Test Applications**: Simple web services for ingress traffic validation
 - **Monitoring Tools**: For traffic flow observation and debugging
@@ -394,9 +437,11 @@ Based on the official Istio documentation, the six key Istio Custom Resource Def
 ## Agent Team Structure
 
 ### Agent 1: Infrastructure & DNS Agent
+
 **Primary Role**: DNS, certificates, and ingress infrastructure management
 
 **Responsibilities**:
+
 - Deploy and configure External-DNS for Azure DNS integration
 - Set up automated certificate provisioning with Cert-Manager
 - Configure DNS records for test domains (e.g., app1.davidmarkgardiner.co.uk)
@@ -404,6 +449,7 @@ Based on the official Istio documentation, the six key Istio Custom Resource Def
 - Integrate with existing Azure Service Operator
 
 **Key Setup Tasks**:
+
 ```yaml
 # External-DNS configuration for Azure DNS
 apiVersion: apps/v1
@@ -414,27 +460,30 @@ spec:
   template:
     spec:
       containers:
-      - name: external-dns
-        image: k8s.gcr.io/external-dns/external-dns:latest
-        args:
-        - --source=service
-        - --source=ingress
-        - --source=istio-gateway
-        - --provider=azure
-        - --azure-resource-group=dns
-        - --azure-subscription-id=133d5755-4074-4d6e-ad38-eb2a6ad12903
-        - --txt-owner-id=minikube-cluster
+        - name: external-dns
+          image: k8s.gcr.io/external-dns/external-dns:latest
+          args:
+            - --source=service
+            - --source=ingress
+            - --source=istio-gateway
+            - --provider=azure
+            - --azure-resource-group=dns
+            - --azure-subscription-id=133d5755-4074-4d6e-ad38-eb2a6ad12903
+            - --txt-owner-id=minikube-cluster
 ```
 
 **DNS Testing Scenarios**:
+
 - Create A records for test applications
 - Validate CNAME propagation for gateway hosts
 - Test certificate issuance for HTTPS endpoints
 
 ### Agent 2: Application Deployment Agent
+
 **Primary Role**: Deploy test applications and establish baseline functionality
 
 **Responsibilities**:
+
 - Deploy multiple test applications across different namespaces
 - Create basic Kubernetes services and ingress resources
 - Establish baseline connectivity before Istio integration
@@ -442,6 +491,7 @@ spec:
 - Configure application-level monitoring and logging
 
 **Test Applications to Deploy**:
+
 ```yaml
 # Example: Simple web service for traffic testing
 apiVersion: apps/v1
@@ -462,17 +512,17 @@ spec:
         version: v1
     spec:
       containers:
-      - name: web-app
-        image: nginx:latest
-        ports:
-        - containerPort: 80
-        volumeMounts:
-        - name: content
-          mountPath: /usr/share/nginx/html
+        - name: web-app
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: content
+              mountPath: /usr/share/nginx/html
       volumes:
-      - name: content
-        configMap:
-          name: web-app-content-v1
+        - name: content
+          configMap:
+            name: web-app-content-v1
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -494,14 +544,17 @@ data:
 ```
 
 **Health Check Endpoints**:
+
 - `/health` - Basic application health
-- `/version` - Application version info  
+- `/version` - Application version info
 - `/metrics` - Prometheus metrics endpoint
 
 ### Agent 3: Istio Gateway & VirtualService Agent
+
 **Primary Role**: Configure Istio ingress traffic management
 
 **Responsibilities**:
+
 - Deploy and configure Istio Gateway resources for ingress
 - Create VirtualService configurations for traffic routing
 - Integrate with External-DNS for automatic DNS management
@@ -509,6 +562,7 @@ data:
 - Test various routing scenarios (path-based, host-based, header-based)
 
 **Gateway Configuration Example**:
+
 ```yaml
 apiVersion: networking.istio.io/v1
 kind: Gateway
@@ -519,26 +573,26 @@ spec:
   selector:
     istio: ingressgateway
   servers:
-  - port:
-      number: 443
-      name: https
-      protocol: HTTPS
-    tls:
-      mode: SIMPLE
-      credentialName: davidmarkgardiner-tls-cert  # Cert-Manager managed
-    hosts:
-    - app1.davidmarkgardiner.co.uk
-    - app2.davidmarkgardiner.co.uk
-    - "*.davidmarkgardiner.co.uk"
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - app1.davidmarkgardiner.co.uk
-    - app2.davidmarkgardiner.co.uk
-    redirect:
-      httpsRedirect: true
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: davidmarkgardiner-tls-cert # Cert-Manager managed
+      hosts:
+        - app1.davidmarkgardiner.co.uk
+        - app2.davidmarkgardiner.co.uk
+        - "*.davidmarkgardiner.co.uk"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - app1.davidmarkgardiner.co.uk
+        - app2.davidmarkgardiner.co.uk
+      redirect:
+        httpsRedirect: true
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -547,43 +601,46 @@ metadata:
   namespace: istio-system
 spec:
   hosts:
-  - app1.davidmarkgardiner.co.uk
-  - app2.davidmarkgardiner.co.uk
+    - app1.davidmarkgardiner.co.uk
+    - app2.davidmarkgardiner.co.uk
   gateways:
-  - main-gateway
+    - main-gateway
   http:
-  - match:
-    - uri:
-        prefix: /app1
-    - headers:
-        host:
-          exact: app1.davidmarkgardiner.co.uk
-    route:
-    - destination:
-        host: web-app.tenant-a.svc.cluster.local
-        subset: v1
-  - match:
-    - uri:
-        prefix: /app2
-    - headers:
-        host:
-          exact: app2.davidmarkgardiner.co.uk
-    route:
-    - destination:
-        host: web-app.tenant-b.svc.cluster.local
-        subset: v1
+    - match:
+        - uri:
+            prefix: /app1
+        - headers:
+            host:
+              exact: app1.davidmarkgardiner.co.uk
+      route:
+        - destination:
+            host: web-app.tenant-a.svc.cluster.local
+            subset: v1
+    - match:
+        - uri:
+            prefix: /app2
+        - headers:
+            host:
+              exact: app2.davidmarkgardiner.co.uk
+      route:
+        - destination:
+            host: web-app.tenant-b.svc.cluster.local
+            subset: v1
 ```
 
 **Testing Scenarios**:
+
 - HTTP to HTTPS redirect validation
 - Multi-tenant routing via different subdomains
 - Path-based routing within same domain
 - Header-based routing for API versioning
 
 ### Agent 4: Security & Authorization Testing Agent
+
 **Primary Role**: Test Istio Authorization Policies and security boundaries
 
 **Responsibilities**:
+
 - Deploy and test Authorization Policies for multi-tenant isolation
 - Validate RBAC and access control between namespaces
 - Test ALLOW, DENY, AUDIT, and CUSTOM policy actions
@@ -594,6 +651,7 @@ spec:
 **Authorization Policy Test Scenarios**:
 
 #### Multi-Tenant Security Testing
+
 ```bash
 #!/bin/bash
 # Multi-tenant authorization testing
@@ -634,6 +692,7 @@ kubectl logs -n tenant-a -l app=web-app -c istio-proxy | grep "audit" | tail -5
 ```
 
 #### JWT Authentication Testing
+
 ```bash
 #!/bin/bash
 # JWT-based authorization testing
@@ -675,9 +734,11 @@ fi
 ```
 
 ### Agent 5: Traffic Testing & Validation Agent
+
 **Primary Role**: End-to-end ingress traffic testing and performance validation
 
 **Responsibilities**:
+
 - Execute curl-based traffic validation tests
 - Implement chaos engineering scenarios to test resilience
 - Validate traffic routing, load balancing, and failover
@@ -686,6 +747,7 @@ fi
 - Performance testing and load validation
 
 **Primary Test Suite**:
+
 ```bash
 #!/bin/bash
 # Comprehensive Istio Traffic Validation Suite
@@ -732,6 +794,7 @@ echo "Expected: Some 503 responses when circuit breaker trips"
 ```
 
 **Chaos Engineering Scenarios**:
+
 ```bash
 #!/bin/bash
 # Chaos Testing for Istio Components
@@ -786,9 +849,11 @@ echo "Expected: Access denied due to authorization policy"
 # Clean up
 kubectl delete authorizationpolicy chaos-test-deny -n tenant-a
 ```
+
 ### Agent 6: Business Validation & Reporting Agent
 
 **Responsibilities**:
+
 - Create polished demo scenarios for business presentation
 - Document working YAML configurations with explanations
 - Generate test reports with clear success/failure criteria
@@ -798,6 +863,7 @@ kubectl delete authorizationpolicy chaos-test-deny -n tenant-a
 **Business Demo Scenarios**:
 
 #### Demo 1: Blue-Green Deployment via DNS
+
 ```yaml
 # Scenario: Switch traffic between app versions using DNS
 # Business Value: Zero-downtime deployments
@@ -809,6 +875,7 @@ kubectl delete authorizationpolicy chaos-test-deny -n tenant-a
 ```
 
 #### Demo 2: Canary Deployment with Traffic Splitting
+
 ```yaml
 # Scenario: Gradually roll out new version with traffic percentage
 # Business Value: Risk mitigation during deployments
@@ -819,22 +886,23 @@ metadata:
   name: canary-deployment
 spec:
   hosts:
-  - app1.davidmarkgardiner.co.uk
+    - app1.davidmarkgardiner.co.uk
   gateways:
-  - main-gateway
+    - main-gateway
   http:
-  - route:
-    - destination:
-        host: web-app.tenant-a.svc.cluster.local
-        subset: v1
-      weight: 90  # 90% to stable version
-    - destination:
-        host: web-app.tenant-a.svc.cluster.local
-        subset: v2
-      weight: 10  # 10% to canary version
+    - route:
+        - destination:
+            host: web-app.tenant-a.svc.cluster.local
+            subset: v1
+          weight: 90 # 90% to stable version
+        - destination:
+            host: web-app.tenant-a.svc.cluster.local
+            subset: v2
+          weight: 10 # 10% to canary version
 ```
 
 #### Demo 3: A/B Testing with Header-Based Routing
+
 ```yaml
 # Scenario: Route beta users to new version
 # Business Value: Feature testing with specific user groups
@@ -845,25 +913,26 @@ metadata:
   name: ab-testing
 spec:
   hosts:
-  - app1.davidmarkgardiner.co.uk
+    - app1.davidmarkgardiner.co.uk
   gateways:
-  - main-gateway
+    - main-gateway
   http:
-  - match:
-    - headers:
-        x-user-type:
-          exact: beta
-    route:
-    - destination:
-        host: web-app.tenant-a.svc.cluster.local
-        subset: v2
-  - route:
-    - destination:
-        host: web-app.tenant-a.svc.cluster.local
-        subset: v1
+    - match:
+        - headers:
+            x-user-type:
+              exact: beta
+      route:
+        - destination:
+            host: web-app.tenant-a.svc.cluster.local
+            subset: v2
+    - route:
+        - destination:
+            host: web-app.tenant-a.svc.cluster.local
+            subset: v1
 ```
 
 **Business Presentation Materials**:
+
 - Executive summary of Istio benefits
 - ROI analysis for service mesh adoption
 - Risk mitigation capabilities
@@ -873,15 +942,18 @@ spec:
 ## Multi-Tenancy Considerations for Shared AKS Clusters
 
 ### Namespace-Based Tenancy Model
+
 Based on research, the recommended approach for shared AKS clusters:
 
 **Tenant Isolation Strategy**:
+
 - Each tenant gets dedicated namespace(s)
 - Sidecar configurations limit cross-namespace communication
 - RBAC policies restrict resource access
 - Network policies provide additional security boundaries
 
 **Key Configuration Pattern**:
+
 ```yaml
 # Per-tenant Sidecar configuration to limit scope
 apiVersion: networking.istio.io/v1
@@ -891,20 +963,22 @@ metadata:
   namespace: tenant-a
 spec:
   egress:
-  - hosts:
-    - "./tenant-a/*"        # Only services in same namespace
-    - "istio-system/*"      # Istio control plane
-    - "shared-services/*"   # Common services namespace
+    - hosts:
+        - "./tenant-a/*" # Only services in same namespace
+        - "istio-system/*" # Istio control plane
+        - "shared-services/*" # Common services namespace
 ```
 
 ### AKS Add-on Specific Considerations
 
 **Supported Configurations** (from your AKS documentation):
+
 - MeshConfig customization via istio-shared-configmap-<revision>
 - Limited extension provider support
 - Specific field restrictions (allowed/supported/blocked)
 
 **Key Limitations**:
+
 - Some CRDs blocked (ProxyConfig, WorkloadEntry, WorkloadGroup)
 - Limited EnvoyFilter support
 - No multi-cluster deployments yet
@@ -913,6 +987,7 @@ spec:
 ## Agent Coordination Workflow
 
 ### Phase 1: Infrastructure Setup (Agent 1 & 2)
+
 1. **DNS & Certificates** (Agent 1):
    - Deploy External-DNS with Azure DNS integration
    - Configure Cert-Manager for automated certificate provisioning
@@ -926,6 +1001,7 @@ spec:
 **Success Criteria**: Applications accessible via LoadBalancer/NodePort, certificates issued, DNS records created
 
 ### Phase 2: Istio Integration (Agent 3)
+
 1. **Gateway Configuration**:
    - Deploy Istio Gateway for HTTPS ingress
    - Configure VirtualServices for traffic routing
@@ -939,7 +1015,9 @@ spec:
 **Success Criteria**: External traffic flowing through Istio Gateway to backend pods
 
 ### Phase 3: Validation & Chaos Testing (Agent 4)
+
 1. **Functional Testing**:
+
    ```bash
    # Real-world validation commands
    curl -v https://app1.davidmarkgardiner.co.uk/health
@@ -948,7 +1026,7 @@ spec:
 
 2. **Resilience Testing**:
    - Pod failure scenarios
-   - Gateway restart scenarios  
+   - Gateway restart scenarios
    - Certificate renewal validation
    - DNS propagation testing
 
@@ -960,6 +1038,7 @@ spec:
 **Success Criteria**: All test scenarios pass, system remains stable under failure conditions
 
 ### Phase 4: Business Demonstration (Agent 5)
+
 1. **Demo Preparation**:
    - Create scripted business scenarios
    - Prepare before/after comparisons
@@ -975,7 +1054,9 @@ spec:
 ## Expected Deliverables
 
 ### Working YAML Configurations
+
 **Gateway & VirtualService Templates**:
+
 ```yaml
 # Production-ready Istio Gateway configuration
 apiVersion: networking.istio.io/v1
@@ -989,27 +1070,29 @@ spec:
   selector:
     istio: ingressgateway
   servers:
-  - port:
-      number: 443
-      name: https
-      protocol: HTTPS
-    tls:
-      mode: SIMPLE
-      credentialName: davidmarkgardiner-wildcard-cert
-    hosts:
-    - "*.davidmarkgardiner.co.uk"
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - "*.davidmarkgardiner.co.uk"
-    redirect:
-      httpsRedirect: true
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: davidmarkgardiner-wildcard-cert
+      hosts:
+        - "*.davidmarkgardiner.co.uk"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.davidmarkgardiner.co.uk"
+      redirect:
+        httpsRedirect: true
 ```
 
 ### Test Validation Scripts
+
 **Automated Test Suite**:
+
 ```bash
 #!/bin/bash
 # comprehensive-ingress-test.sh
@@ -1023,9 +1106,9 @@ echo "🚀 Starting Istio Ingress Validation"
 
 for app in "${APPS[@]}"; do
     URL="https://${app}.${BASE_DOMAIN}"
-    
+
     echo "Testing ${URL}..."
-    
+
     # Test 1: HTTPS connectivity
     if curl -f -s "${URL}/health" > /dev/null; then
         echo "✅ ${app}: HTTPS connectivity working"
@@ -1033,20 +1116,20 @@ for app in "${APPS[@]}"; do
         echo "❌ ${app}: HTTPS connectivity failed"
         exit 1
     fi
-    
+
     # Test 2: Certificate validation
     if curl -s --connect-timeout 5 "${URL}" | grep -q "200 OK"; then
         echo "✅ ${app}: TLS certificate valid"
     else
         echo "❌ ${app}: TLS certificate issues"
     fi
-    
+
     # Test 3: Load balancing
     echo "Testing load balancing for ${app}..."
     UNIQUE_PODS=$(for i in {1..10}; do
         curl -s "${URL}/pod-info" | grep "Pod:" | cut -d: -f2
     done | sort -u | wc -l)
-    
+
     if [ "$UNIQUE_PODS" -gt 1 ]; then
         echo "✅ ${app}: Load balancing working (${UNIQUE_PODS} unique pods)"
     else
@@ -1058,7 +1141,9 @@ echo "🎉 All ingress tests completed successfully"
 ```
 
 ### Business Demonstration Scripts
+
 **Demo Scenarios with curl Commands**:
+
 ```bash
 #!/bin/bash
 # business-demo.sh - Live demonstration script
@@ -1105,7 +1190,7 @@ echo "  - Multi-tenant isolation"
 ## Success Metrics
 
 1. **Coverage**: All 5 traffic management CRDs tested and documented
-2. **Isolation**: Multi-tenant boundaries properly validated  
+2. **Isolation**: Multi-tenant boundaries properly validated
 3. **Functionality**: Core features working as expected
 4. **Documentation**: Comprehensive guides for team adoption
 5. **Automation**: Repeatable deployment and testing procedures

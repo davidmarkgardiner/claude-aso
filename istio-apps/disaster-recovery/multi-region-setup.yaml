@@ -12,14 +12,14 @@ spec:
   selector:
     istio: eastwestgateway
   servers:
-  - port:
-      number: 15443
-      name: tls
-      protocol: TLS
-    tls:
-      mode: ISTIO_MUTUAL
-    hosts:
-    - "*.local"
+    - port:
+        number: 15443
+        name: tls
+        protocol: TLS
+      tls:
+        mode: ISTIO_MUTUAL
+      hosts:
+        - "*.local"
 
 ---
 # Service Entry for Remote Cluster Services
@@ -33,19 +33,19 @@ metadata:
     component: disaster-recovery
 spec:
   hosts:
-  - podinfo.tenant-a.remote  # Remote cluster service
+    - podinfo.tenant-a.remote # Remote cluster service
   location: MESH_EXTERNAL
   ports:
-  - number: 9898
-    name: http
-    protocol: HTTP
+    - number: 9898
+      name: http
+      protocol: HTTP
   resolution: DNS
   addresses:
-  - 20.50.100.200  # Remote cluster eastwest gateway IP
+    - 20.50.100.200 # Remote cluster eastwest gateway IP
   endpoints:
-  - address: eastwest-gateway.aks-istio-system.svc.cluster.local
-    ports:
-      http: 15443  # Istio cross-cluster port
+    - address: eastwest-gateway.aks-istio-system.svc.cluster.local
+      ports:
+        http: 15443 # Istio cross-cluster port
 
 ---
 # Destination Rule for Cross-Cluster Load Balancing
@@ -70,14 +70,14 @@ spec:
     localityLbSetting:
       enabled: true
       distribute:
-      - from: "region/westeurope/zone/1"
-        to:
-          "region/westeurope/zone/1": 80  # Prefer local zone
-          "region/westeurope/zone/2": 15  # Secondary zone
-          "region/eastus/zone/1": 5       # DR region (minimal traffic)
+        - from: "region/westeurope/zone/1"
+          to:
+            "region/westeurope/zone/1": 80 # Prefer local zone
+            "region/westeurope/zone/2": 15 # Secondary zone
+            "region/eastus/zone/1": 5 # DR region (minimal traffic)
       failover:
-      - from: "region/westeurope"
-        to: "region/eastus"  # Failover to DR region
+        - from: "region/westeurope"
+          to: "region/eastus" # Failover to DR region
 
 ---
 # Virtual Service for Cross-Region Failover
@@ -91,34 +91,34 @@ metadata:
     component: disaster-recovery
 spec:
   hosts:
-  - podinfo.tenant-a.svc.cluster.local
+    - podinfo.tenant-a.svc.cluster.local
   http:
-  # Fault injection for disaster recovery testing
-  - match:
-    - headers:
-        x-chaos-dr-test:
-          exact: "true"
-    fault:
-      abort:
-        percentage:
-          value: 100
-        httpStatus: 503
-    route:
-    - destination:
-        host: podinfo.tenant-a.svc.cluster.local
-  
-  # Normal routing with circuit breaker protection
-  - route:
-    - destination:
-        host: podinfo.tenant-a.svc.cluster.local
-        subset: primary
-      weight: 100
-    # Retry policy for resilience
-    retries:
-      attempts: 3
-      perTryTimeout: 10s
-      retryOn: 5xx,reset,connect-failure,refused-stream
-      retryRemoteLocalities: true  # Enable cross-region retries
+    # Fault injection for disaster recovery testing
+    - match:
+        - headers:
+            x-chaos-dr-test:
+              exact: "true"
+      fault:
+        abort:
+          percentage:
+            value: 100
+          httpStatus: 503
+      route:
+        - destination:
+            host: podinfo.tenant-a.svc.cluster.local
+
+    # Normal routing with circuit breaker protection
+    - route:
+        - destination:
+            host: podinfo.tenant-a.svc.cluster.local
+            subset: primary
+          weight: 100
+      # Retry policy for resilience
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: 5xx,reset,connect-failure,refused-stream
+        retryRemoteLocalities: true # Enable cross-region retries
 
 ---
 # Backup and Recovery Configuration
@@ -134,22 +134,22 @@ data:
   backup-script.sh: |
     #!/bin/bash
     # Istio Configuration Backup Script
-    
+
     BACKUP_DIR="/backup/istio-$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$BACKUP_DIR"
-    
+
     # Backup Istio configurations
     echo "Backing up Istio configurations..."
     kubectl get gateways,virtualservices,destinationrules,serviceentries,authorizationpolicies,peerauthentication -A -o yaml > "$BACKUP_DIR/istio-configs.yaml"
-    
+
     # Backup secrets and certificates
     echo "Backing up secrets..."
     kubectl get secrets -A -l "istio.io/key=true" -o yaml > "$BACKUP_DIR/istio-secrets.yaml"
-    
+
     # Backup custom resources
     echo "Backing up custom resources..."
     kubectl get istiooperator,telemetryv2 -A -o yaml > "$BACKUP_DIR/istio-operators.yaml"
-    
+
     # Upload to Azure Storage (assuming Azure CLI is configured)
     if command -v az &> /dev/null; then
       echo "Uploading to Azure Storage..."
@@ -159,34 +159,34 @@ data:
         --account-name "${STORAGE_ACCOUNT_NAME}" \
         --auth-mode login
     fi
-    
+
     echo "Backup completed: $BACKUP_DIR"
 
   restore-script.sh: |
     #!/bin/bash
     # Istio Configuration Restore Script
-    
+
     if [ -z "$1" ]; then
       echo "Usage: $0 <backup-directory>"
       exit 1
     fi
-    
+
     BACKUP_DIR="$1"
-    
+
     if [ ! -d "$BACKUP_DIR" ]; then
       echo "Backup directory not found: $BACKUP_DIR"
       exit 1
     fi
-    
+
     echo "Restoring Istio configurations from $BACKUP_DIR..."
-    
+
     # Restore in order
     kubectl apply -f "$BACKUP_DIR/istio-secrets.yaml"
     sleep 10
     kubectl apply -f "$BACKUP_DIR/istio-operators.yaml"
     sleep 30
     kubectl apply -f "$BACKUP_DIR/istio-configs.yaml"
-    
+
     echo "Restore completed. Verifying..."
     kubectl get gateways,virtualservices,destinationrules -A
 
@@ -210,7 +210,7 @@ spec:
       app: podinfo
   direction: both
   externalTargets:
-  - "eastwest-gateway.aks-istio-system.svc.cluster.local"  # Simulate cross-cluster network partition
+    - "eastwest-gateway.aks-istio-system.svc.cluster.local" # Simulate cross-cluster network partition
   duration: "300s"
 
 ---
@@ -236,41 +236,41 @@ spec:
         sidecar.istio.io/inject: "true"
     spec:
       containers:
-      - name: dr-monitor
-        image: curlimages/curl:8.4.0
-        command: ["/bin/sh"]
-        args:
-        - -c
-        - |
-          while true; do
-            echo "=== Disaster Recovery Health Check ==="
-            
-            # Check primary region health
-            PRIMARY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://podinfo.tenant-a.svc.cluster.local:9898/healthz || echo "000")
-            echo "Primary region status: $PRIMARY_STATUS"
-            
-            # Check DR region connectivity (if configured)
-            DR_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://podinfo.tenant-a.remote:9898/healthz || echo "000")
-            echo "DR region status: $DR_STATUS"
-            
-            # Report status to monitoring
-            if [ "$PRIMARY_STATUS" = "200" ]; then
-              curl -X POST http://prometheus-pushgateway.shared-services:9091/metrics/job/dr-monitor/instance/primary \
-                -d "dr_region_health{region=\"primary\"} 1"
-            else
-              curl -X POST http://prometheus-pushgateway.shared-services:9091/metrics/job/dr-monitor/instance/primary \
-                -d "dr_region_health{region=\"primary\"} 0"
-            fi
-            
-            sleep 60
-          done
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "10m"
-          limits:
-            memory: "64Mi"
-            cpu: "50m"
+        - name: dr-monitor
+          image: curlimages/curl:8.4.0
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - |
+              while true; do
+                echo "=== Disaster Recovery Health Check ==="
+                
+                # Check primary region health
+                PRIMARY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://podinfo.tenant-a.svc.cluster.local:9898/healthz || echo "000")
+                echo "Primary region status: $PRIMARY_STATUS"
+                
+                # Check DR region connectivity (if configured)
+                DR_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://podinfo.tenant-a.remote:9898/healthz || echo "000")
+                echo "DR region status: $DR_STATUS"
+                
+                # Report status to monitoring
+                if [ "$PRIMARY_STATUS" = "200" ]; then
+                  curl -X POST http://prometheus-pushgateway.shared-services:9091/metrics/job/dr-monitor/instance/primary \
+                    -d "dr_region_health{region=\"primary\"} 1"
+                else
+                  curl -X POST http://prometheus-pushgateway.shared-services:9091/metrics/job/dr-monitor/instance/primary \
+                    -d "dr_region_health{region=\"primary\"} 0"
+                fi
+                
+                sleep 60
+              done
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "10m"
+            limits:
+              memory: "64Mi"
+              cpu: "50m"
 
 ---
 # Auto-Failover Configuration (Flagger-based)
@@ -290,29 +290,29 @@ spec:
   service:
     port: 9898
     gateways:
-    - aks-istio-system/main-gateway
+      - aks-istio-system/main-gateway
     hosts:
-    - podinfo.tenant-a.davidmarkgardiner.co.uk
+      - podinfo.tenant-a.davidmarkgardiner.co.uk
   analysis:
     # Rapid failover configuration
     interval: 30s
-    threshold: 3      # Lower threshold for faster DR
-    maxWeight: 0      # Don't do canary, just switch
-    stepWeight: 100   # Immediate cutover
+    threshold: 3 # Lower threshold for faster DR
+    maxWeight: 0 # Don't do canary, just switch
+    stepWeight: 100 # Immediate cutover
     iterations: 1
     metrics:
-    - name: disaster-recovery-health
-      templateRef:
-        name: dr-health-check
-        namespace: flagger-system
-      thresholdRange:
-        min: 1  # Require healthy status
-      interval: 30s
+      - name: disaster-recovery-health
+        templateRef:
+          name: dr-health-check
+          namespace: flagger-system
+        thresholdRange:
+          min: 1 # Require healthy status
+        interval: 30s
     webhooks:
-    - name: dr-failover-notification
-      type: post-rollout
-      url: http://notification-service.shared-services.svc.cluster.local:8080/dr-alert
-      timeout: 10s
-      metadata:
-        severity: critical
-        message: "Disaster recovery failover activated"
+      - name: dr-failover-notification
+        type: post-rollout
+        url: http://notification-service.shared-services.svc.cluster.local:8080/dr-alert
+        timeout: 10s
+        metadata:
+          severity: critical
+          message: "Disaster recovery failover activated"

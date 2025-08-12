@@ -11,6 +11,7 @@ The shared-services namespace provides centralized observability, monitoring, an
 ### 1. Monitoring Stack (`monitoring-stack.yaml`)
 
 #### Prometheus
+
 - **Purpose**: Metrics collection and storage for the entire service mesh
 - **Configuration**:
   - Version: v2.48.0
@@ -20,6 +21,7 @@ The shared-services namespace provides centralized observability, monitoring, an
   - Istio Integration: Sidecar injection enabled for secure communication
 
 #### Grafana
+
 - **Purpose**: Visualization and dashboards for metrics
 - **Configuration**:
   - Version: 10.2.0
@@ -31,6 +33,7 @@ The shared-services namespace provides centralized observability, monitoring, an
 ### 2. Distributed Tracing (`jaeger-tracing.yaml`)
 
 #### Jaeger All-in-One
+
 - **Purpose**: End-to-end distributed tracing for microservices
 - **Configuration**:
   - Version: 1.51
@@ -39,8 +42,9 @@ The shared-services namespace provides centralized observability, monitoring, an
   - Resources: 256Mi-512Mi memory, 100m-500m CPU
 
 #### Service Endpoints
+
 - **Query UI**: Port 16686 - Web interface for trace exploration
-- **Collector**: 
+- **Collector**:
   - Jaeger Thrift: Port 14268
   - Jaeger gRPC: Port 14250
   - Zipkin HTTP: Port 9411 (compatibility mode)
@@ -50,6 +54,7 @@ The shared-services namespace provides centralized observability, monitoring, an
 ### 3. Redis Cluster (`redis-cluster.yaml`)
 
 #### Redis StatefulSet
+
 - **Purpose**: Shared caching layer for all tenants
 - **Configuration**:
   - Version: Redis 7 Alpine
@@ -59,10 +64,12 @@ The shared-services namespace provides centralized observability, monitoring, an
   - Resources: 128Mi-256Mi memory, 50m-200m CPU per pod
 
 #### Storage
+
 - **Persistent Volumes**: 1Gi per replica
 - **Data Directory**: `/data` with cluster configuration
 
 #### Services
+
 - **Headless Service** (`redis-cluster`): For cluster discovery
 - **Client Service** (`redis`): For application connections on port 6379
 
@@ -71,31 +78,37 @@ The shared-services namespace provides centralized observability, monitoring, an
 The `kustomization.yaml` file manages:
 
 ### Image Versions
+
 - Prometheus: v2.48.0
 - Grafana: 10.2.0
 - Jaeger: 1.51
 - Redis: 7-alpine
 
 ### Replica Counts
+
 - Prometheus: 1 replica
 - Grafana: 1 replica
 - Jaeger: 1 replica
 - Redis: 3 replicas (cluster mode)
 
 ### Common Labels
+
 - `tenant: shared` - Identifies shared infrastructure
 - `managed-by: flux` - GitOps management
 - `deployment-agent: istio-engineer` - Deployment ownership
 - `service-type: infrastructure` - Service classification
 
 ### ConfigMap Generation
+
 - **prometheus-config**: Prometheus scraping configuration
 - **grafana-dashboards**: Pre-built dashboards for Istio and applications
 
 ## Multi-Tenant Access Patterns
 
 ### Service Discovery
+
 All services are accessible within the cluster using DNS:
+
 - `prometheus.shared-services.svc.cluster.local:9090`
 - `grafana.shared-services.svc.cluster.local:3000`
 - `jaeger-query.shared-services.svc.cluster.local:16686`
@@ -117,16 +130,19 @@ All services are accessible within the cluster using DNS:
 ## Usage Examples
 
 ### Connecting to Redis from Tenant Applications
+
 ```yaml
 env:
-- name: REDIS_HOST
-  value: "redis.shared-services.svc.cluster.local"
-- name: REDIS_PORT
-  value: "6379"
+  - name: REDIS_HOST
+    value: "redis.shared-services.svc.cluster.local"
+  - name: REDIS_PORT
+    value: "6379"
 ```
 
 ### Configuring Prometheus Scraping
+
 Applications should include annotations:
+
 ```yaml
 annotations:
   prometheus.io/scrape: "true"
@@ -135,24 +151,28 @@ annotations:
 ```
 
 ### Sending Traces to Jaeger
+
 Configure OpenTelemetry or Jaeger client:
+
 ```yaml
 env:
-- name: JAEGER_AGENT_HOST
-  value: "jaeger-collector.shared-services.svc.cluster.local"
-- name: JAEGER_AGENT_PORT
-  value: "14250"
+  - name: JAEGER_AGENT_HOST
+    value: "jaeger-collector.shared-services.svc.cluster.local"
+  - name: JAEGER_AGENT_PORT
+    value: "14250"
 ```
 
 ## Monitoring and Health
 
 ### Health Endpoints
+
 - Prometheus: `http://prometheus:9090/-/healthy`
 - Grafana: `http://grafana:3000/api/health`
 - Jaeger: `http://jaeger:14269/`
 - Redis: `redis-cli ping`
 
 ### Key Metrics to Monitor
+
 1. **Prometheus**:
    - Storage usage
    - Scrape duration
@@ -176,11 +196,13 @@ env:
 ## Deployment
 
 Deploy using Flux GitOps:
+
 ```bash
 flux reconcile kustomization shared-services
 ```
 
 Or manually with kubectl:
+
 ```bash
 kubectl apply -k istio-apps/apps/shared-services/
 ```
@@ -195,6 +217,7 @@ kubectl apply -k istio-apps/apps/shared-services/
 4. **Redis Evictions**: Monitor memory usage and adjust maxmemory
 
 ### Debug Commands
+
 ```bash
 # Check pod status
 kubectl get pods -n shared-services

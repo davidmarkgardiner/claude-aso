@@ -1,5 +1,11 @@
-import { v4 as uuidv4 } from 'uuid';
-import { NamespaceRequest, ProvisioningResult, ProvisioningRequest, NamespaceInfo, ResourceTier } from '../types/namespace';
+import { v4 as uuidv4 } from "uuid";
+import {
+  NamespaceRequest,
+  ProvisioningResult,
+  ProvisioningRequest,
+  NamespaceInfo,
+  ResourceTier,
+} from "../types/namespace";
 // import { mockNamespaces, mockProvisioningRequests } from '../../tests/fixtures/namespaces';
 
 // Mock data
@@ -11,18 +17,20 @@ export class NamespaceProvisioningService {
 
   constructor() {
     // Initialize with mock data
-    mockProvisioningRequests.forEach(req => {
+    mockProvisioningRequests.forEach((req) => {
       this.activeRequests.set(req.requestId, req);
     });
   }
 
-  async provisionNamespace(request: NamespaceRequest): Promise<ProvisioningResult> {
+  async provisionNamespace(
+    request: NamespaceRequest,
+  ): Promise<ProvisioningResult> {
     // Validate request
     await this.validateRequest(request);
-    
+
     const requestId = `req-${Date.now()}-${uuidv4().substr(0, 8)}`;
     const workflowName = `provision-namespace-${requestId}-${Date.now()}`;
-    
+
     // Create provisioning record
     const provisioningRequest: ProvisioningRequest = {
       requestId,
@@ -33,10 +41,10 @@ export class NamespaceProvisioningService {
       networkPolicy: request.networkPolicy,
       features: request.features,
       description: request.description,
-      status: 'pending',
+      status: "pending",
       workflowName,
       createdAt: new Date().toISOString(),
-      owner: request.owner
+      owner: request.owner,
     };
 
     this.activeRequests.set(requestId, provisioningRequest);
@@ -45,11 +53,11 @@ export class NamespaceProvisioningService {
     setTimeout(() => {
       const req = this.activeRequests.get(requestId);
       if (req) {
-        req.status = 'provisioning';
+        req.status = "provisioning";
         req.workflowStatus = {
-          phase: 'Running',
-          message: 'Creating namespace resources',
-          startedAt: new Date().toISOString()
+          phase: "Running",
+          message: "Creating namespace resources",
+          startedAt: new Date().toISOString(),
         };
       }
     }, 1000);
@@ -57,57 +65,61 @@ export class NamespaceProvisioningService {
     return {
       requestId,
       namespaceName: request.namespaceName,
-      status: 'pending',
+      status: "pending",
       workflowName,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
   }
 
-  async getProvisioningStatus(requestId: string): Promise<ProvisioningRequest | null> {
+  async getProvisioningStatus(
+    requestId: string,
+  ): Promise<ProvisioningRequest | null> {
     return this.activeRequests.get(requestId) || null;
   }
 
   async listTeamNamespaces(team: string): Promise<NamespaceInfo[]> {
-    return mockNamespaces.filter(ns => ns.team === team);
+    return mockNamespaces.filter((ns) => ns.team === team);
   }
 
-  async getNamespaceDetails(namespaceName: string): Promise<NamespaceInfo | null> {
-    return mockNamespaces.find(ns => ns.name === namespaceName) || null;
+  async getNamespaceDetails(
+    namespaceName: string,
+  ): Promise<NamespaceInfo | null> {
+    return mockNamespaces.find((ns) => ns.name === namespaceName) || null;
   }
 
   private async validateRequest(request: NamespaceRequest): Promise<void> {
     // Validate namespace name format
     const namePattern = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
     if (!namePattern.test(request.namespaceName)) {
-      throw new Error('Invalid namespace name format');
+      throw new Error("Invalid namespace name format");
     }
 
     if (request.namespaceName.length > 63) {
-      throw new Error('Namespace name too long');
+      throw new Error("Namespace name too long");
     }
 
     if (request.namespaceName.length < 1) {
-      throw new Error('Namespace name is required');
+      throw new Error("Namespace name is required");
     }
 
     // Check if namespace already exists
-    const exists = mockNamespaces.some(ns => ns.name === request.namespaceName);
+    const exists = mockNamespaces.some(
+      (ns) => ns.name === request.namespaceName,
+    );
     if (exists) {
       throw new Error(`Namespace ${request.namespaceName} already exists`);
     }
 
     // Validate resource tier
-    const validTiers: ResourceTier[] = ['micro', 'small', 'medium', 'large'];
+    const validTiers: ResourceTier[] = ["micro", "small", "medium", "large"];
     if (!validTiers.includes(request.resourceTier)) {
       throw new Error(`Invalid resource tier: ${request.resourceTier}`);
     }
 
     // Validate network policy
-    const validPolicies = ['isolated', 'team-shared', 'open'];
+    const validPolicies = ["isolated", "team-shared", "open"];
     if (!validPolicies.includes(request.networkPolicy)) {
       throw new Error(`Invalid network policy: ${request.networkPolicy}`);
     }
   }
-
-
 }

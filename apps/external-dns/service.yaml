@@ -13,7 +13,7 @@ spec:
   selector:
     app.kubernetes.io/name: external-dns
   ports:
-  - name: http
-    port: 7979
-    targetPort: http
-    protocol: TCP
+    - name: http
+      port: 7979
+      targetPort: http
+      protocol: TCP

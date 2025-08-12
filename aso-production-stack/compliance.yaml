@@ -11,35 +11,35 @@ metadata:
 spec:
   # Scope to the entire resource group
   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
-  
+
   # SOC 2 Initiative (built-in)
   policyDefinitionId: /providers/Microsoft.Authorization/policySetDefinitions/89c6cddc-1c73-4ac1-b19c-54d1a15a42f2
-  
+
   displayName: "SOC 2 Type II Compliance"
   description: "Implements SOC 2 Type II security controls for production environment"
-  
+
   # Use managed identity for policy remediation
   identity:
     type: SystemAssigned
-  
+
   # Assignment parameters
   parameters:
     # Enable automatic remediation where possible
     effect:
       value: "AuditIfNotExists"
-    
+
     # Include specific compliance requirements
     includeArcMachines:
       value: false
-  
+
   # Policy enforcement mode
-  enforcementMode: Default  # Set to DoNotEnforce for testing
-  
+  enforcementMode: Default # Set to DoNotEnforce for testing
+
   metadata:
     category: "Security Center"
     compliance-framework: "SOC2"
     remediation: "automatic"
-  
+
   tags:
     compliance: soc2-type2
     enforcement: enabled
@@ -57,27 +57,27 @@ metadata:
     framework: gdpr
 spec:
   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
-  
+
   # Custom GDPR initiative
   policyDefinitionId: /providers/Microsoft.Authorization/policySetDefinitions/c5447c04-a4d7-4ba8-a263-c9ee321a6858
-  
+
   displayName: "GDPR Data Protection Compliance"
   description: "Ensures GDPR compliance for data protection and privacy"
-  
+
   identity:
     type: SystemAssigned
-  
+
   parameters:
     # Data residency requirements
     allowedLocations:
       value: ["UK South", "UK West", "West Europe", "North Europe"]
-    
+
     # Enable transparent data encryption
     transparentDataEncryptionOnSqlDatabasesEffect:
       value: "AuditIfNotExists"
-  
+
   enforcementMode: Default
-  
+
   tags:
     compliance: gdpr
     data-residency: eu-only
@@ -95,23 +95,23 @@ metadata:
     framework: iso27001
 spec:
   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
-  
+
   # ISO 27001 initiative
   policyDefinitionId: /providers/Microsoft.Authorization/policySetDefinitions/89c6cddc-1c73-4ac1-b19c-54d1a15a42f2
-  
+
   displayName: "ISO 27001 Information Security Management"
   description: "Implements ISO 27001 security controls"
-  
+
   identity:
     type: SystemAssigned
-  
+
   parameters:
     # Security logging requirements
     logAnalyticsWorkspaceIdforVMReporting:
       value: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.OperationalInsights/workspaces/aks-prod-logs-workspace
-  
+
   enforcementMode: Default
-  
+
   tags:
     compliance: iso27001
     security-controls: enabled
@@ -130,10 +130,10 @@ metadata:
 spec:
   displayName: "AKS Production Security Requirements"
   description: "Enforces security requirements for AKS clusters in production"
-  
+
   policyType: Custom
   mode: Indexed
-  
+
   # Policy rule in JSON format
   policyRule:
     if:
@@ -160,7 +160,7 @@ spec:
             # Require Azure AD integration
             - field: "Microsoft.ContainerService/managedClusters/aadProfile.managed"
               equals: true
-  
+
   # Parameters for flexibility
   parameters:
     effect:
@@ -172,7 +172,7 @@ spec:
       metadata:
         displayName: "Effect"
         description: "Enable or disable the execution of the policy"
-  
+
   metadata:
     category: "Kubernetes"
     version: "1.0.0"
@@ -186,16 +186,16 @@ metadata:
   namespace: azure-system
 spec:
   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
-  
+
   policyDefinitionId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/policyDefinitions/aks-security-requirements
-  
+
   displayName: "AKS Production Security Policy"
   description: "Enforces security requirements for production AKS clusters"
-  
+
   parameters:
     effect:
       value: "AuditIfNotExists"
-  
+
   enforcementMode: Default
 
 ---
@@ -211,10 +211,10 @@ metadata:
 spec:
   # Lock the entire resource group
   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
-  
-  level: CanNotDelete  # Prevent deletion but allow modifications
+
+  level: CanNotDelete # Prevent deletion but allow modifications
   notes: "Production environment - deletion protection enabled"
-  
+
   tags:
     protection-level: production
     lock-reason: accidental-deletion-prevention
@@ -231,8 +231,8 @@ metadata:
     resource: key-vault
 spec:
   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.KeyVault/vaults/aks-prod-keyvault
-  
-  level: ReadOnly  # Prevent modifications and deletion
+
+  level: ReadOnly # Prevent modifications and deletion
   notes: "Key Vault contains critical secrets - full protection enabled"
 
 ---
@@ -249,19 +249,19 @@ spec:
   # Security contact configuration
   emails: "security@davidmarkgardiner.co.uk"
   phone: "+44-7700-900000"
-  
+
   # Alert preferences
   alertNotifications:
     state: On
     minimalSeverity: Medium
-  
+
   # Notify on alerts to admins
   notificationsByRole:
     state: On
     roles:
       - Owner
       - SecurityAdmin
-  
+
   tags:
     notification-level: medium-and-above
     roles-notified: owner-security-admin
@@ -279,22 +279,22 @@ metadata:
 spec:
   # Scope to resource group
   resourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
-  
+
   # Policy definition being attested
   policyDefinitionReferenceId: "soc2-compliance-policy"
-  
+
   # Attestation details
   complianceState: Compliant
   expiresOn: "2024-12-31T23:59:59Z"
-  
+
   # Evidence and justification
   evidence:
     - sourceUri: "https://example.com/soc2-audit-report.pdf"
       description: "SOC 2 Type II audit report demonstrating compliance"
-  
+
   assessmentDate: "2024-01-15T00:00:00Z"
   comments: "SOC 2 compliance validated through independent audit"
-  
+
   # Compliance metadata
   metadata:
     assignedBy: "compliance-team@davidmarkgardiner.co.uk"
@@ -314,16 +314,16 @@ metadata:
 spec:
   # Scope to the resource group
   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
-  
+
   # Budget properties
-  amount: 5000  # £5,000 monthly budget for compliance resources
+  amount: 5000 # £5,000 monthly budget for compliance resources
   timeGrain: Monthly
-  
+
   # Budget period
   timePeriod:
     startDate: "2024-01-01T00:00:00Z"
     endDate: "2024-12-31T23:59:59Z"
-  
+
   # Budget filters for compliance resources only
   filter:
     dimensions:
@@ -338,12 +338,12 @@ spec:
         - soc2
         - gdpr
         - iso27001
-  
+
   # Notifications
   notifications:
     - enabled: true
       operator: GreaterThan
-      threshold: 80  # Alert at 80% of budget
+      threshold: 80 # Alert at 80% of budget
       contactEmails:
         - "finance@davidmarkgardiner.co.uk"
         - "devops@davidmarkgardiner.co.uk"
@@ -354,7 +354,7 @@ spec:
       thresholdType: Actual
     - enabled: true
       operator: GreaterThan
-      threshold: 100  # Alert at 100% of budget
+      threshold: 100 # Alert at 100% of budget
       contactEmails:
         - "finance@davidmarkgardiner.co.uk"
         - "devops@davidmarkgardiner.co.uk"
@@ -362,7 +362,7 @@ spec:
         - Owner
       contactGroups: []
       thresholdType: Forecasted
-  
+
   tags:
     budget-type: compliance
     alert-thresholds: "80,100"
@@ -380,15 +380,15 @@ metadata:
     team: compliance
 spec:
   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
-  
+
   # Security Reader role for compliance team
   roleDefinitionReference:
     armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/39bc4728-0917-49c7-9d2c-d95423bc2eb4
-  
+
   # Principal ID would be set to compliance team group
-  principalId: "12345678-1234-1234-1234-123456789012"  # Replace with actual group ID
+  principalId: "12345678-1234-1234-1234-123456789012" # Replace with actual group ID
   principalType: Group
-  
+
   description: "Compliance team read access for audit purposes"
 
 ---
@@ -404,10 +404,10 @@ metadata:
 spec:
   displayName: "Require Data Classification Tags"
   description: "Ensures all resources storing data have proper classification tags"
-  
+
   policyType: Custom
   mode: Indexed
-  
+
   policyRule:
     if:
       allOf:
@@ -423,7 +423,7 @@ spec:
       effect: "Deny"
       details:
         reason: "Data classification tag is required for all data storage resources"
-  
+
   parameters:
     allowedClassifications:
       type: Array
@@ -431,7 +431,7 @@ spec:
       metadata:
         displayName: "Allowed Data Classifications"
         description: "List of allowed data classification values"
-  
+
   metadata:
     category: "Data Governance"
     compliance: "gdpr,soc2,iso27001"
@@ -445,14 +445,14 @@ metadata:
   namespace: azure-system
 spec:
   scope: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod
-  
+
   policyDefinitionId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/policyDefinitions/data-classification-tagging
-  
+
   displayName: "Data Classification Enforcement"
   description: "Requires data classification tags on all storage resources"
-  
+
   parameters:
     allowedClassifications:
       value: ["public", "internal", "confidential", "restricted"]
-  
+
   enforcementMode: Default

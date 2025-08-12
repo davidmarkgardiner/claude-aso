@@ -1,0 +1,164 @@
+---
+# ServiceMonitor for Prometheus monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: platform-api-monitor
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+    prometheus: kube-prometheus
+  annotations:
+    platform.io/description: "ServiceMonitor for Platform API Prometheus metrics collection"
+spec:
+  selector:
+    matchLabels:
+      app: platform-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "platform_api_(.*)"
+          targetLabel: __name__
+          replacement: "${1}"
+
+---
+# PrometheusRule for Platform API alerting
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-api-alerts
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+    prometheus: kube-prometheus
+  annotations:
+    platform.io/description: "Prometheus alerting rules for Platform API"
+spec:
+  groups:
+    - name: platform-api
+      rules:
+        - alert: PlatformAPIDown
+          expr: up{job="platform-api"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            service: platform-api
+          annotations:
+            summary: "Platform API is down"
+            description: "Platform API has been down for more than 1 minute."
+
+        - alert: PlatformAPIHighErrorRate
+          expr: rate(http_requests_total{job="platform-api",code=~"5.."}[5m]) / rate(http_requests_total{job="platform-api"}[5m]) > 0.1
+          for: 2m
+          labels:
+            severity: warning
+            service: platform-api
+          annotations:
+            summary: "Platform API high error rate"
+            description: "Platform API error rate is above 10% for more than 2 minutes."
+
+        - alert: PlatformAPIHighLatency
+          expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="platform-api"}[5m])) > 1
+          for: 2m
+          labels:
+            severity: warning
+            service: platform-api
+          annotations:
+            summary: "Platform API high latency"
+            description: "Platform API 95th percentile latency is above 1 second for more than 2 minutes."
+
+        - alert: PlatformAPIHighMemoryUsage
+          expr: container_memory_usage_bytes{pod=~"platform-api-.*"} / container_spec_memory_limit_bytes > 0.9
+          for: 5m
+          labels:
+            severity: warning
+            service: platform-api
+          annotations:
+            summary: "Platform API high memory usage"
+            description: "Platform API memory usage is above 90% for more than 5 minutes."
+
+        - alert: PlatformAPIHighCPUUsage
+          expr: rate(container_cpu_usage_seconds_total{pod=~"platform-api-.*"}[5m]) / container_spec_cpu_quota * container_spec_cpu_period > 0.8
+          for: 5m
+          labels:
+            severity: warning
+            service: platform-api
+          annotations:
+            summary: "Platform API high CPU usage"
+            description: "Platform API CPU usage is above 80% for more than 5 minutes."
+
+---
+# Grafana Dashboard ConfigMap (optional)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-api-dashboard
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+    grafana_dashboard: "1"
+  annotations:
+    platform.io/description: "Grafana dashboard for Platform API monitoring"
+data:
+  dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Platform API Dashboard",
+        "tags": ["platform", "api"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "HTTP Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{job=\"platform-api\"}[5m])",
+                "legendFormat": "{{method}} {{handler}}"
+              }
+            ]
+          },
+          {
+            "title": "HTTP Error Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{job=\"platform-api\",code=~\"5..\"}[5m]) / rate(http_requests_total{job=\"platform-api\"}[5m])",
+                "legendFormat": "Error Rate"
+              }
+            ]
+          },
+          {
+            "title": "Response Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"platform-api\"}[5m]))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"platform-api\"}[5m]))",
+                "legendFormat": "50th percentile"
+              }
+            ]
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "5s"
+      }
+    }

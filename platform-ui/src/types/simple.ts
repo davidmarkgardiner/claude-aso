@@ -12,7 +12,7 @@ export interface Template {
 
 export interface Parameter {
   name: string;
-  type: 'string' | 'number' | 'boolean' | 'select';
+  type: "string" | "number" | "boolean" | "select";
   required: boolean;
   description: string;
   defaultValue?: string | number | boolean;
@@ -28,9 +28,9 @@ export interface TemplateExample {
 export interface NamespaceRequest {
   namespaceName: string;
   team: string;
-  environment: 'development' | 'staging' | 'production';
-  resourceTier: 'micro' | 'small' | 'medium' | 'large';
-  networkPolicy: 'isolated' | 'team-shared' | 'open';
+  environment: "development" | "staging" | "production";
+  resourceTier: "micro" | "small" | "medium" | "large";
+  networkPolicy: "isolated" | "team-shared" | "open";
   features: string[];
   description?: string;
   costCenter?: string;
@@ -43,7 +43,7 @@ export interface ProvisioningRequest {
   environment: string;
   resourceTier: string;
   networkPolicy: string;
-  status: 'pending' | 'provisioning' | 'completed' | 'failed';
+  status: "pending" | "provisioning" | "completed" | "failed";
   createdAt: string;
   completedAt?: string;
   errorMessage?: string;

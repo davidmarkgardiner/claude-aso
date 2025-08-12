@@ -58,20 +58,22 @@ curl -X GET https://platform-api.example.com/api/platform/namespaces/clusters \
 
 ## 📋 Endpoint Reference
 
-| Method | Endpoint | Purpose | Auth Required |
-|--------|----------|---------|---------------|
-| `POST` | `/api/platform/namespaces/{ns}/rbac` | Configure RBAC | ✅ namespace:admin |
-| `GET` | `/api/platform/namespaces/{ns}/rbac` | Get RBAC status | ✅ namespace:admin |
-| `DELETE` | `/api/platform/namespaces/{ns}/rbac` | Remove RBAC | ✅ namespace:admin |
-| `GET` | `/api/platform/namespaces/clusters` | List clusters | ✅ platform:viewer |
+| Method   | Endpoint                             | Purpose         | Auth Required      |
+| -------- | ------------------------------------ | --------------- | ------------------ |
+| `POST`   | `/api/platform/namespaces/{ns}/rbac` | Configure RBAC  | ✅ namespace:admin |
+| `GET`    | `/api/platform/namespaces/{ns}/rbac` | Get RBAC status | ✅ namespace:admin |
+| `DELETE` | `/api/platform/namespaces/{ns}/rbac` | Remove RBAC     | ✅ namespace:admin |
+| `GET`    | `/api/platform/namespaces/clusters`  | List clusters   | ✅ platform:viewer |
 
 ## 🔑 Principal Types & Roles
 
 ### Principal Types
+
 - `User` - Individual Azure AD user
 - `Group` - Azure AD security group
 
 ### Available Roles
+
 - `aks-rbac-admin` - Full namespace admin (create, read, update, delete)
 - `aks-rbac-writer` - Read/write access (create, read, update, delete)
 - `aks-rbac-reader` - Read-only access (get, list, watch)
@@ -82,7 +84,7 @@ curl -X GET https://platform-api.example.com/api/platform/namespaces/clusters \
 # Find user object ID
 az ad user show --id user@company.com --query objectId -o tsv
 
-# Find group object ID  
+# Find group object ID
 az ad group show --group "Frontend Team" --query objectId -o tsv
 ```
 
@@ -96,7 +98,7 @@ az ad group show --group "Frontend Team" --query objectId -o tsv
   "data": {
     "namespaceRBAC": {
       "namespaceName": "frontend-prod",
-      "clusterName": "prod-aks-cluster", 
+      "clusterName": "prod-aks-cluster",
       "teamName": "frontend",
       "environment": "production",
       "roleAssignments": [
@@ -129,7 +131,7 @@ az ad group show --group "Frontend Team" --query objectId -o tsv
       {
         "name": "rbac-frontend-prod-frontend-1",
         "principalId": "group-object-id",
-        "roleDefinitionId": "/subscriptions/.../aks-rbac-admin", 
+        "roleDefinitionId": "/subscriptions/.../aks-rbac-admin",
         "scope": "/subscriptions/.../namespaces/frontend-prod",
         "status": "Succeeded",
         "createdAt": "2024-01-20T10:30:00Z"
@@ -154,14 +156,14 @@ az ad group show --group "Frontend Team" --query objectId -o tsv
         "armId": "/subscriptions/.../managedClusters/dev-cluster"
       },
       {
-        "name": "staging-aks-cluster", 
+        "name": "staging-aks-cluster",
         "environment": "staging",
         "region": "uksouth",
         "armId": "/subscriptions/.../managedClusters/staging-cluster"
       },
       {
         "name": "prod-aks-cluster",
-        "environment": "production", 
+        "environment": "production",
         "region": "uksouth",
         "armId": "/subscriptions/.../managedClusters/prod-cluster",
         "isDefault": true
@@ -189,7 +191,7 @@ az ad group show --group "Frontend Team" --query objectId -o tsv
 
 ```json
 {
-  "error": "AuthorizationError", 
+  "error": "AuthorizationError",
   "message": "Insufficient permissions. Required roles: namespace:admin",
   "timestamp": "2024-01-20T10:30:00.000Z"
 }
@@ -216,7 +218,7 @@ curl -X POST https://platform-api.example.com/api/platform/namespaces \
   -H "Content-Type: application/json" \
   -d '{
     "namespaceName": "new-team-prod",
-    "team": "new-team", 
+    "team": "new-team",
     "environment": "production",
     "resourceTier": "medium"
   }'
@@ -237,7 +239,7 @@ curl -X POST https://platform-api.example.com/api/platform/namespaces/new-team-p
 ```bash
 #!/bin/bash
 TEAM_NAME="$1"
-GROUP_ID="$2" 
+GROUP_ID="$2"
 ENVIRONMENT="${3:-staging}"
 
 # Create namespace
@@ -255,7 +257,7 @@ curl -X POST $PLATFORM_API/api/platform/namespaces/${TEAM_NAME}-${ENVIRONMENT}/r
   -H "Authorization: Bearer $TOKEN" \
   -d "{
     \"principalId\": \"$GROUP_ID\",
-    \"principalType\": \"Group\", 
+    \"principalType\": \"Group\",
     \"roleDefinition\": \"aks-rbac-admin\"
   }"
 ```

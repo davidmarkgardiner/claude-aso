@@ -1,0 +1,39 @@
+# Docker Compose Environment Configuration Template
+# Copy this file to .env.docker and set appropriate test values for local development
+# NEVER commit .env.docker to version control
+
+# JWT Configuration - Use test values for local development
+JWT_SECRET=test-jwt-secret-for-local-development-only
+JWT_EXPIRES_IN=24h
+JWT_ISSUER=platform-api
+JWT_AUDIENCE=platform-users
+
+# Azure AD Configuration - Use test/dev values
+AZURE_CLIENT_ID=test-client-id
+AZURE_CLIENT_SECRET=test-client-secret
+AZURE_TENANT_ID=test-tenant-id
+
+# Database Configuration - Test credentials for local postgres
+DB_NAME=platform
+DB_USER=platform
+DB_PASSWORD=test-platform-password-local-only
+DB_SSL=false
+
+# PostgreSQL Environment Variables (for the postgres container)
+POSTGRES_DB=platform
+POSTGRES_USER=platform
+POSTGRES_PASSWORD=test-platform-password-local-only
+
+# Redis Configuration - Optional password for local redis
+REDIS_PASSWORD=test-redis-password-local-only
+
+# Additional API Keys for local testing
+ENCRYPTION_KEY=test-encryption-key-for-local-development
+API_KEY=test-api-key-for-local-development
+
+# Grafana Configuration
+GRAFANA_ADMIN_PASSWORD=test-admin-password-local-only
+
+# Security Warning:
+# This file contains test credentials only suitable for local development.
+# Production secrets should NEVER be stored in files - use Azure Key Vault + External Secrets.

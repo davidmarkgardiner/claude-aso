@@ -12,18 +12,20 @@ Stage, commit, and push changes to GitHub with a well-crafted commit message.
 1. **ALWAYS start by running `git status`** to see what files have changed
 
 2. **Stage the appropriate files:**
+
    ```bash
    # Stage all changes
    git add .
-   
+
    # Or stage specific files
    git add <file1> <file2>
    ```
 
 3. **Create a meaningful commit message** following this format:
+
    ```bash
    git commit -m "type: brief description
-   
+
    - Detailed point about what changed
    - Another specific change made
    - Why this change was necessary"
@@ -37,6 +39,7 @@ Stage, commit, and push changes to GitHub with a well-crafted commit message.
 ## Commit Message Guidelines
 
 **Use conventional commit types:**
+
 - `feat:` - New feature
 - `fix:` - Bug fix
 - `docs:` - Documentation changes
@@ -46,6 +49,7 @@ Stage, commit, and push changes to GitHub with a well-crafted commit message.
 - `chore:` - Maintenance tasks
 
 **Good commit message example:**
+
 ```
 feat: add user authentication system
 
@@ -56,6 +60,7 @@ feat: add user authentication system
 ```
 
 **Bad commit message examples:**
+
 - `updated stuff`
 - `fixes`
 - `changes`
@@ -102,6 +107,7 @@ git push origin HEAD
 ## Troubleshooting
 
 **If push is rejected:**
+
 ```bash
 # Pull latest changes first
 git pull origin <current-branch>
@@ -111,6 +117,7 @@ git push origin HEAD
 ```
 
 **If you made a mistake in the commit message:**
+
 ```bash
 # Amend the last commit message
 git commit --amend -m "corrected message"

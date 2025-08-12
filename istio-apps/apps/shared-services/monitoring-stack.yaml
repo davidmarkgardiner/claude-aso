@@ -21,53 +21,53 @@ spec:
         component: monitoring
       annotations:
         sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "false"  # Don't scrape self
+        prometheus.io/scrape: "false" # Don't scrape self
     spec:
       serviceAccountName: istio-shared-services
       containers:
-      - name: prometheus
-        image: prom/prometheus:v2.48.0
-        args:
-        - --config.file=/etc/prometheus/prometheus.yml
-        - --storage.tsdb.path=/prometheus/
-        - --web.console.libraries=/etc/prometheus/console_libraries
-        - --web.console.templates=/etc/prometheus/consoles
-        - --web.enable-lifecycle
-        - --web.enable-admin-api
-        - --storage.tsdb.retention.time=7d
-        ports:
-        - name: web
-          containerPort: 9090
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "100m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-        volumeMounts:
-        - name: prometheus-config
-          mountPath: /etc/prometheus/
-        - name: prometheus-storage
-          mountPath: /prometheus/
-        livenessProbe:
-          httpGet:
-            path: /-/healthy
-            port: web
-          initialDelaySeconds: 30
-          timeoutSeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /-/ready
-            port: web
-          initialDelaySeconds: 30
-          timeoutSeconds: 30
+        - name: prometheus
+          image: prom/prometheus:v2.48.0
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus/
+            - --web.console.libraries=/etc/prometheus/console_libraries
+            - --web.console.templates=/etc/prometheus/consoles
+            - --web.enable-lifecycle
+            - --web.enable-admin-api
+            - --storage.tsdb.retention.time=7d
+          ports:
+            - name: web
+              containerPort: 9090
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus/
+            - name: prometheus-storage
+              mountPath: /prometheus/
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: web
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: web
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
       volumes:
-      - name: prometheus-config
-        configMap:
-          name: prometheus-config
-      - name: prometheus-storage
-        emptyDir: {}
+        - name: prometheus-config
+          configMap:
+            name: prometheus-config
+        - name: prometheus-storage
+          emptyDir: {}
 ---
 # Prometheus Service
 apiVersion: v1
@@ -81,9 +81,9 @@ metadata:
     deployment-agent: istio-engineer
 spec:
   ports:
-  - name: web
-    port: 9090
-    targetPort: web
+    - name: web
+      port: 9090
+      targetPort: web
   selector:
     app: prometheus
 ---
@@ -112,50 +112,50 @@ spec:
     spec:
       serviceAccountName: istio-shared-services
       containers:
-      - name: grafana
-        image: grafana/grafana:10.2.0
-        ports:
         - name: grafana
-          containerPort: 3000
-        env:
-        - name: GF_SECURITY_ADMIN_PASSWORD
-          value: admin123  # Change in production
-        - name: GF_USERS_ALLOW_SIGN_UP
-          value: "false"
-        - name: GF_SERVER_ROOT_URL
-          value: "http://monitoring.shared-services.davidmarkgardiner.co.uk/grafana"
-        - name: GF_SERVER_SERVE_FROM_SUB_PATH
-          value: "true"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "200m"
-        volumeMounts:
-        - name: grafana-storage
-          mountPath: /var/lib/grafana
-        - name: grafana-dashboards
-          mountPath: /etc/grafana/provisioning/dashboards
-        livenessProbe:
-          httpGet:
-            path: /api/health
-            port: grafana
-          initialDelaySeconds: 60
-          timeoutSeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /api/health
-            port: grafana
-          initialDelaySeconds: 30
-          timeoutSeconds: 30
+          image: grafana/grafana:10.2.0
+          ports:
+            - name: grafana
+              containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin123 # Change in production
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_SERVER_ROOT_URL
+              value: "http://monitoring.shared-services.davidmarkgardiner.co.uk/grafana"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "200m"
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+            - name: grafana-dashboards
+              mountPath: /etc/grafana/provisioning/dashboards
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: grafana
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: grafana
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
       volumes:
-      - name: grafana-storage
-        emptyDir: {}
-      - name: grafana-dashboards
-        configMap:
-          name: grafana-dashboards
+        - name: grafana-storage
+          emptyDir: {}
+        - name: grafana-dashboards
+          configMap:
+            name: grafana-dashboards
 ---
 # Grafana Service
 apiVersion: v1
@@ -169,8 +169,8 @@ metadata:
     deployment-agent: istio-engineer
 spec:
   ports:
-  - name: grafana
-    port: 3000
-    targetPort: grafana
+    - name: grafana
+      port: 3000
+      targetPort: grafana
   selector:
     app: grafana

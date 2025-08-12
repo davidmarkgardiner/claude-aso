@@ -110,7 +110,7 @@ logFormat: json
 interval: 1m
 
 provider:
-  name: azure  # Use 'azure' for public DNS
+  name: azure # Use 'azure' for public DNS
 
 sources:
   - ingress
@@ -118,7 +118,7 @@ sources:
 
 dnsPolicy: Default
 
-domainFilters: 
+domainFilters:
   - davidmarkgardiner.co.uk
 
 txtOwnerId: external-dns-minikube
@@ -185,7 +185,7 @@ helm repo update
 # Install External-DNS
 helm upgrade --install external-dns external-dns/external-dns \
   --namespace $NAMESPACE \
-  --values aks-istio-addon/external-dns/external-dns-minikube-values.yaml 
+  --values aks-istio-addon/external-dns/external-dns-minikube-values.yaml
 
 # Check deployment status
 kubectl get pods -n $NAMESPACE -w
@@ -213,17 +213,17 @@ spec:
         app: test-app
     spec:
       containers:
-      - name: nginx
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
-        resources:
-          limits:
-            cpu: 100m
-            memory: 128Mi
-          requests:
-            cpu: 50m
-            memory: 64Mi
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
 ---
 apiVersion: v1
 kind: Service
@@ -234,8 +234,8 @@ spec:
   selector:
     app: test-app
   ports:
-  - port: 80
-    targetPort: 80
+    - port: 80
+      targetPort: 80
   type: ClusterIP
 ---
 apiVersion: networking.k8s.io/v1
@@ -249,16 +249,16 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: "minikube-test.davidmarkgardiner.co.uk"
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: test-app-service
-            port:
-              number: 80
+    - host: "minikube-test.davidmarkgardiner.co.uk"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: test-app-service
+                port:
+                  number: 80
 ```
 
 Deploy the test application:
@@ -288,8 +288,8 @@ spec:
   selector:
     app: test-app
   ports:
-  - port: 80
-    targetPort: 80
+    - port: 80
+      targetPort: 80
   type: LoadBalancer
 ```
 
@@ -307,11 +307,13 @@ kubectl get svc -n $NAMESPACE
 ## Step 9: Verification Commands
 
 ### Check External-DNS Logs
+
 ```bash
 kubectl logs -f deployment/external-dns -n $NAMESPACE
 ```
 
 ### Verify DNS Records in Azure
+
 ```bash
 # List A records
 az network dns record-set a list \
@@ -327,6 +329,7 @@ az network dns record-set txt list \
 ```
 
 ### Test DNS Resolution
+
 ```bash
 # Test DNS resolution
 nslookup minikube-test.davidmarkgardiner.co.uk
@@ -337,6 +340,7 @@ nslookup lb-test.davidmarkgardiner.co.uk
 ```
 
 ### Check Minikube Ingress
+
 ```bash
 # Get Minikube IP
 minikube ip
@@ -351,6 +355,7 @@ echo "$(minikube ip) minikube-test.davidmarkgardiner.co.uk" | sudo tee -a /etc/h
 ## Step 10: Monitoring and Debugging
 
 ### Check All Resources
+
 ```bash
 # Check all external-dns resources
 kubectl get all -n $NAMESPACE
@@ -363,6 +368,7 @@ kubectl describe pod -l app.kubernetes.io/name=external-dns -n $NAMESPACE
 ```
 
 ### Debug Service Principal Authentication
+
 ```bash
 # Test Azure CLI with service principal (optional)
 az login --service-principal \
@@ -377,6 +383,7 @@ az network dns record-set a list \
 ```
 
 ### View External-DNS Configuration
+
 ```bash
 # Check configmap if created
 kubectl get configmap -n $NAMESPACE
@@ -388,6 +395,7 @@ kubectl describe secret azure-config-file -n $NAMESPACE
 ## Minikube-Specific Commands
 
 ### Useful Minikube Commands
+
 ```bash
 # Check Minikube addons
 minikube addons list
@@ -407,6 +415,7 @@ minikube delete
 ```
 
 ### Port Forwarding for Local Testing
+
 ```bash
 # Port forward to test app directly
 kubectl port-forward svc/test-app-service 8080:80 -n $NAMESPACE
@@ -452,19 +461,25 @@ Your Minikube External-DNS setup is working when:
 ## Common Minikube Issues & Solutions
 
 ### Issue: "failed to authenticate"
+
 - **Solution**: Verify service principal credentials in the secret are correct
 
 ### Issue: Ingress not getting external IP
+
 - **Solution**: Ensure ingress addon is enabled: `minikube addons enable ingress`
 
 ### Issue: LoadBalancer stuck in pending
+
 - **Solution**: Run `minikube tunnel` in a separate terminal
 
 ### Issue: DNS records point to wrong IP
+
 - **Solution**: Check `minikube ip` and ensure ingress controller is properly configured
 
 ### Issue: Can't reach application locally
+
 - **Solution**: Use port-forwarding or add Minikube IP to /etc/hosts
 
 ### Issue: External-DNS can't reach Azure
+
 - **Solution**: Check internet connectivity from Minikube: `minikube ssh` then `curl -I https://management.azure.com`

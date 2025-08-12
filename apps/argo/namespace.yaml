@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argo
+  labels:
+    name: argo
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: workflow-controller
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+    platform.azure.com/workload-type: workflows
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    platform.azure.com/description: "Argo Workflows namespace for Platform API integration"
+    platform.azure.com/team: "platform-engineering"
+    platform.azure.com/cost-center: "infrastructure"
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.argo-workflows: "glob:v*"
+    # Azure-specific annotations
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    # Security annotations
+    seccomp.security.alpha.kubernetes.io/pod: runtime/default
+    container.apparmor.security.beta.kubernetes.io/argo-server: runtime/default
+    container.apparmor.security.beta.kubernetes.io/workflow-controller: runtime/default

@@ -15,7 +15,7 @@ spec:
   properties:
     addressSpace:
       addressPrefixes:
-        - "10.0.0.0/16"  # 65,536 IP addresses
+        - "10.0.0.0/16" # 65,536 IP addresses
     # Enable DDoS protection for production
     enableDdosProtection: true
     ddosProtectionPlan:
@@ -59,7 +59,7 @@ spec:
     group: network.azure.com
     kind: VirtualNetwork
   properties:
-    addressPrefix: "10.0.1.0/24"  # 256 IP addresses for nodes
+    addressPrefix: "10.0.1.0/24" # 256 IP addresses for nodes
     # Enable private endpoint network policies
     privateEndpointNetworkPolicies: Disabled
     privateLinkServiceNetworkPolicies: Disabled
@@ -88,7 +88,7 @@ spec:
     group: network.azure.com
     kind: VirtualNetwork
   properties:
-    addressPrefix: "10.0.2.0/27"  # 32 IP addresses for App Gateway
+    addressPrefix: "10.0.2.0/27" # 32 IP addresses for App Gateway
 
 ---
 # Private Endpoints Subnet
@@ -106,7 +106,7 @@ spec:
     group: network.azure.com
     kind: VirtualNetwork
   properties:
-    addressPrefix: "10.0.3.0/24"  # 256 IP addresses for private endpoints
+    addressPrefix: "10.0.3.0/24" # 256 IP addresses for private endpoints
     privateEndpointNetworkPolicies: Disabled
 
 ---
@@ -136,7 +136,7 @@ spec:
           access: Allow
           priority: 100
           direction: Inbound
-      
+
       # Allow HTTP inbound from Application Gateway
       - name: "Allow-HTTP-from-AppGW"
         properties:
@@ -148,7 +148,7 @@ spec:
           access: Allow
           priority: 110
           direction: Inbound
-      
+
       # Allow Kubernetes API server
       - name: "Allow-Kubernetes-API"
         properties:
@@ -160,7 +160,7 @@ spec:
           access: Allow
           priority: 120
           direction: Inbound
-      
+
       # Allow kubelet communication
       - name: "Allow-Kubelet"
         properties:
@@ -172,7 +172,7 @@ spec:
           access: Allow
           priority: 130
           direction: Inbound
-      
+
       # Allow NodePort services (30000-32767)
       - name: "Allow-NodePort-Services"
         properties:
@@ -184,7 +184,7 @@ spec:
           access: Allow
           priority: 140
           direction: Inbound
-      
+
       # Deny all other inbound traffic
       - name: "Deny-All-Inbound"
         properties:
@@ -196,7 +196,7 @@ spec:
           access: Deny
           priority: 4096
           direction: Inbound
-      
+
       # Allow all outbound traffic (can be restricted further)
       - name: "Allow-All-Outbound"
         properties:
@@ -231,22 +231,22 @@ spec:
     sku:
       name: WAF_v2
       tier: WAF_v2
-      capacity: 2  # Minimum for production
-    
+      capacity: 2 # Minimum for production
+
     # Gateway IP configuration
     gatewayIPConfigurations:
       - name: appgw-ip-config
         properties:
           subnet:
             id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/appgw-subnet
-    
+
     # Frontend IP configurations
     frontendIPConfigurations:
       - name: appgw-frontend-ip
         properties:
           publicIPAddress:
             id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/publicIPAddresses/appgw-public-ip
-    
+
     # Frontend ports
     frontendPorts:
       - name: port-80
@@ -255,14 +255,14 @@ spec:
       - name: port-443
         properties:
           port: 443
-    
+
     # Backend address pools
     backendAddressPools:
       - name: aks-backend-pool
         properties:
           backendAddresses:
-            - ipAddress: "10.0.1.10"  # AKS ingress controller IP
-    
+            - ipAddress: "10.0.1.10" # AKS ingress controller IP
+
     # Backend HTTP settings
     backendHttpSettingsCollection:
       - name: aks-backend-settings
@@ -273,7 +273,7 @@ spec:
           connectionDraining:
             enabled: true
             drainTimeoutInSec: 30
-    
+
     # HTTP listeners
     httpListeners:
       - name: http-listener
@@ -283,7 +283,7 @@ spec:
           frontendPort:
             id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgw/frontendPorts/port-80
           protocol: Http
-    
+
     # Routing rules
     requestRoutingRules:
       - name: basic-routing-rule
@@ -295,7 +295,7 @@ spec:
             id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgw/backendAddressPools/aks-backend-pool
           backendHttpSettings:
             id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/applicationGateways/aks-prod-appgw/backendHttpSettingsCollection/aks-backend-settings
-    
+
     # Web Application Firewall configuration
     webApplicationFirewallConfiguration:
       enabled: true

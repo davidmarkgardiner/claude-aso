@@ -1,8 +1,8 @@
-export type ResourceTier = 'micro' | 'small' | 'medium' | 'large';
+export type ResourceTier = "micro" | "small" | "medium" | "large";
 
-export type NetworkPolicy = 'isolated' | 'team-shared' | 'open';
+export type NetworkPolicy = "isolated" | "team-shared" | "open";
 
-export type Environment = 'development' | 'staging' | 'production';
+export type Environment = "development" | "staging" | "production";
 
 export interface NamespaceRequest {
   namespaceName: string;
@@ -22,7 +22,7 @@ export interface NamespaceRequest {
 export interface ProvisioningResult {
   requestId: string;
   namespaceName: string;
-  status: 'pending' | 'provisioning' | 'completed' | 'failed';
+  status: "pending" | "provisioning" | "completed" | "failed";
   workflowName: string;
   createdAt: string;
   completedAt?: string;
@@ -38,7 +38,7 @@ export interface ProvisioningRequest {
   networkPolicy: NetworkPolicy;
   features: string[];
   description: string;
-  status: 'pending' | 'provisioning' | 'completed' | 'failed';
+  status: "pending" | "provisioning" | "completed" | "failed";
   workflowName: string;
   createdAt: string;
   completedAt?: string;
@@ -62,7 +62,7 @@ export interface NamespaceInfo {
   environment: Environment;
   resourceTier: ResourceTier;
   networkPolicy: NetworkPolicy;
-  status: 'active' | 'provisioning' | 'error';
+  status: "active" | "provisioning" | "error";
   createdAt: string;
   features: string[];
   description: string;

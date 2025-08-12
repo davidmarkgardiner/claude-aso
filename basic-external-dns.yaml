@@ -14,34 +14,34 @@ spec:
     spec:
       serviceAccountName: external-dns-basic
       containers:
-      - name: external-dns
-        image: registry.k8s.io/external-dns/external-dns:v0.18.0
-        args:
-        - --source=service
-        - --source=ingress
-        - --domain-filter=davidmarkgardiner.co.uk
-        - --provider=inmemory
-        - --txt-owner-id=external-dns-basic
-        - --interval=30s
-        - --log-level=debug
-        - --policy=sync
-        resources:
-          limits:
-            memory: "128Mi"
-            cpu: "100m"
-          requests:
-            memory: "64Mi"
-            cpu: "10m"
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 65532
-          runAsGroup: 65532
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop: ["ALL"]
-          seccompProfile:
-            type: RuntimeDefault
+        - name: external-dns
+          image: registry.k8s.io/external-dns/external-dns:v0.18.0
+          args:
+            - --source=service
+            - --source=ingress
+            - --domain-filter=davidmarkgardiner.co.uk
+            - --provider=inmemory
+            - --txt-owner-id=external-dns-basic
+            - --interval=30s
+            - --log-level=debug
+            - --policy=sync
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -54,18 +54,18 @@ kind: ClusterRole
 metadata:
   name: external-dns-basic
 rules:
-- apiGroups: [""]
-  resources: ["services","endpoints","pods"]
-  verbs: ["get","watch","list"]
-- apiGroups: ["extensions","networking.k8s.io"]
-  resources: ["ingresses"]
-  verbs: ["get","watch","list"]
-- apiGroups: [""]
-  resources: ["nodes"]
-  verbs: ["list","watch"]
-- apiGroups: ["discovery.k8s.io"]
-  resources: ["endpointslices"]
-  verbs: ["get","watch","list"]
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "pods"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["extensions", "networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "watch", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -76,6 +76,6 @@ roleRef:
   kind: ClusterRole
   name: external-dns-basic
 subjects:
-- kind: ServiceAccount
-  name: external-dns-basic
-  namespace: external-dns
+  - kind: ServiceAccount
+    name: external-dns-basic
+    namespace: external-dns

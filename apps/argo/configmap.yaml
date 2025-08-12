@@ -1,0 +1,163 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-controller-configmap
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: workflow-controller
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+data:
+  config: |
+    # Base configuration optimized for AKS
+    namespace: argo
+    parallelism: 10
+    namespaceParallelism: 10
+
+    # Instance ID for multi-controller setups
+    instanceID: argo-workflows-aks
+
+    # Persistence configuration for AKS
+    persistence:
+      nodeStatusOffLoad: true
+      archive: true
+      postgresql:
+        host: postgres-argo-workflows
+        port: 5432
+        database: argo
+        tableName: argo_workflows
+        userNameSecret:
+          name: argo-postgres-config
+          key: username
+        passwordSecret:
+          name: argo-postgres-config
+          key: password
+        ssl: true
+        sslMode: require
+
+    # Workflow defaults optimized for AKS
+    workflowDefaults:
+      spec:
+        # Default service account for workflows
+        serviceAccountName: workflow-executor
+        # Pod GC strategy
+        podGC:
+          strategy: OnPodCompletion
+          deleteDelayDuration: 5m
+        # TTL for completed workflows
+        ttlStrategy:
+          secondsAfterCompletion: 3600  # 1 hour
+          secondsAfterSuccess: 1800     # 30 minutes
+          secondsAfterFailure: 7200     # 2 hours
+        # Security context for all workflow pods
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+          fsGroup: 1001
+          seccompProfile:
+            type: RuntimeDefault
+        # Default resource limits
+        podSpecPatch: |
+          containers:
+          - name: main
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+        # Node selector for AKS system node pool
+        nodeSelector:
+          kubernetes.io/os: linux
+          agentpool: system
+        # Tolerations for system workloads
+        tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+
+    # Executor configuration
+    executor:
+      imagePullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 100m
+          memory: 64Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+    # Azure-specific configurations
+    containerRuntimeExecutor: docker
+
+    # Metrics configuration
+    metricsConfig:
+      enabled: true
+      path: /metrics
+      port: 8080
+      ignoreErrors: false
+      secure: false
+
+    # Telemetry
+    telemetryConfig:
+      enabled: true
+      path: /telemetry
+      port: 8080
+
+    # Links for external integrations
+    links:
+    - name: "Azure Portal"
+      scope: "workflow"
+      url: "https://portal.azure.com/#blade/HubsExtension/BrowseResourceBlade/resourceType/Microsoft.ContainerService%2FmanagedClusters"
+    - name: "Platform API"
+      scope: "workflow"
+      url: "https://platform.azure.local/workflows/{{workflow.metadata.name}}"
+
+    # Workflow template defaults
+    workflowTemplateDefaults:
+      spec:
+        serviceAccountName: workflow-executor
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          fsGroup: 1001
+
+    # Data retention policies
+    retentionPolicy:
+      completed: 168h  # 7 days
+      failed: 168h     # 7 days
+      errored: 168h    # 7 days
+
+    # SSO configuration for Azure AD integration
+    sso:
+      issuer: https://sts.windows.net/${AZURE_TENANT_ID}/
+      clientId:
+        name: argo-server-sso
+        key: client-id
+      clientSecret:
+        name: argo-server-sso
+        key: client-secret
+      redirectUrl: https://argo-workflows.azure.local/oauth2/callback
+      
+    # Azure-specific artifact repository
+    artifactRepository:
+      archiveLogs: true
+      azure:
+        endpoint: https://${AZURE_STORAGE_ACCOUNT}.blob.core.windows.net
+        container: argo-workflows
+        blob: "{{workflow.name}}"
+        accountKeySecret:
+          name: azure-storage-secret
+          key: accountKey

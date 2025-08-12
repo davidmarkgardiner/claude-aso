@@ -1,0 +1,329 @@
+# Production monitoring configuration for External Secrets Operator
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: external-secrets-controller
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets
+    app.kubernetes.io/component: controller
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "ServiceMonitor for External Secrets Operator controller"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-secrets
+      app.kubernetes.io/instance: external-secrets
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - external-secrets-system
+
+---
+# ServiceMonitor for webhook metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: external-secrets-webhook
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets-webhook
+    app.kubernetes.io/component: webhook
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "ServiceMonitor for External Secrets Operator webhook"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-secrets-webhook
+      app.kubernetes.io/instance: external-secrets
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - external-secrets-system
+
+---
+# PrometheusRule for External Secrets alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: external-secrets-alerts
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets
+    app.kubernetes.io/component: alerts
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Prometheus alerts for External Secrets Operator"
+spec:
+  groups:
+    - name: external-secrets.rules
+      interval: 30s
+      rules:
+        # External Secret sync failures
+        - alert: ExternalSecretSyncFailure
+          expr: increase(externalsecret_sync_calls_error[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: external-secrets
+            service: external-secrets-operator
+          annotations:
+            summary: "External Secret sync failure detected"
+            description: "External Secret {{ $labels.name }} in namespace {{ $labels.namespace }} has failed to sync for more than 5 minutes"
+            runbook_url: "https://platform-docs/runbooks/external-secrets-sync-failure"
+
+        # Secret Store connection issues
+        - alert: SecretStoreConnectionFailure
+          expr: increase(externalsecret_status_condition{condition="SecretSyncError"}[10m]) > 0
+          for: 10m
+          labels:
+            severity: critical
+            component: external-secrets
+            service: azure-keyvault
+          annotations:
+            summary: "Secret Store connection failure"
+            description: "Secret Store {{ $labels.secretstore }} is failing to connect for more than 10 minutes"
+            runbook_url: "https://platform-docs/runbooks/secret-store-connection-failure"
+
+        # High number of reconciliation errors
+        - alert: HighExternalSecretsReconciliationErrors
+          expr: rate(controller_runtime_reconcile_errors_total{controller="externalsecret"}[5m]) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            component: external-secrets
+            service: external-secrets-controller
+          annotations:
+            summary: "High rate of External Secrets reconciliation errors"
+            description: "External Secrets controller is experiencing high error rate: {{ $value }} errors/sec"
+            runbook_url: "https://platform-docs/runbooks/high-reconciliation-errors"
+
+        # Controller pod restarts
+        - alert: ExternalSecretsControllerRestarts
+          expr: increase(kube_pod_container_status_restarts_total{namespace="external-secrets-system", container="external-secrets"}[1h]) > 3
+          for: 0m
+          labels:
+            severity: warning
+            component: external-secrets
+            service: external-secrets-controller
+          annotations:
+            summary: "External Secrets controller restarting frequently"
+            description: "External Secrets controller pod has restarted {{ $value }} times in the last hour"
+            runbook_url: "https://platform-docs/runbooks/controller-restarts"
+
+        # Secret refresh lag
+        - alert: ExternalSecretRefreshLag
+          expr: time() - externalsecret_sync_calls_total{status="success"} > 7200 # 2 hours
+          for: 5m
+          labels:
+            severity: warning
+            component: external-secrets
+            service: external-secrets-operator
+          annotations:
+            summary: "External Secret not refreshed recently"
+            description: "External Secret {{ $labels.name }} hasn't been successfully refreshed for more than 2 hours"
+            runbook_url: "https://platform-docs/runbooks/secret-refresh-lag"
+
+        # Webhook certificate expiration
+        - alert: ExternalSecretsWebhookCertExpiry
+          expr: cert_exporter_not_after{name="external-secrets-webhook"} - time() < 86400 * 7 # 7 days
+          for: 0m
+          labels:
+            severity: warning
+            component: external-secrets
+            service: webhook
+          annotations:
+            summary: "External Secrets webhook certificate expiring soon"
+            description: "External Secrets webhook certificate will expire in less than 7 days"
+            runbook_url: "https://platform-docs/runbooks/webhook-cert-expiry"
+
+        # Azure Key Vault rate limiting
+        - alert: AzureKeyVaultRateLimit
+          expr: increase(externalsecret_provider_api_calls_error{provider="azurekv", error_type="rate_limit"}[5m]) > 0
+          for: 2m
+          labels:
+            severity: warning
+            component: external-secrets
+            service: azure-keyvault
+          annotations:
+            summary: "Azure Key Vault rate limiting detected"
+            description: "External Secrets is being rate limited by Azure Key Vault"
+            runbook_url: "https://platform-docs/runbooks/azure-keyvault-rate-limit"
+
+---
+# Grafana Dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-secrets-dashboard
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets
+    app.kubernetes.io/component: dashboard
+    platform.io/component: external-secrets
+    platform.io/tier: system
+    grafana_dashboard: "true"
+  annotations:
+    platform.io/description: "Grafana dashboard for External Secrets Operator"
+data:
+  external-secrets-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "External Secrets Operator",
+        "tags": ["external-secrets", "platform", "security"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "External Secrets Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "count(externalsecret_status_condition{condition=\"Ready\", status=\"True\"})",
+                "legendFormat": "Ready"
+              },
+              {
+                "expr": "count(externalsecret_status_condition{condition=\"Ready\", status=\"False\"})",
+                "legendFormat": "Not Ready"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "green", "value": 1}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "id": 2,
+            "title": "Sync Success Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "rate(externalsecret_sync_calls_total{status=\"success\"}[5m]) / rate(externalsecret_sync_calls_total[5m]) * 100",
+                "legendFormat": "Success Rate %"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100,
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 90},
+                    {"color": "green", "value": 95}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "id": 3,
+            "title": "Reconciliation Duration",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(controller_runtime_reconcile_time_seconds_bucket{controller=\"externalsecret\"}[5m]))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.50, rate(controller_runtime_reconcile_time_seconds_bucket{controller=\"externalsecret\"}[5m]))",
+                "legendFormat": "50th percentile"
+              }
+            ],
+            "yAxes": [
+              {
+                "unit": "s",
+                "min": 0
+              }
+            ]
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+---
+# Network Policy for External Secrets (production security)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: external-secrets-network-policy
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Network policy for External Secrets Operator"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: external-secrets
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow webhook traffic from API server
+    - from:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kubernetes
+      ports:
+        - protocol: TCP
+          port: 9443
+    # Allow metrics scraping from monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS to Azure Key Vault
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow API server communication
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 6443

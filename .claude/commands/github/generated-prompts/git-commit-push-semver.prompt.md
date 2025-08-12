@@ -5,12 +5,15 @@ mode: agent
 # Git Commit with Semantic Versioning
 
 ## Context
+
 Generate git commit messages that follow conventional commit standards and determine appropriate semantic version bumps based on the changes being committed. This prompt helps maintain consistent commit history and automated version management.
 
 ## Task
+
 Create a git commit with a properly formatted message and suggest the appropriate semantic version increment (major, minor, patch) based on the changes.
 
 ## Requirements
+
 - Follow Conventional Commits specification (https://conventionalcommits.org/)
 - Analyze staged changes to determine commit type and scope
 - Suggest appropriate semver bump (major.minor.patch)
@@ -19,6 +22,7 @@ Create a git commit with a properly formatted message and suggest the appropriat
 - Handle multiple change types in a single commit
 
 ## Commit Message Format
+
 ```
 <type>[optional scope]: <description>
 
@@ -28,6 +32,7 @@ Create a git commit with a properly formatted message and suggest the appropriat
 ```
 
 ## Commit Types and Semver Impact
+
 - `feat`: New feature (MINOR bump)
 - `fix`: Bug fix (PATCH bump)
 - `docs`: Documentation changes (PATCH bump)
@@ -44,6 +49,7 @@ Create a git commit with a properly formatted message and suggest the appropriat
 ## Example Outputs
 
 ### Feature Addition
+
 ```bash
 git commit -m "feat(auth): add OAuth2 Google login integration
 
@@ -55,6 +61,7 @@ Closes #123"
 ```
 
 ### Bug Fix
+
 ```bash
 git commit -m "fix(api): resolve null pointer exception in user service
 
@@ -65,6 +72,7 @@ Fixes #456"
 ```
 
 ### Breaking Change
+
 ```bash
 git commit -m "feat(api)!: redesign user authentication endpoints
 
@@ -74,6 +82,7 @@ All clients must update to use new authentication flow."
 ```
 
 ## Workflow
+
 1. Analyze `git status` and `git diff --staged` output
 2. Categorize changes by type and scope
 3. Identify any breaking changes
@@ -84,9 +93,10 @@ All clients must update to use new authentication flow."
 8. Display recommended version bump
 
 ## Additional Context
+
 - For monorepos, include package/module scope in commit messages
 - Consider grouping related changes into single commits when logical
 - Use imperative mood in commit descriptions ("add" not "added")
 - Keep first line under 72 characters for better git log readability
 - Include issue/PR references when applicable
-- Use body text for detailed explanations of complex changes 
+- Use body text for detailed explanations of complex changes

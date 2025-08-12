@@ -1,0 +1,33 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: argo-server-pdb
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: argo-server
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argo-workflows
+      app.kubernetes.io/component: argo-server
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: workflow-controller-pdb
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: workflow-controller
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argo-workflows
+      app.kubernetes.io/component: workflow-controller

@@ -18,7 +18,7 @@ spec:
             - kubeconfig
             - cluster_endpoint
             - resource_ids
-    
+
     - name: core-services
       parallel: true
       depends_on: infrastructure-provisioning
@@ -34,7 +34,7 @@ spec:
             provider: azure
             zone: auto-detect
             policy: sync
-    
+
     - name: service-mesh
       parallel: false
       depends_on: core-services
@@ -47,7 +47,7 @@ spec:
               - istiod
               - ingress-gateway
               - observability
-    
+
     - name: application-deployment
       parallel: false
       depends_on: service-mesh
@@ -58,7 +58,7 @@ spec:
             namespace: production
             injection: enabled
             canary: true
-    
+
     - name: validation-testing
       parallel: true
       depends_on: application-deployment
@@ -72,7 +72,7 @@ spec:
         - name: chaos-engineer
           timeout: 1800s
           critical: false
-    
+
     - name: documentation
       parallel: true
       depends_on: validation-testing
@@ -81,7 +81,7 @@ spec:
           continuous: true
         - name: documentation-engineer
           timeout: 600s
-    
+
     - name: change-management
       parallel: false
       depends_on: documentation
@@ -89,13 +89,13 @@ spec:
         - name: change-manager
           timeout: 300s
           manual_approval: true
-  
+
   error_handling:
     strategy: fail-fast
     support_agent: sre-debugger
     max_retries: 3
     backoff: exponential
-  
+
   notifications:
     slack:
       channel: "#infrastructure"
@@ -109,7 +109,7 @@ spec:
       events:
         - pipeline_complete
         - critical_error
-  
+
   state_management:
     backend: kubernetes-configmap
     namespace: orchestration
@@ -117,7 +117,7 @@ spec:
       enabled: true
       repository: infrastructure-as-code
       branch: main
-  
+
   success_criteria:
     all_phases_complete: true
     no_critical_errors: true

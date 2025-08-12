@@ -19,7 +19,7 @@ spec:
         - service: Microsoft.KeyVault
         - service: Microsoft.Storage
     - name: aks-pods-subnet
-      addressPrefix: "10.1.2.0/22"  # Large subnet for pods
+      addressPrefix: "10.1.2.0/22" # Large subnet for pods
     - name: application-gateway-subnet
       addressPrefix: "10.1.6.0/24"
     - name: private-endpoints-subnet

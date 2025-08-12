@@ -1,7 +1,10 @@
-import { DefaultAzureCredential, WorkloadIdentityCredential } from '@azure/identity';
+import {
+  DefaultAzureCredential,
+  WorkloadIdentityCredential,
+} from "@azure/identity";
 // import { KubernetesApi } from '@kubernetes/client-node';
-import { logger } from '../utils/logger';
-import { config } from '../config/config';
+import { logger } from "../utils/logger";
+import { config } from "../config/config";
 
 export interface ManagedIdentityOptions {
   clientId?: string;
@@ -26,49 +29,62 @@ export class ManagedIdentityAuthService {
         this.credential = new WorkloadIdentityCredential({
           tenantId: this.options.tenantId || process.env.AZURE_TENANT_ID,
           clientId: this.options.clientId || process.env.AZURE_CLIENT_ID,
-          tokenFilePath: this.options.federatedTokenFile || process.env.AZURE_FEDERATED_TOKEN_FILE,
+          tokenFilePath:
+            this.options.federatedTokenFile ||
+            process.env.AZURE_FEDERATED_TOKEN_FILE,
         });
-        
-        logger.info('Initialized Workload Identity credential', {
-          clientId: this.maskClientId(this.options.clientId || process.env.AZURE_CLIENT_ID || 'unknown'),
-          tenantId: this.options.tenantId || process.env.AZURE_TENANT_ID || 'unknown'
+
+        logger.info("Initialized Workload Identity credential", {
+          clientId: this.maskClientId(
+            this.options.clientId || process.env.AZURE_CLIENT_ID || "unknown",
+          ),
+          tenantId:
+            this.options.tenantId || process.env.AZURE_TENANT_ID || "unknown",
         });
       } else {
         // Fallback to DefaultAzureCredential (for local development)
         this.credential = new DefaultAzureCredential();
-        
-        logger.info('Initialized DefaultAzureCredential for local development');
+
+        logger.info("Initialized DefaultAzureCredential for local development");
       }
     } catch (error: unknown) {
-      logger.error('Failed to initialize Azure credential', { error: error instanceof Error ? error.message : 'Unknown error' });
-      throw new Error(`Failed to initialize Azure credential: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error("Failed to initialize Azure credential", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      throw new Error(
+        `Failed to initialize Azure credential: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
   /**
    * Get an access token for Azure Resource Manager
    */
-  async getAccessToken(scope: string = 'https://management.azure.com/.default'): Promise<string> {
+  async getAccessToken(
+    scope: string = "https://management.azure.com/.default",
+  ): Promise<string> {
     try {
       const tokenResponse = await this.credential.getToken([scope]);
-      
+
       if (!tokenResponse) {
-        throw new Error('Failed to obtain access token');
+        throw new Error("Failed to obtain access token");
       }
 
-      logger.debug('Successfully obtained access token', {
+      logger.debug("Successfully obtained access token", {
         scope,
-        expiresOn: tokenResponse.expiresOnTimestamp
+        expiresOn: tokenResponse.expiresOnTimestamp,
       });
 
       return tokenResponse.token;
     } catch (error: unknown) {
-      logger.error('Failed to get access token', { 
+      logger.error("Failed to get access token", {
         scope,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
       });
-      throw new Error(`Failed to get access token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get access token: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -76,7 +92,7 @@ export class ManagedIdentityAuthService {
    * Get an access token for Microsoft Graph API
    */
   async getGraphToken(): Promise<string> {
-    return this.getAccessToken('https://graph.microsoft.com/.default');
+    return this.getAccessToken("https://graph.microsoft.com/.default");
   }
 
   /**
@@ -87,7 +103,9 @@ export class ManagedIdentityAuthService {
       const token = await this.getAccessToken();
       return !!token;
     } catch (error: unknown) {
-      logger.error('Managed identity authentication validation failed', { error: error instanceof Error ? error.message : 'Unknown error' });
+      logger.error("Managed identity authentication validation failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return false;
     }
   }
@@ -100,21 +118,23 @@ export class ManagedIdentityAuthService {
       if (this.isRunningInKubernetes()) {
         // In Kubernetes, identity info is available from environment or service account
         return {
-          type: 'WorkloadIdentity',
+          type: "WorkloadIdentity",
           clientId: process.env.AZURE_CLIENT_ID,
           tenantId: process.env.AZURE_TENANT_ID,
-          serviceAccount: process.env.SERVICE_ACCOUNT || 'platform-api',
-          namespace: process.env.POD_NAMESPACE || 'platform-system'
+          serviceAccount: process.env.SERVICE_ACCOUNT || "platform-api",
+          namespace: process.env.POD_NAMESPACE || "platform-system",
         };
       } else {
         // For local development, return development info
         return {
-          type: 'DefaultAzureCredential',
-          environment: 'development'
+          type: "DefaultAzureCredential",
+          environment: "development",
         };
       }
     } catch (error: unknown) {
-      logger.error('Failed to get managed identity info', { error: error instanceof Error ? error.message : 'Unknown error' });
+      logger.error("Failed to get managed identity info", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       throw error;
     }
   }
@@ -126,7 +146,7 @@ export class ManagedIdentityAuthService {
     return !!(
       process.env.KUBERNETES_SERVICE_HOST ||
       process.env.AZURE_CLIENT_ID ||
-      config.nodeEnv === 'production'
+      config.nodeEnv === "production"
     );
   }
 
@@ -134,7 +154,7 @@ export class ManagedIdentityAuthService {
    * Mask client ID for logging
    */
   private maskClientId(clientId: string): string {
-    if (!clientId || clientId.length < 8) return 'unknown';
+    if (!clientId || clientId.length < 8) return "unknown";
     return `${clientId.substring(0, 8)}***`;
   }
 }

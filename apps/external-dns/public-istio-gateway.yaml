@@ -18,18 +18,18 @@ spec:
     app: aks-istio-ingressgateway-internal
     istio: aks-istio-ingressgateway-internal
   ports:
-  - name: status-port
-    port: 15021
-    targetPort: 15021
-  - name: http2
-    port: 80
-    targetPort: 80
-  - name: https
-    port: 443
-    targetPort: 443
+    - name: status-port
+      port: 15021
+      targetPort: 15021
+    - name: http2
+      port: 80
+      targetPort: 80
+    - name: https
+      port: 443
+      targetPort: 443
 ---
 apiVersion: networking.istio.io/v1
-kind: Gateway  
+kind: Gateway
 metadata:
   name: external-gateway
   namespace: test-dns
@@ -37,18 +37,18 @@ spec:
   selector:
     istio: aks-istio-ingressgateway-external
   servers:
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - "*.davidmarkgardiner.co.uk"
-  - port:
-      number: 443
-      name: https
-      protocol: HTTPS
-    tls:
-      mode: SIMPLE
-      credentialName: wildcard-tls
-    hosts:
-    - "*.davidmarkgardiner.co.uk"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.davidmarkgardiner.co.uk"
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: wildcard-tls
+      hosts:
+        - "*.davidmarkgardiner.co.uk"

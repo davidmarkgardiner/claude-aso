@@ -1,0 +1,311 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argo-server-metrics
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: argo-server
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argo-workflows
+      app.kubernetes.io/component: argo-server
+  endpoints:
+    - port: web
+      interval: 30s
+      path: /metrics
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+  namespaceSelector:
+    matchNames:
+      - argo
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: workflow-controller-metrics
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: workflow-controller
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argo-workflows
+      app.kubernetes.io/component: workflow-controller
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      scheme: http
+    - port: telemetry
+      interval: 30s
+      path: /telemetry
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - argo
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argo-workflows-alerts
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+    release: prometheus
+spec:
+  groups:
+    - name: argo-workflows.rules
+      interval: 30s
+      rules:
+        # Argo Server Health
+        - alert: ArgoServerDown
+          expr: up{job="argo-server-metrics"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: argo-server
+          annotations:
+            summary: "Argo Server is down"
+            description: "Argo Server has been down for more than 5 minutes."
+            runbook_url: "https://platform-docs.azure.local/runbooks/argo-server-down"
+
+        # Workflow Controller Health
+        - alert: ArgoWorkflowControllerDown
+          expr: up{job="workflow-controller-metrics"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: workflow-controller
+          annotations:
+            summary: "Argo Workflow Controller is down"
+            description: "Argo Workflow Controller has been down for more than 5 minutes."
+            runbook_url: "https://platform-docs.azure.local/runbooks/workflow-controller-down"
+
+        # High Workflow Failure Rate
+        - alert: HighWorkflowFailureRate
+          expr: (rate(argo_workflows_count{status="Failed"}[5m]) / rate(argo_workflows_count[5m])) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            component: workflows
+          annotations:
+            summary: "High workflow failure rate detected"
+            description: "Workflow failure rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+            runbook_url: "https://platform-docs.azure.local/runbooks/high-workflow-failure-rate"
+
+        # Long Running Workflows
+        - alert: LongRunningWorkflows
+          expr: argo_workflows_count{status="Running"} > 0 and (time() - argo_workflow_created_time) > 3600
+          for: 0m
+          labels:
+            severity: warning
+            component: workflows
+          annotations:
+            summary: "Workflows running for more than 1 hour"
+            description: "Workflow {{ $labels.name }} has been running for more than 1 hour."
+            runbook_url: "https://platform-docs.azure.local/runbooks/long-running-workflows"
+
+        # Workflow Queue Depth
+        - alert: WorkflowQueueDepthHigh
+          expr: argo_workflows_queue_depth > 50
+          for: 15m
+          labels:
+            severity: warning
+            component: workflow-controller
+          annotations:
+            summary: "Workflow queue depth is high"
+            description: "Workflow queue depth is {{ $value }}, indicating potential bottleneck."
+            runbook_url: "https://platform-docs.azure.local/runbooks/workflow-queue-depth"
+
+        # Pod Termination Errors
+        - alert: WorkflowPodTerminationErrors
+          expr: increase(argo_workflows_pods_total{status="Error"}[5m]) > 5
+          for: 5m
+          labels:
+            severity: warning
+            component: workflows
+          annotations:
+            summary: "Multiple workflow pod termination errors"
+            description: "{{ $value }} workflow pods have terminated with errors in the last 5 minutes."
+            runbook_url: "https://platform-docs.azure.local/runbooks/pod-termination-errors"
+
+        # Memory Usage Alerts
+        - alert: ArgoServerHighMemoryUsage
+          expr: (container_memory_working_set_bytes{pod=~"argo-server-.*"} / container_spec_memory_limit_bytes) > 0.8
+          for: 10m
+          labels:
+            severity: warning
+            component: argo-server
+          annotations:
+            summary: "Argo Server high memory usage"
+            description: "Argo Server memory usage is {{ $value | humanizePercentage }} of the limit."
+            runbook_url: "https://platform-docs.azure.local/runbooks/high-memory-usage"
+
+        - alert: WorkflowControllerHighMemoryUsage
+          expr: (container_memory_working_set_bytes{pod=~"workflow-controller-.*"} / container_spec_memory_limit_bytes) > 0.8
+          for: 10m
+          labels:
+            severity: warning
+            component: workflow-controller
+          annotations:
+            summary: "Workflow Controller high memory usage"
+            description: "Workflow Controller memory usage is {{ $value | humanizePercentage }} of the limit."
+            runbook_url: "https://platform-docs.azure.local/runbooks/high-memory-usage"
+
+        # CPU Usage Alerts
+        - alert: ArgoServerHighCPUUsage
+          expr: rate(container_cpu_usage_seconds_total{pod=~"argo-server-.*"}[5m]) > 0.8
+          for: 15m
+          labels:
+            severity: warning
+            component: argo-server
+          annotations:
+            summary: "Argo Server high CPU usage"
+            description: "Argo Server CPU usage is {{ $value | humanizePercentage }} over the last 5 minutes."
+            runbook_url: "https://platform-docs.azure.local/runbooks/high-cpu-usage"
+
+        # Platform API Integration
+        - alert: PlatformAPIWorkflowIntegrationFailure
+          expr: increase(argo_workflows_count{name=~"platform-.*", status="Failed"}[10m]) > 3
+          for: 5m
+          labels:
+            severity: critical
+            component: platform-integration
+          annotations:
+            summary: "Platform API workflow integration failures"
+            description: "{{ $value }} Platform API workflows have failed in the last 10 minutes."
+            runbook_url: "https://platform-docs.azure.local/runbooks/platform-api-integration"
+
+        # Storage and Persistence Alerts
+        - alert: ArgoWorkflowStorageUsageHigh
+          expr: (argo_workflow_archive_size_bytes / argo_workflow_archive_capacity_bytes) > 0.85
+          for: 30m
+          labels:
+            severity: warning
+            component: storage
+          annotations:
+            summary: "Argo Workflow storage usage is high"
+            description: "Workflow archive storage usage is {{ $value | humanizePercentage }} of capacity."
+            runbook_url: "https://platform-docs.azure.local/runbooks/storage-usage-high"
+
+    - name: argo-workflows.sli
+      interval: 30s
+      rules:
+        # Service Level Indicators (SLIs)
+        - record: argo:workflow_success_rate_5m
+          expr: rate(argo_workflows_count{status="Succeeded"}[5m]) / rate(argo_workflows_count[5m])
+
+        - record: argo:workflow_duration_p99_5m
+          expr: histogram_quantile(0.99, rate(argo_workflow_duration_seconds_bucket[5m]))
+
+        - record: argo:workflow_duration_p95_5m
+          expr: histogram_quantile(0.95, rate(argo_workflow_duration_seconds_bucket[5m]))
+
+        - record: argo:workflow_duration_p50_5m
+          expr: histogram_quantile(0.50, rate(argo_workflow_duration_seconds_bucket[5m]))
+
+        - record: argo:server_request_rate_5m
+          expr: rate(argo_server_api_requests_total[5m])
+
+        - record: argo:server_error_rate_5m
+          expr: rate(argo_server_api_requests_total{code=~"5.."}[5m])
+---
+# Grafana Dashboard ConfigMap for Argo Workflows
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-workflows-dashboard
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+    grafana_dashboard: "true"
+data:
+  argo-workflows-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Argo Workflows - Platform API Integration",
+        "tags": ["argo", "workflows", "platform-api"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Workflow Success Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "argo:workflow_success_rate_5m",
+                "legendFormat": "Success Rate"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percentunit",
+                "min": 0,
+                "max": 1
+              }
+            }
+          },
+          {
+            "id": 2,
+            "title": "Active Workflows",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "argo_workflows_count{status=\"Running\"}",
+                "legendFormat": "Running"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "title": "Workflow Duration (P99)",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "argo:workflow_duration_p99_5m",
+                "legendFormat": "P99 Duration"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "s"
+              }
+            }
+          },
+          {
+            "id": 4,
+            "title": "Platform API Namespace Provisioning",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(argo_workflows_count{name=~\"namespace-provisioning.*\"}[5m])",
+                "legendFormat": "{{status}}"
+              }
+            ]
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "10s"
+      }
+    }

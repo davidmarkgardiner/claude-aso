@@ -1,0 +1,167 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: argo-workflows-netpol
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+  annotations:
+    platform.azure.com/security-policy: "restrictive"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argo-workflows
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow ingress from Platform API namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: platform-api
+      ports:
+        - protocol: TCP
+          port: 2746
+    # Allow ingress from Istio system for service mesh
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+    # Allow ingress from monitoring namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 8080
+    # Allow internal communication within argo namespace
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argo-workflows
+    # Allow ingress from Azure Load Balancer health probes
+    - from: []
+      ports:
+        - protocol: TCP
+          port: 2746
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS for container image pulls and Azure API calls
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow HTTP for container registry access
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 80
+    # Allow Kubernetes API server access
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 6443
+        - protocol: TCP
+          port: 443
+    # Allow internal communication within argo namespace
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argo-workflows
+    # Allow communication to PostgreSQL for persistence (if deployed)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow communication to Azure storage for artifacts
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# Specific policy for workflow executor pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: workflow-executor-netpol
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: workflow-executor
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+spec:
+  podSelector:
+    matchLabels:
+      workflows.argoproj.io/workflow: "" # Matches all workflow pods
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow communication from workflow controller
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: workflow-controller
+    # Allow communication from other workflow steps
+    - from:
+        - podSelector:
+            matchLabels:
+              workflows.argoproj.io/workflow: ""
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS for external API calls
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow HTTP for non-secure calls
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 80
+    # Allow Kubernetes API access
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 6443
+        - protocol: TCP
+          port: 443
+    # Allow communication back to workflow controller
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: workflow-controller
+    # Allow communication to other namespaces for namespace provisioning workflows
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow Azure resource management APIs
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443

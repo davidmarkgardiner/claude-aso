@@ -16,7 +16,7 @@ graph TB
     D --> E[User Assigned Identity]
     E --> F[Azure RBAC Roles]
     F --> G[Azure Resources]
-    
+
     H[ASO Controller] --> C
     H --> I[Azure API]
     E --> I
@@ -25,8 +25,11 @@ graph TB
 ## Components
 
 ### 1. **UserAssignedIdentity** - Creates the Azure managed identity
-### 2. **FederatedIdentityCredential** - Establishes OIDC trust relationship  
+
+### 2. **FederatedIdentityCredential** - Establishes OIDC trust relationship
+
 ### 3. **RoleAssignment** - Grants necessary Azure permissions
+
 ### 4. **ASO Deployment** - Configures ASO with workload identity
 
 ## Prerequisites
@@ -76,7 +79,7 @@ spec:
   azureName: aso-workload-identity
   location: uksouth
   owner:
-    name: at39473-weu-dev-prod  # ResourceGroup reference
+    name: at39473-weu-dev-prod # ResourceGroup reference
   operatorSpec:
     configMaps:
       clientId:
@@ -105,7 +108,7 @@ spec:
   audiences:
     - api://AzureADTokenExchange
   issuerFromConfig:
-    name: aks-oidc-config-prod  # OIDC issuer URL from cluster ConfigMap
+    name: aks-oidc-config-prod # OIDC issuer URL from cluster ConfigMap
     key: issuer-url
   subject: system:serviceaccount:azureserviceoperator-system:azureserviceoperator-default
 ```
@@ -115,6 +118,7 @@ spec:
 ASO requires two key roles:
 
 #### Contributor Role (for resource management)
+
 ```yaml
 apiVersion: authorization.azure.com/v1api20220401
 kind: RoleAssignment
@@ -132,6 +136,7 @@ spec:
 ```
 
 #### User Access Administrator (for RBAC management)
+
 ```yaml
 apiVersion: authorization.azure.com/v1api20220401
 kind: RoleAssignment
@@ -147,6 +152,7 @@ spec:
   roleDefinitionReference:
     armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/providers/Microsoft.Authorization/roleDefinitions/18d7d88d-d35e-4fb5-a5c3-7773c20a72d9
 ```
+
 ## Verification and Testing
 
 ### 1. Check Resource Status
@@ -197,8 +203,10 @@ kubectl get resourcegroup aso-test-rg -n azure-system -w
 ### Common Issues
 
 #### 1. Identity Not Ready
+
 **Symptom**: UserAssignedIdentity stuck in "Creating" state
-**Solution**: 
+**Solution**:
+
 ```bash
 # Check ASO controller logs
 kubectl logs -n azureserviceoperator-system deployment/azureserviceoperator-controller-manager
@@ -208,8 +216,10 @@ kubectl describe userassignedidentity aso-workload-identity -n azure-system
 ```
 
 #### 2. ServiceAccount Missing Client ID
+
 **Symptom**: ASO pods failing with authentication errors
 **Solution**:
+
 ```bash
 # Check if setup job completed
 kubectl get job aso-workload-identity-setup -n azureserviceoperator-system
@@ -223,8 +233,10 @@ kubectl annotate serviceaccount azureserviceoperator-default \
 ```
 
 #### 3. Token Exchange Failures
+
 **Symptom**: "failed to exchange token" errors in ASO logs
 **Solution**:
+
 ```bash
 # Verify OIDC issuer configuration
 kubectl get managedcluster uk8s-tsshared-weu-gt025-int-prod -n azure-system -o jsonpath='{.spec.oidcIssuerProfile.enabled}'

@@ -73,7 +73,7 @@ metadata:
     component: alerting
     managed-by: aso
 spec:
-  location: Global  # Action groups are global resources
+  location: Global # Action groups are global resources
   owner:
     name: at39473-weu-dev-prod
   properties:
@@ -93,7 +93,7 @@ spec:
     smsReceivers:
       - name: "On-call Engineer"
         countryCode: "44"
-        phoneNumber: "7700900000"  # Replace with actual number
+        phoneNumber: "7700900000" # Replace with actual number
   tags:
     notification-channel: primary
     severity-level: all
@@ -114,7 +114,7 @@ spec:
     name: at39473-weu-dev-prod
   properties:
     description: "AKS cluster health degraded - immediate attention required"
-    severity: 0  # Critical
+    severity: 0 # Critical
     enabled: true
     # Check every 5 minutes
     evaluationFrequency: PT5M
@@ -155,7 +155,7 @@ spec:
     name: at39473-weu-dev-prod
   properties:
     description: "AKS cluster CPU usage is high - scale out may be needed"
-    severity: 2  # Warning
+    severity: 2 # Warning
     enabled: true
     evaluationFrequency: PT5M
     windowSize: PT15M
@@ -188,7 +188,7 @@ spec:
     name: at39473-weu-dev-prod
   properties:
     description: "AKS cluster memory usage is high"
-    severity: 2  # Warning
+    severity: 2 # Warning
     enabled: true
     evaluationFrequency: PT5M
     windowSize: PT15M
@@ -221,7 +221,7 @@ spec:
     name: at39473-weu-dev-prod
   properties:
     description: "High pod restart rate detected"
-    severity: 1  # Error
+    severity: 1 # Error
     enabled: true
     evaluationFrequency: PT10M
     windowSize: PT30M

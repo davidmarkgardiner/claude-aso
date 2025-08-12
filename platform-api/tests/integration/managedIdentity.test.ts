@@ -2,10 +2,10 @@
  * Integration Tests for Managed Identity Authentication
  */
 
-import { getManagedIdentityAuthService } from '../../src/services/managedIdentityAuth';
-import { getAuditService } from '../../src/services/auditService';
+import { getManagedIdentityAuthService } from "../../src/services/managedIdentityAuth";
+import { getAuditService } from "../../src/services/auditService";
 
-describe('Managed Identity Integration Tests', () => {
+describe("Managed Identity Integration Tests", () => {
   let managedIdentityService: any;
   let auditService: any;
 
@@ -14,11 +14,16 @@ describe('Managed Identity Integration Tests', () => {
     auditService = getAuditService();
   });
 
-  describe('Authentication', () => {
-    it('should successfully authenticate with managed identity in production', async () => {
+  describe("Authentication", () => {
+    it("should successfully authenticate with managed identity in production", async () => {
       // Skip if not in production or Azure environment
-      if (process.env.NODE_ENV !== 'production' && !process.env.AZURE_CLIENT_ID) {
-        console.log('Skipping managed identity test - not in Azure production environment');
+      if (
+        process.env.NODE_ENV !== "production" &&
+        !process.env.AZURE_CLIENT_ID
+      ) {
+        console.log(
+          "Skipping managed identity test - not in Azure production environment",
+        );
         return;
       }
 
@@ -33,8 +38,9 @@ describe('Managed Identity Integration Tests', () => {
       expect(auditService.logManagedIdentityEvent).toBeDefined();
     }, 10000);
 
-    it('should get managed identity information', async () => {
-      const identityInfo = await managedIdentityService.getManagedIdentityInfo();
+    it("should get managed identity information", async () => {
+      const identityInfo =
+        await managedIdentityService.getManagedIdentityInfo();
 
       expect(identityInfo).toBeDefined();
       expect(identityInfo.type).toBeDefined();
@@ -45,43 +51,45 @@ describe('Managed Identity Integration Tests', () => {
       }
     });
 
-    it('should get access token for Azure Resource Manager', async () => {
+    it("should get access token for Azure Resource Manager", async () => {
       // Skip if not in Azure environment
       if (!process.env.AZURE_CLIENT_ID) {
-        console.log('Skipping token test - not in Azure environment');
+        console.log("Skipping token test - not in Azure environment");
         return;
       }
 
       const token = await managedIdentityService.getAccessToken();
-      
+
       expect(token).toBeDefined();
-      expect(typeof token).toBe('string');
+      expect(typeof token).toBe("string");
       expect(token.length).toBeGreaterThan(100); // JWT tokens are long
     }, 10000);
 
-    it('should get access token for Microsoft Graph', async () => {
+    it("should get access token for Microsoft Graph", async () => {
       // Skip if not in Azure environment
       if (!process.env.AZURE_CLIENT_ID) {
-        console.log('Skipping Graph token test - not in Azure environment');
+        console.log("Skipping Graph token test - not in Azure environment");
         return;
       }
 
       const token = await managedIdentityService.getGraphToken();
-      
+
       expect(token).toBeDefined();
-      expect(typeof token).toBe('string');
+      expect(typeof token).toBe("string");
       expect(token.length).toBeGreaterThan(100);
     }, 10000);
   });
 
-  describe('Error Handling', () => {
-    it('should handle authentication failures gracefully', async () => {
+  describe("Error Handling", () => {
+    it("should handle authentication failures gracefully", async () => {
       // Mock a failure scenario
       const originalCredential = managedIdentityService.credential;
-      
+
       // Temporarily break the credential
       managedIdentityService.credential = {
-        getToken: jest.fn().mockRejectedValue(new Error('Authentication failed'))
+        getToken: jest
+          .fn()
+          .mockRejectedValue(new Error("Authentication failed")),
       };
 
       const isValid = await managedIdentityService.validateAuthentication();
@@ -91,12 +99,12 @@ describe('Managed Identity Integration Tests', () => {
       managedIdentityService.credential = originalCredential;
     });
 
-    it('should log authentication failures to audit service', async () => {
-      const auditSpy = jest.spyOn(auditService, 'logManagedIdentityEvent');
-      
+    it("should log authentication failures to audit service", async () => {
+      const auditSpy = jest.spyOn(auditService, "logManagedIdentityEvent");
+
       // Trigger an authentication failure
       try {
-        await managedIdentityService.getAccessToken('invalid-scope');
+        await managedIdentityService.getAccessToken("invalid-scope");
       } catch (error) {
         // Expected to fail
       }
@@ -106,8 +114,8 @@ describe('Managed Identity Integration Tests', () => {
     });
   });
 
-  describe('Performance', () => {
-    it('should authenticate within performance thresholds', async () => {
+  describe("Performance", () => {
+    it("should authenticate within performance thresholds", async () => {
       // Skip if not in Azure environment
       if (!process.env.AZURE_CLIENT_ID) {
         return;
@@ -120,7 +128,7 @@ describe('Managed Identity Integration Tests', () => {
       expect(duration).toBeLessThan(3000); // Should be fast
     }, 5000);
 
-    it('should cache tokens effectively', async () => {
+    it("should cache tokens effectively", async () => {
       // Skip if not in Azure environment
       if (!process.env.AZURE_CLIENT_ID) {
         return;
@@ -143,23 +151,26 @@ describe('Managed Identity Integration Tests', () => {
     }, 10000);
   });
 
-  describe('Security', () => {
-    it('should mask sensitive information in logs', async () => {
-      const identityInfo = await managedIdentityService.getManagedIdentityInfo();
-      
+  describe("Security", () => {
+    it("should mask sensitive information in logs", async () => {
+      const identityInfo =
+        await managedIdentityService.getManagedIdentityInfo();
+
       if (identityInfo.clientId) {
-        const maskedClientId = managedIdentityService.maskClientId(identityInfo.clientId);
+        const maskedClientId = managedIdentityService.maskClientId(
+          identityInfo.clientId,
+        );
         expect(maskedClientId).toMatch(/^\w{8}\*\*\*$/);
       }
     });
 
-    it('should not expose tokens in error messages', async () => {
+    it("should not expose tokens in error messages", async () => {
       try {
         // Force an error scenario
-        await managedIdentityService.getAccessToken('invalid://scope');
+        await managedIdentityService.getAccessToken("invalid://scope");
       } catch (error) {
-        expect(error.message).not.toContain('bearer');
-        expect(error.message).not.toContain('token');
+        expect(error.message).not.toContain("bearer");
+        expect(error.message).not.toContain("token");
         expect(error.message).not.toMatch(/^ey[A-Za-z0-9]/); // JWT pattern
       }
     });

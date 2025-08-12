@@ -15,6 +15,7 @@ External DNS ← Kubernetes API ← VirtualService with annotations
 ## Configuration Components
 
 ### 1. External DNS Deployment
+
 - **Version**: v0.18.0
 - **Provider**: Azure DNS
 - **Authentication**: Azure Workload Identity
@@ -23,31 +24,37 @@ External DNS ← Kubernetes API ← VirtualService with annotations
 - **TXT Owner ID**: uk8s-tsshared-weu-gt025-int-prod
 
 ### 2. RBAC Permissions
+
 Enhanced External DNS ClusterRole with Istio resource permissions:
+
 ```yaml
 - apiGroups:
-  - networking.istio.io
+    - networking.istio.io
   resources:
-  - virtualservices
-  - gateways
+    - virtualservices
+    - gateways
   verbs:
-  - get
-  - watch
-  - list
+    - get
+    - watch
+    - list
 ```
 
 ### 3. VirtualService Configuration
+
 VirtualServices require specific annotations for External DNS integration:
+
 ```yaml
 metadata:
   annotations:
     external-dns.alpha.kubernetes.io/hostname: app.davidmarkgardiner.co.uk
     external-dns.alpha.kubernetes.io/ttl: "300"
-    external-dns.alpha.kubernetes.io/target: "10.251.76.226"  # Ingress gateway IP
+    external-dns.alpha.kubernetes.io/target: "10.251.76.226" # Ingress gateway IP
 ```
 
 ### 4. Istio Authorization Policies
+
 Required for secure traffic routing:
+
 - Allow-all policy for ingress gateway
 - Service-specific policies for backend applications
 
@@ -66,16 +73,17 @@ Required for secure traffic routing:
 
 ## DNS Records Created
 
-| Hostname | Record Type | Target | Source |
-|----------|------------|--------|---------|
-| podinfo.davidmarkgardiner.co.uk | A | 10.251.76.226 | VirtualService |
-| test-vs.davidmarkgardiner.co.uk | A | 10.251.76.226 | VirtualService |
-| externaldns-a-podinfo | TXT | ownership info | External DNS |
-| externaldns-a-test-vs | TXT | ownership info | External DNS |
+| Hostname                        | Record Type | Target         | Source         |
+| ------------------------------- | ----------- | -------------- | -------------- |
+| podinfo.davidmarkgardiner.co.uk | A           | 10.251.76.226  | VirtualService |
+| test-vs.davidmarkgardiner.co.uk | A           | 10.251.76.226  | VirtualService |
+| externaldns-a-podinfo           | TXT         | ownership info | External DNS   |
+| externaldns-a-test-vs           | TXT         | ownership info | External DNS   |
 
 ## Test Applications
 
 ### Podinfo Test Application
+
 - **Namespace**: test-dns
 - **Image**: ghcr.io/stefanprodan/podinfo:6.5.4
 - **Replicas**: 2
@@ -83,6 +91,7 @@ Required for secure traffic routing:
 - **Istio injection**: Enabled
 
 ### VirtualService Routing
+
 1. **podinfo.davidmarkgardiner.co.uk** → Direct routing to podinfo service
 2. **test-vs.davidmarkgardiner.co.uk** → Routing with custom headers
 
@@ -105,12 +114,15 @@ curl -H "Host: test-vs.davidmarkgardiner.co.uk" http://10.251.76.226:80/
 ## Monitoring
 
 ### External DNS Logs
+
 Monitor VirtualService processing:
+
 ```bash
 kubectl logs -n external-dns deployment/external-dns --tail=50 | grep virtualservice
 ```
 
 ### DNS Record Verification
+
 ```bash
 az network dns record-set a list --resource-group dns --zone-name davidmarkgardiner.co.uk
 ```

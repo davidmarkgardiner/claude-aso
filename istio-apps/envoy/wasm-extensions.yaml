@@ -16,126 +16,126 @@ spec:
       app: podinfo
       version: v1
   configPatches:
-  # Add custom WASM filter for request processing
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_INBOUND
-      listener:
-        filterChain:
-          filter:
-            name: envoy.filters.network.http_connection_manager
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.wasm
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
-          config:
-            name: "custom_request_processor"
-            root_id: "custom_request_processor"
-            configuration:
-              "@type": type.googleapis.com/google.protobuf.StringValue
-              value: |
-                {
-                  "tenant": "tenant-a",
-                  "environment": "production",
-                  "enable_request_logging": true,
-                  "enable_response_modification": true,
-                  "custom_headers": {
-                    "x-tenant": "tenant-a",
-                    "x-environment": "production",
-                    "x-processing-node": "envoy-wasm"
-                  },
-                  "rate_limiting": {
-                    "requests_per_minute": 1000,
-                    "burst_limit": 100
+    # Add custom WASM filter for request processing
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.wasm
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+            config:
+              name: "custom_request_processor"
+              root_id: "custom_request_processor"
+              configuration:
+                "@type": type.googleapis.com/google.protobuf.StringValue
+                value: |
+                  {
+                    "tenant": "tenant-a",
+                    "environment": "production",
+                    "enable_request_logging": true,
+                    "enable_response_modification": true,
+                    "custom_headers": {
+                      "x-tenant": "tenant-a",
+                      "x-environment": "production",
+                      "x-processing-node": "envoy-wasm"
+                    },
+                    "rate_limiting": {
+                      "requests_per_minute": 1000,
+                      "burst_limit": 100
+                    }
                   }
-                }
-            vm_config:
-              vm_id: "custom_request_processor"
-              runtime: "envoy.wasm.runtime.v8"
-              code:
-                local:
-                  inline_string: |
-                    class CustomRequestProcessor {
-                      constructor(rootContext, id) {
-                        this.rootContext = rootContext;
-                        this.requestCount = 0;
-                        this.config = JSON.parse(rootContext.getConfiguration());
-                      }
-                      
-                      onHttpRequestHeaders(headers, endOfStream) {
-                        this.requestCount++;
-                        
-                        // Add custom headers
-                        Object.entries(this.config.custom_headers).forEach(([key, value]) => {
-                          this.addRequestHeader(key, value);
-                        });
-                        
-                        // Add request ID for tracing
-                        const requestId = this.generateRequestId();
-                        this.addRequestHeader("x-request-id", requestId);
-                        
-                        // Log request if enabled
-                        if (this.config.enable_request_logging) {
-                          const method = this.getRequestHeader(":method");
-                          const path = this.getRequestHeader(":path");
-                          console.log(`[WASM] ${method} ${path} - Request ID: ${requestId}`);
+              vm_config:
+                vm_id: "custom_request_processor"
+                runtime: "envoy.wasm.runtime.v8"
+                code:
+                  local:
+                    inline_string: |
+                      class CustomRequestProcessor {
+                        constructor(rootContext, id) {
+                          this.rootContext = rootContext;
+                          this.requestCount = 0;
+                          this.config = JSON.parse(rootContext.getConfiguration());
                         }
                         
-                        // Simple rate limiting
-                        if (this.requestCount > this.config.rate_limiting.burst_limit) {
-                          this.sendLocalResponse(429, "Rate limit exceeded", [], -1);
-                          return FilterHeadersStatus.StopIteration;
-                        }
-                        
-                        return FilterHeadersStatus.Continue;
-                      }
-                      
-                      onHttpResponseHeaders(headers, endOfStream) {
-                        if (this.config.enable_response_modification) {
-                          // Add custom response headers
-                          this.addResponseHeader("x-processed-by", "envoy-wasm");
-                          this.addResponseHeader("x-tenant", this.config.tenant);
-                          this.addResponseHeader("x-request-count", this.requestCount.toString());
+                        onHttpRequestHeaders(headers, endOfStream) {
+                          this.requestCount++;
                           
-                          // Add cache control headers
-                          const path = this.getRequestHeader(":path");
-                          if (path.includes("/api/")) {
-                            this.addResponseHeader("cache-control", "no-cache, no-store, must-revalidate");
-                          } else {
-                            this.addResponseHeader("cache-control", "public, max-age=300");
+                          // Add custom headers
+                          Object.entries(this.config.custom_headers).forEach(([key, value]) => {
+                            this.addRequestHeader(key, value);
+                          });
+                          
+                          // Add request ID for tracing
+                          const requestId = this.generateRequestId();
+                          this.addRequestHeader("x-request-id", requestId);
+                          
+                          // Log request if enabled
+                          if (this.config.enable_request_logging) {
+                            const method = this.getRequestHeader(":method");
+                            const path = this.getRequestHeader(":path");
+                            console.log(`[WASM] ${method} ${path} - Request ID: ${requestId}`);
                           }
+                          
+                          // Simple rate limiting
+                          if (this.requestCount > this.config.rate_limiting.burst_limit) {
+                            this.sendLocalResponse(429, "Rate limit exceeded", [], -1);
+                            return FilterHeadersStatus.StopIteration;
+                          }
+                          
+                          return FilterHeadersStatus.Continue;
                         }
                         
-                        return FilterHeadersStatus.Continue;
+                        onHttpResponseHeaders(headers, endOfStream) {
+                          if (this.config.enable_response_modification) {
+                            // Add custom response headers
+                            this.addResponseHeader("x-processed-by", "envoy-wasm");
+                            this.addResponseHeader("x-tenant", this.config.tenant);
+                            this.addResponseHeader("x-request-count", this.requestCount.toString());
+                            
+                            // Add cache control headers
+                            const path = this.getRequestHeader(":path");
+                            if (path.includes("/api/")) {
+                              this.addResponseHeader("cache-control", "no-cache, no-store, must-revalidate");
+                            } else {
+                              this.addResponseHeader("cache-control", "public, max-age=300");
+                            }
+                          }
+                          
+                          return FilterHeadersStatus.Continue;
+                        }
+                        
+                        generateRequestId() {
+                          return Date.now().toString(36) + Math.random().toString(36).substr(2);
+                        }
                       }
-                      
-                      generateRequestId() {
-                        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+                      class RootContext {
+                        constructor(rootContextId) {
+                          this.rootContextId = rootContextId;
+                        }
+                        
+                        onStart() {
+                          console.log("Custom Request Processor WASM started");
+                          return true;
+                        }
+                        
+                        createHttpContext(contextId) {
+                          return new CustomRequestProcessor(this, contextId);
+                        }
+                        
+                        getConfiguration() {
+                          return this.rootContext.getConfiguration();
+                        }
                       }
-                    }
-                    
-                    class RootContext {
-                      constructor(rootContextId) {
-                        this.rootContextId = rootContextId;
-                      }
-                      
-                      onStart() {
-                        console.log("Custom Request Processor WASM started");
-                        return true;
-                      }
-                      
-                      createHttpContext(contextId) {
-                        return new CustomRequestProcessor(this, contextId);
-                      }
-                      
-                      getConfiguration() {
-                        return this.rootContext.getConfiguration();
-                      }
-                    }
-                    
-                    registerRootContext((contextId) => new RootContext(contextId), "custom_request_processor");
+
+                      registerRootContext((contextId) => new RootContext(contextId), "custom_request_processor");
 ---
 # Business Logic WASM Extension
 apiVersion: networking.istio.io/v1alpha3
@@ -154,119 +154,119 @@ spec:
       app: podinfo
       version: v2
   configPatches:
-  # Add business logic WASM filter
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_INBOUND
-      listener:
-        filterChain:
-          filter:
-            name: envoy.filters.network.http_connection_manager
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.wasm
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
-          config:
-            name: "business_logic_processor"
-            root_id: "business_logic_processor"
-            configuration:
-              "@type": type.googleapis.com/google.protobuf.StringValue
-              value: |
-                {
-                  "tenant": "tenant-b",
-                  "environment": "development",
-                  "feature_flags": {
-                    "enable_a_b_testing": true,
-                    "enable_canary_routing": true,
-                    "enable_debug_headers": true
-                  },
-                  "business_rules": {
-                    "premium_users": {
-                      "rate_limit_multiplier": 2,
-                      "priority": "high"
+    # Add business logic WASM filter
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.wasm
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+            config:
+              name: "business_logic_processor"
+              root_id: "business_logic_processor"
+              configuration:
+                "@type": type.googleapis.com/google.protobuf.StringValue
+                value: |
+                  {
+                    "tenant": "tenant-b",
+                    "environment": "development",
+                    "feature_flags": {
+                      "enable_a_b_testing": true,
+                      "enable_canary_routing": true,
+                      "enable_debug_headers": true
                     },
-                    "mobile_users": {
-                      "compression_enabled": true,
-                      "cache_ttl": 600
+                    "business_rules": {
+                      "premium_users": {
+                        "rate_limit_multiplier": 2,
+                        "priority": "high"
+                      },
+                      "mobile_users": {
+                        "compression_enabled": true,
+                        "cache_ttl": 600
+                      }
                     }
                   }
-                }
-            vm_config:
-              vm_id: "business_logic_processor"
-              runtime: "envoy.wasm.runtime.v8"
-              code:
-                local:
-                  inline_string: |
-                    class BusinessLogicProcessor {
-                      constructor(rootContext, id) {
-                        this.rootContext = rootContext;
-                        this.config = JSON.parse(rootContext.getConfiguration());
-                      }
-                      
-                      onHttpRequestHeaders(headers, endOfStream) {
-                        const userAgent = this.getRequestHeader("user-agent") || "";
-                        const authHeader = this.getRequestHeader("authorization") || "";
-                        
-                        // Detect mobile users
-                        const isMobile = /Mobile|Android|iPhone|iPad/.test(userAgent);
-                        if (isMobile) {
-                          this.addRequestHeader("x-user-type", "mobile");
-                          this.addRequestHeader("x-compression-enabled", "true");
-                        } else {
-                          this.addRequestHeader("x-user-type", "desktop");
+              vm_config:
+                vm_id: "business_logic_processor"
+                runtime: "envoy.wasm.runtime.v8"
+                code:
+                  local:
+                    inline_string: |
+                      class BusinessLogicProcessor {
+                        constructor(rootContext, id) {
+                          this.rootContext = rootContext;
+                          this.config = JSON.parse(rootContext.getConfiguration());
                         }
                         
-                        // Feature flag processing
-                        if (this.config.feature_flags.enable_debug_headers) {
-                          this.addRequestHeader("x-debug-mode", "enabled");
-                          this.addRequestHeader("x-tenant", this.config.tenant);
-                          this.addRequestHeader("x-timestamp", Date.now().toString());
+                        onHttpRequestHeaders(headers, endOfStream) {
+                          const userAgent = this.getRequestHeader("user-agent") || "";
+                          const authHeader = this.getRequestHeader("authorization") || "";
+                          
+                          // Detect mobile users
+                          const isMobile = /Mobile|Android|iPhone|iPad/.test(userAgent);
+                          if (isMobile) {
+                            this.addRequestHeader("x-user-type", "mobile");
+                            this.addRequestHeader("x-compression-enabled", "true");
+                          } else {
+                            this.addRequestHeader("x-user-type", "desktop");
+                          }
+                          
+                          // Feature flag processing
+                          if (this.config.feature_flags.enable_debug_headers) {
+                            this.addRequestHeader("x-debug-mode", "enabled");
+                            this.addRequestHeader("x-tenant", this.config.tenant);
+                            this.addRequestHeader("x-timestamp", Date.now().toString());
+                          }
+                          
+                          // A/B Testing logic
+                          if (this.config.feature_flags.enable_a_b_testing) {
+                            const userId = this.extractUserId(authHeader);
+                            const testGroup = this.calculateABGroup(userId);
+                            this.addRequestHeader("x-ab-group", testGroup);
+                          }
+                          
+                          return FilterHeadersStatus.Continue;
                         }
                         
-                        // A/B Testing logic
-                        if (this.config.feature_flags.enable_a_b_testing) {
-                          const userId = this.extractUserId(authHeader);
-                          const testGroup = this.calculateABGroup(userId);
-                          this.addRequestHeader("x-ab-group", testGroup);
+                        onHttpResponseHeaders(headers, endOfStream) {
+                          const userType = this.getRequestHeader("x-user-type");
+                          
+                          // Apply business rules based on user type
+                          if (userType === "mobile") {
+                            this.addResponseHeader("cache-control", "public, max-age=600");
+                            this.addResponseHeader("x-mobile-optimized", "true");
+                          }
+                          
+                          // Add development-specific headers
+                          this.addResponseHeader("x-environment", "development");
+                          this.addResponseHeader("x-business-logic", "processed");
+                          
+                          return FilterHeadersStatus.Continue;
                         }
                         
-                        return FilterHeadersStatus.Continue;
-                      }
-                      
-                      onHttpResponseHeaders(headers, endOfStream) {
-                        const userType = this.getRequestHeader("x-user-type");
-                        
-                        // Apply business rules based on user type
-                        if (userType === "mobile") {
-                          this.addResponseHeader("cache-control", "public, max-age=600");
-                          this.addResponseHeader("x-mobile-optimized", "true");
+                        extractUserId(authHeader) {
+                          // Simple user ID extraction from JWT (in real implementation, parse JWT)
+                          return authHeader ? authHeader.slice(-8) : "anonymous";
                         }
                         
-                        // Add development-specific headers
-                        this.addResponseHeader("x-environment", "development");
-                        this.addResponseHeader("x-business-logic", "processed");
-                        
-                        return FilterHeadersStatus.Continue;
+                        calculateABGroup(userId) {
+                          // Simple hash-based A/B group assignment
+                          const hash = userId.split("").reduce((a, b) => {
+                            a = ((a << 5) - a) + b.charCodeAt(0);
+                            return a & a;
+                          }, 0);
+                          return Math.abs(hash) % 2 === 0 ? "A" : "B";
+                        }
                       }
-                      
-                      extractUserId(authHeader) {
-                        // Simple user ID extraction from JWT (in real implementation, parse JWT)
-                        return authHeader ? authHeader.slice(-8) : "anonymous";
-                      }
-                      
-                      calculateABGroup(userId) {
-                        // Simple hash-based A/B group assignment
-                        const hash = userId.split("").reduce((a, b) => {
-                          a = ((a << 5) - a) + b.charCodeAt(0);
-                          return a & a;
-                        }, 0);
-                        return Math.abs(hash) % 2 === 0 ? "A" : "B";
-                      }
-                    }
-                    
-                    registerRootContext((contextId) => new RootContext(contextId), "business_logic_processor");
+
+                      registerRootContext((contextId) => new RootContext(contextId), "business_logic_processor");
 ---
 # Security Validation WASM Extension
 apiVersion: networking.istio.io/v1alpha3
@@ -284,127 +284,127 @@ spec:
     labels:
       app: grafana
   configPatches:
-  # Add security validation WASM filter
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_INBOUND
-      listener:
-        filterChain:
-          filter:
-            name: envoy.filters.network.http_connection_manager
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.wasm
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
-          config:
-            name: "security_validator"
-            root_id: "security_validator"
-            configuration:
-              "@type": type.googleapis.com/google.protobuf.StringValue
-              value: |
-                {
-                  "tenant": "shared",
-                  "service": "grafana",
-                  "security_rules": {
-                    "block_sql_injection": true,
-                    "block_xss_attempts": true,
-                    "validate_content_type": true,
-                    "enforce_https": false,
-                    "max_request_size": 1048576
-                  },
-                  "allowed_paths": [
-                    "/api/health",
-                    "/api/datasources",
-                    "/api/dashboards",
-                    "/grafana/api/",
-                    "/login"
-                  ],
-                  "suspicious_patterns": [
-                    "union select",
-                    "drop table",
-                    "<script",
-                    "javascript:",
-                    "eval(",
-                    "../..",
-                    ".php",
-                    ".jsp"
-                  ]
-                }
-            vm_config:
-              vm_id: "security_validator"
-              runtime: "envoy.wasm.runtime.v8"
-              code:
-                local:
-                  inline_string: |
-                    class SecurityValidator {
-                      constructor(rootContext, id) {
-                        this.rootContext = rootContext;
-                        this.config = JSON.parse(rootContext.getConfiguration());
-                      }
-                      
-                      onHttpRequestHeaders(headers, endOfStream) {
-                        const method = this.getRequestHeader(":method");
-                        const path = this.getRequestHeader(":path");
-                        const contentType = this.getRequestHeader("content-type") || "";
-                        const userAgent = this.getRequestHeader("user-agent") || "";
+    # Add security validation WASM filter
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_INBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.wasm
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+            config:
+              name: "security_validator"
+              root_id: "security_validator"
+              configuration:
+                "@type": type.googleapis.com/google.protobuf.StringValue
+                value: |
+                  {
+                    "tenant": "shared",
+                    "service": "grafana",
+                    "security_rules": {
+                      "block_sql_injection": true,
+                      "block_xss_attempts": true,
+                      "validate_content_type": true,
+                      "enforce_https": false,
+                      "max_request_size": 1048576
+                    },
+                    "allowed_paths": [
+                      "/api/health",
+                      "/api/datasources",
+                      "/api/dashboards",
+                      "/grafana/api/",
+                      "/login"
+                    ],
+                    "suspicious_patterns": [
+                      "union select",
+                      "drop table",
+                      "<script",
+                      "javascript:",
+                      "eval(",
+                      "../..",
+                      ".php",
+                      ".jsp"
+                    ]
+                  }
+              vm_config:
+                vm_id: "security_validator"
+                runtime: "envoy.wasm.runtime.v8"
+                code:
+                  local:
+                    inline_string: |
+                      class SecurityValidator {
+                        constructor(rootContext, id) {
+                          this.rootContext = rootContext;
+                          this.config = JSON.parse(rootContext.getConfiguration());
+                        }
                         
-                        // Check for suspicious patterns in path
-                        if (this.config.security_rules.block_sql_injection || 
-                            this.config.security_rules.block_xss_attempts) {
-                          for (const pattern of this.config.suspicious_patterns) {
-                            if (path.toLowerCase().includes(pattern.toLowerCase()) ||
-                                userAgent.toLowerCase().includes(pattern.toLowerCase())) {
-                              console.log(`[SECURITY] Blocked suspicious pattern: ${pattern}`);
-                              this.sendLocalResponse(403, "Suspicious request pattern detected", [], -1);
+                        onHttpRequestHeaders(headers, endOfStream) {
+                          const method = this.getRequestHeader(":method");
+                          const path = this.getRequestHeader(":path");
+                          const contentType = this.getRequestHeader("content-type") || "";
+                          const userAgent = this.getRequestHeader("user-agent") || "";
+                          
+                          // Check for suspicious patterns in path
+                          if (this.config.security_rules.block_sql_injection || 
+                              this.config.security_rules.block_xss_attempts) {
+                            for (const pattern of this.config.suspicious_patterns) {
+                              if (path.toLowerCase().includes(pattern.toLowerCase()) ||
+                                  userAgent.toLowerCase().includes(pattern.toLowerCase())) {
+                                console.log(`[SECURITY] Blocked suspicious pattern: ${pattern}`);
+                                this.sendLocalResponse(403, "Suspicious request pattern detected", [], -1);
+                                return FilterHeadersStatus.StopIteration;
+                              }
+                            }
+                          }
+                          
+                          // Validate allowed paths
+                          const isAllowedPath = this.config.allowed_paths.some(allowedPath => 
+                            path.startsWith(allowedPath)
+                          );
+                          
+                          if (!isAllowedPath && !path.includes("/public/")) {
+                            console.log(`[SECURITY] Blocked unauthorized path: ${path}`);
+                            this.sendLocalResponse(404, "Path not found", [], -1);
+                            return FilterHeadersStatus.StopIteration;
+                          }
+                          
+                          // Validate content type for POST/PUT requests
+                          if ((method === "POST" || method === "PUT") && 
+                              this.config.security_rules.validate_content_type) {
+                            if (!contentType.includes("application/json") && 
+                                !contentType.includes("application/x-www-form-urlencoded")) {
+                              console.log(`[SECURITY] Invalid content type: ${contentType}`);
+                              this.sendLocalResponse(400, "Invalid content type", [], -1);
                               return FilterHeadersStatus.StopIteration;
                             }
                           }
+                          
+                          // Add security headers
+                          this.addRequestHeader("x-security-validated", "true");
+                          this.addRequestHeader("x-validation-time", Date.now().toString());
+                          
+                          return FilterHeadersStatus.Continue;
                         }
                         
-                        // Validate allowed paths
-                        const isAllowedPath = this.config.allowed_paths.some(allowedPath => 
-                          path.startsWith(allowedPath)
-                        );
-                        
-                        if (!isAllowedPath && !path.includes("/public/")) {
-                          console.log(`[SECURITY] Blocked unauthorized path: ${path}`);
-                          this.sendLocalResponse(404, "Path not found", [], -1);
-                          return FilterHeadersStatus.StopIteration;
+                        onHttpResponseHeaders(headers, endOfStream) {
+                          // Add security response headers
+                          this.addResponseHeader("x-content-type-options", "nosniff");
+                          this.addResponseHeader("x-frame-options", "SAMEORIGIN");
+                          this.addResponseHeader("x-xss-protection", "1; mode=block");
+                          this.addResponseHeader("strict-transport-security", "max-age=31536000; includeSubDomains");
+                          this.addResponseHeader("x-security-processor", "wasm-validator");
+                          
+                          return FilterHeadersStatus.Continue;
                         }
-                        
-                        // Validate content type for POST/PUT requests
-                        if ((method === "POST" || method === "PUT") && 
-                            this.config.security_rules.validate_content_type) {
-                          if (!contentType.includes("application/json") && 
-                              !contentType.includes("application/x-www-form-urlencoded")) {
-                            console.log(`[SECURITY] Invalid content type: ${contentType}`);
-                            this.sendLocalResponse(400, "Invalid content type", [], -1);
-                            return FilterHeadersStatus.StopIteration;
-                          }
-                        }
-                        
-                        // Add security headers
-                        this.addRequestHeader("x-security-validated", "true");
-                        this.addRequestHeader("x-validation-time", Date.now().toString());
-                        
-                        return FilterHeadersStatus.Continue;
                       }
-                      
-                      onHttpResponseHeaders(headers, endOfStream) {
-                        // Add security response headers
-                        this.addResponseHeader("x-content-type-options", "nosniff");
-                        this.addResponseHeader("x-frame-options", "SAMEORIGIN");
-                        this.addResponseHeader("x-xss-protection", "1; mode=block");
-                        this.addResponseHeader("strict-transport-security", "max-age=31536000; includeSubDomains");
-                        this.addResponseHeader("x-security-processor", "wasm-validator");
-                        
-                        return FilterHeadersStatus.Continue;
-                      }
-                    }
-                    
-                    registerRootContext((contextId) => new RootContext(contextId), "security_validator");
+
+                      registerRootContext((contextId) => new RootContext(contextId), "security_validator");
 ---
 # Performance Monitoring WASM Extension
 apiVersion: networking.istio.io/v1alpha3
@@ -422,111 +422,111 @@ spec:
     labels:
       app: load-generator
   configPatches:
-  # Add performance monitoring WASM filter
-  - applyTo: HTTP_FILTER
-    match:
-      context: SIDECAR_OUTBOUND
-      listener:
-        filterChain:
-          filter:
-            name: envoy.filters.network.http_connection_manager
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: envoy.filters.http.wasm
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
-          config:
-            name: "performance_monitor"
-            root_id: "performance_monitor"
-            configuration:
-              "@type": type.googleapis.com/google.protobuf.StringValue
-              value: |
-                {
-                  "tenant": "testing",
-                  "monitoring_config": {
-                    "track_response_times": true,
-                    "track_payload_sizes": true,
-                    "track_error_rates": true,
-                    "alert_thresholds": {
-                      "max_response_time": 5000,
-                      "max_error_rate": 0.05
-                    }
-                  },
-                  "sampling_rate": 0.1
-                }
-            vm_config:
-              vm_id: "performance_monitor"
-              runtime: "envoy.wasm.runtime.v8"
-              code:
-                local:
-                  inline_string: |
-                    class PerformanceMonitor {
-                      constructor(rootContext, id) {
-                        this.rootContext = rootContext;
-                        this.config = JSON.parse(rootContext.getConfiguration());
-                        this.startTime = 0;
-                        this.requestCount = 0;
-                        this.errorCount = 0;
+    # Add performance monitoring WASM filter
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_OUTBOUND
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.wasm
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+            config:
+              name: "performance_monitor"
+              root_id: "performance_monitor"
+              configuration:
+                "@type": type.googleapis.com/google.protobuf.StringValue
+                value: |
+                  {
+                    "tenant": "testing",
+                    "monitoring_config": {
+                      "track_response_times": true,
+                      "track_payload_sizes": true,
+                      "track_error_rates": true,
+                      "alert_thresholds": {
+                        "max_response_time": 5000,
+                        "max_error_rate": 0.05
                       }
-                      
-                      onHttpRequestHeaders(headers, endOfStream) {
-                        this.startTime = Date.now();
-                        this.requestCount++;
+                    },
+                    "sampling_rate": 0.1
+                  }
+              vm_config:
+                vm_id: "performance_monitor"
+                runtime: "envoy.wasm.runtime.v8"
+                code:
+                  local:
+                    inline_string: |
+                      class PerformanceMonitor {
+                        constructor(rootContext, id) {
+                          this.rootContext = rootContext;
+                          this.config = JSON.parse(rootContext.getConfiguration());
+                          this.startTime = 0;
+                          this.requestCount = 0;
+                          this.errorCount = 0;
+                        }
                         
-                        // Sample requests based on sampling rate
-                        if (Math.random() > this.config.sampling_rate) {
+                        onHttpRequestHeaders(headers, endOfStream) {
+                          this.startTime = Date.now();
+                          this.requestCount++;
+                          
+                          // Sample requests based on sampling rate
+                          if (Math.random() > this.config.sampling_rate) {
+                            return FilterHeadersStatus.Continue;
+                          }
+                          
+                          const method = this.getRequestHeader(":method");
+                          const path = this.getRequestHeader(":path");
+                          const contentLength = this.getRequestHeader("content-length") || "0";
+                          
+                          // Track request payload size
+                          if (this.config.monitoring_config.track_payload_sizes) {
+                            this.addRequestHeader("x-request-size", contentLength);
+                          }
+                          
+                          this.addRequestHeader("x-monitor-start-time", this.startTime.toString());
+                          
                           return FilterHeadersStatus.Continue;
                         }
                         
-                        const method = this.getRequestHeader(":method");
-                        const path = this.getRequestHeader(":path");
-                        const contentLength = this.getRequestHeader("content-length") || "0";
-                        
-                        // Track request payload size
-                        if (this.config.monitoring_config.track_payload_sizes) {
-                          this.addRequestHeader("x-request-size", contentLength);
-                        }
-                        
-                        this.addRequestHeader("x-monitor-start-time", this.startTime.toString());
-                        
-                        return FilterHeadersStatus.Continue;
-                      }
-                      
-                      onHttpResponseHeaders(headers, endOfStream) {
-                        if (!this.getRequestHeader("x-monitor-start-time")) {
+                        onHttpResponseHeaders(headers, endOfStream) {
+                          if (!this.getRequestHeader("x-monitor-start-time")) {
+                            return FilterHeadersStatus.Continue;
+                          }
+                          
+                          const responseTime = Date.now() - this.startTime;
+                          const responseCode = parseInt(this.getResponseHeader(":status"));
+                          const contentLength = this.getResponseHeader("content-length") || "0";
+                          
+                          // Track error rates
+                          if (responseCode >= 400) {
+                            this.errorCount++;
+                          }
+                          
+                          const errorRate = this.errorCount / this.requestCount;
+                          
+                          // Check alert thresholds
+                          if (this.config.monitoring_config.alert_thresholds) {
+                            if (responseTime > this.config.monitoring_config.alert_thresholds.max_response_time) {
+                              console.log(`[PERF ALERT] High response time: ${responseTime}ms`);
+                            }
+                            if (errorRate > this.config.monitoring_config.alert_thresholds.max_error_rate) {
+                              console.log(`[PERF ALERT] High error rate: ${errorRate}`);
+                            }
+                          }
+                          
+                          // Add performance headers
+                          this.addResponseHeader("x-response-time", responseTime.toString());
+                          this.addResponseHeader("x-error-rate", errorRate.toFixed(4));
+                          this.addResponseHeader("x-request-count", this.requestCount.toString());
+                          this.addResponseHeader("x-response-size", contentLength);
+                          
                           return FilterHeadersStatus.Continue;
                         }
-                        
-                        const responseTime = Date.now() - this.startTime;
-                        const responseCode = parseInt(this.getResponseHeader(":status"));
-                        const contentLength = this.getResponseHeader("content-length") || "0";
-                        
-                        // Track error rates
-                        if (responseCode >= 400) {
-                          this.errorCount++;
-                        }
-                        
-                        const errorRate = this.errorCount / this.requestCount;
-                        
-                        // Check alert thresholds
-                        if (this.config.monitoring_config.alert_thresholds) {
-                          if (responseTime > this.config.monitoring_config.alert_thresholds.max_response_time) {
-                            console.log(`[PERF ALERT] High response time: ${responseTime}ms`);
-                          }
-                          if (errorRate > this.config.monitoring_config.alert_thresholds.max_error_rate) {
-                            console.log(`[PERF ALERT] High error rate: ${errorRate}`);
-                          }
-                        }
-                        
-                        // Add performance headers
-                        this.addResponseHeader("x-response-time", responseTime.toString());
-                        this.addResponseHeader("x-error-rate", errorRate.toFixed(4));
-                        this.addResponseHeader("x-request-count", this.requestCount.toString());
-                        this.addResponseHeader("x-response-size", contentLength);
-                        
-                        return FilterHeadersStatus.Continue;
                       }
-                    }
-                    
-                    registerRootContext((contextId) => new RootContext(contextId), "performance_monitor");
+
+                      registerRootContext((contextId) => new RootContext(contextId), "performance_monitor");

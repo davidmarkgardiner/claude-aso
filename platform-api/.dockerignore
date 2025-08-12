@@ -1,17 +1,98 @@
-node_modules
-npm-debug.log
-dist
-.git
-.gitignore
-README.md
-.env
-.env.*
+# Security - Prevent secret files from being copied into Docker images
+# This is critical for External Secrets integration
+.env*
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+secrets/
+.secrets/
+config/secrets/
+private/
+credentials/
+auth/
+ssl/
+
+# Node.js dependencies and build artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+dist/
+build/
+coverage/
 .nyc_output
-coverage
-.vscode
-.DS_Store
 *.log
-logs
+logs/
+*.tmp
+*.temp
+
+# Source control
+.git/
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Documentation files
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+
+# Test files (not needed in production)
+test/
+tests/
+spec/
+__tests__/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+jest.config.*
+.jest/
+
+# Development configuration
+# tsconfig.json - needed for build stage
+webpack.config.js
+rollup.config.js
+.babelrc
+# .eslintrc* - needed for lint in build stage
+.prettierrc*
+nodemon.json
+
+# Package management files
+# package-lock.json - needed for npm ci
+yarn.lock
+.yarnrc
+.npmrc
+
+# Docker files (avoid recursive copying)
 .dockerignore
-Dockerfile
-docker-compose.yml
+Dockerfile*
+docker-compose*.yml
+
+# External Secrets - these should NEVER be in the image
+external-secrets.yaml
+deployment/external-secrets*.yaml
+k8s/secrets/
+kubernetes/secrets/
+
+# Platform-specific development files
+platform-config-local/
+local-development/
+.local/
+scripts/scan-secrets.sh

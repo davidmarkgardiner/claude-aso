@@ -16,7 +16,7 @@ spec:
   prune: true
   wait: true
   timeout: 10m
-  
+
   # Health checks for critical Istio resources
   healthChecks:
     # Gateway readiness
@@ -24,24 +24,24 @@ spec:
       kind: Gateway
       name: main-gateway
       namespace: aks-istio-system
-    
+
     # VirtualServices health
     - apiVersion: networking.istio.io/v1beta1
       kind: VirtualService
       name: tenant-a-podinfo
       namespace: tenant-a
-    
+
     - apiVersion: networking.istio.io/v1beta1
       kind: VirtualService
       name: tenant-b-podinfo
       namespace: tenant-b
-    
+
     # Application deployments
     - apiVersion: apps/v1
       kind: Deployment
       name: podinfo-v1
       namespace: tenant-a
-    
+
     - apiVersion: apps/v1
       kind: Deployment
       name: podinfo-v2
@@ -61,7 +61,7 @@ metadata:
   namespace: flux-system
 spec:
   type: slack
-  channel: '#istio-deployments'
+  channel: "#istio-deployments"
   secretRef:
     name: slack-webhook-secret
 
@@ -99,7 +99,7 @@ spec:
 #     kind: Deployment
 #     name: podinfo-v1
 #   progressDeadlineSeconds: 600
-#   
+#
 #   service:
 #     port: 9898
 #     targetPort: 9898
@@ -107,30 +107,30 @@ spec:
 #       - aks-istio-system/main-gateway
 #     hosts:
 #       - podinfo.tenant-a.davidmarkgardiner.co.uk
-#   
+#
 #   analysis:
 #     interval: 30s
 #     threshold: 5
 #     maxWeight: 10
 #     stepWeight: 2
-#     
+#
 #     # Health check gates
 #     metrics:
 #       - name: request-success-rate
 #         thresholdRange:
 #           min: 99
 #         interval: 30s
-#       
+#
 #       - name: request-duration
 #         thresholdRange:
 #           max: 500
 #         interval: 30s
-#       
+#
 #       - name: error-rate
 #         thresholdRange:
 #           max: 1
 #         interval: 30s
-#     
+#
 #     # Pre-deployment validation
 #     webhooks:
 #       - name: istio-proxy-check
@@ -140,8 +140,8 @@ spec:
 #         metadata:
 #           type: bash
 #           cmd: "kubectl get pods -n tenant-a -l version=canary --field-selector=status.phase=Running | wc -l | grep -q '^[1-9]'"
-#       
-#       - name: security-policy-validation  
+#
+#       - name: security-policy-validation
 #         type: pre-rollout
 #         url: http://policy-validator.shared-services/validate
 #         timeout: 15s
@@ -160,7 +160,7 @@ spec:
   hard:
     requests.cpu: "2"
     requests.memory: 4Gi
-    limits.cpu: "4" 
+    limits.cpu: "4"
     limits.memory: 8Gi
     pods: "20"
     persistentvolumeclaims: "5"
@@ -181,42 +181,42 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
-  - Ingress
-  - Egress
+    - Ingress
+    - Egress
   ingress:
-  # Allow Istio system traffic
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: aks-istio-system
-  # Allow same namespace
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: tenant-a
-  # Allow monitoring
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: shared-services
-    ports:
-    - protocol: TCP
-      port: 15090  # Envoy admin
+    # Allow Istio system traffic
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: aks-istio-system
+    # Allow same namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: tenant-a
+    # Allow monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: shared-services
+      ports:
+        - protocol: TCP
+          port: 15090 # Envoy admin
   egress:
-  # Allow DNS
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-  # Allow Istio control plane
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: aks-istio-system
-  # Allow external services via Istio
-  - to: []
-    ports:
-    - protocol: TCP
-      port: 443
-    - protocol: TCP  
-      port: 80
+    # Allow DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow Istio control plane
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: aks-istio-system
+    # Allow external services via Istio
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80

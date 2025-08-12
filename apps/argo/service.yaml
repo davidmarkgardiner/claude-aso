@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: argo-server
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: argo-server
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "aks-subnet"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "2746"
+    prometheus.io/path: "/metrics"
+spec:
+  type: LoadBalancer
+  loadBalancerSourceRanges:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+  ports:
+    - name: web
+      port: 2746
+      targetPort: 2746
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: argo-server
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workflow-controller-metrics
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: workflow-controller
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+    - name: telemetry
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: workflow-controller
+---
+# Internal service for Platform API access via Kubernetes service discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: argo-server-internal
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: argo-server
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+    service-type: internal-api
+  annotations:
+    platform.azure.com/api-access: "platform-api"
+spec:
+  type: ClusterIP
+  ports:
+    - name: grpc-web
+      port: 2746
+      targetPort: 2746
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: argo-server

@@ -7,7 +7,7 @@ This document provides a comprehensive deep-dive into building a **Developer Clo
 ## 📋 Table of Contents
 
 1. [Strategic Overview](#strategic-overview)
-2. [Architecture Patterns Analysis](#architecture-patterns-analysis)  
+2. [Architecture Patterns Analysis](#architecture-patterns-analysis)
 3. [Technology Stack Recommendations](#technology-stack-recommendations)
 4. [Platform Components](#platform-components)
 5. [Multi-Tenancy Patterns](#multi-tenancy-patterns)
@@ -21,18 +21,21 @@ This document provides a comprehensive deep-dive into building a **Developer Clo
 ## Strategic Overview
 
 ### Current State: Infrastructure-Centric
+
 ```
 Developer Request → Platform Team → Manual Provisioning → Namespace Ready
 ```
 
 ### Target State: Platform Engineering
+
 ```
 Developer Self-Service Portal → Automated Provisioning → Instant Namespace + Services
 ```
 
 ### Value Proposition
+
 - **Developer Productivity**: Self-service reduces time-to-environment from days to minutes
-- **Platform Team Efficiency**: Automation eliminates manual toil and bottlenecks  
+- **Platform Team Efficiency**: Automation eliminates manual toil and bottlenecks
 - **Standardization**: Consistent security, monitoring, and governance across all environments
 - **Cost Optimization**: Automated resource management and chargeback capabilities
 - **Scalability**: Platform scales with organization growth without linear team growth
@@ -46,12 +49,14 @@ Developer Self-Service Portal → Automated Provisioning → Instant Namespace +
 **Description**: Comprehensive platform providing self-service infrastructure capabilities
 
 **Pros**:
+
 - Complete developer experience
 - Standardized golden paths
 - Integrated workflows
 - Strong governance
 
 **Cons**:
+
 - High initial investment
 - Complex implementation
 - Requires platform team expertise
@@ -63,11 +68,13 @@ Developer Self-Service Portal → Automated Provisioning → Instant Namespace +
 **Description**: Marketplace-style interface for requesting pre-defined services
 
 **Pros**:
+
 - Simple to understand
 - Quick to implement
 - Clear service boundaries
 
 **Cons**:
+
 - Limited flexibility
 - Potential catalog sprawl
 - Manual approval overhead
@@ -79,11 +86,13 @@ Developer Self-Service Portal → Automated Provisioning → Instant Namespace +
 **Description**: All provisioning driven through Git repositories and pull requests
 
 **Pros**:
+
 - Complete audit trail
 - Familiar developer workflow
 - Version controlled infrastructure
 
 **Cons**:
+
 - Git workflow overhead
 - Complex for simple requests
 - Requires Git proficiency
@@ -95,11 +104,13 @@ Developer Self-Service Portal → Automated Provisioning → Instant Namespace +
 **Description**: Custom Kubernetes operators handle provisioning logic
 
 **Pros**:
+
 - Kubernetes-native
 - Highly extensible
 - Declarative configuration
 
 **Cons**:
+
 - Requires Kubernetes expertise
 - Complex troubleshooting
 - Limited non-K8s integration
@@ -118,26 +129,26 @@ graph TB
         PORT[Backstage Portal]
         API[Platform API Gateway]
     end
-    
-    subgraph "Orchestration Layer"  
+
+    subgraph "Orchestration Layer"
         ARG[Argo Workflows]
         FLUX[Flux GitOps]
         CROSS[Crossplane]
     end
-    
+
     subgraph "Kubernetes Layer"
         CAP[Capsule Multi-tenancy]
         HNC[Hierarchical Namespaces]
         GK[Gatekeeper Policies]
         ESO[External Secrets]
     end
-    
+
     subgraph "Infrastructure Layer"
         AKS[AKS Cluster]
         ASO[Azure Service Operator]
         ISTIO[Istio Service Mesh]
     end
-    
+
     PORT --> API
     API --> ARG
     ARG --> FLUX
@@ -150,32 +161,35 @@ graph TB
 
 ### Core Technology Selections
 
-| Component | Technology | Justification |
-|-----------|------------|---------------|
-| **Developer Portal** | Backstage | Industry-standard IDP framework, extensible, strong ecosystem |
-| **API Gateway** | Kong/NGINX | Rate limiting, authentication, analytics for platform APIs |
-| **Workflow Engine** | Argo Workflows | Kubernetes-native, handles complex provisioning orchestration |
-| **GitOps** | Flux v2 | Multi-tenancy support, secure, mature |
-| **Multi-tenancy** | Capsule | Purpose-built for K8s multi-tenancy, lightweight |
-| **Policy Enforcement** | Gatekeeper | OPA-based, flexible policy as code |
-| **Service Mesh** | Istio | Traffic management, security, observability |
-| **Secrets Management** | External Secrets Operator | Cloud-native secrets integration |
+| Component              | Technology                | Justification                                                 |
+| ---------------------- | ------------------------- | ------------------------------------------------------------- |
+| **Developer Portal**   | Backstage                 | Industry-standard IDP framework, extensible, strong ecosystem |
+| **API Gateway**        | Kong/NGINX                | Rate limiting, authentication, analytics for platform APIs    |
+| **Workflow Engine**    | Argo Workflows            | Kubernetes-native, handles complex provisioning orchestration |
+| **GitOps**             | Flux v2                   | Multi-tenancy support, secure, mature                         |
+| **Multi-tenancy**      | Capsule                   | Purpose-built for K8s multi-tenancy, lightweight              |
+| **Policy Enforcement** | Gatekeeper                | OPA-based, flexible policy as code                            |
+| **Service Mesh**       | Istio                     | Traffic management, security, observability                   |
+| **Secrets Management** | External Secrets Operator | Cloud-native secrets integration                              |
 
 ### Alternative Stacks by Organization Size
 
 #### **Small Teams (10-50 developers)**
+
 - **Portal**: Port.dev or custom React app
 - **Provisioning**: GitHub Actions + Terraform
 - **Multi-tenancy**: Basic RBAC + ResourceQuotas
 - **Monitoring**: Native K8s metrics
 
-#### **Medium Teams (50-200 developers)**  
+#### **Medium Teams (50-200 developers)**
+
 - **Portal**: Backstage with basic plugins
 - **Provisioning**: Argo Workflows + Flux
 - **Multi-tenancy**: Capsule
 - **Monitoring**: Prometheus + Grafana
 
 #### **Large Teams (200+ developers)**
+
 - **Portal**: Full Backstage with custom plugins
 - **Provisioning**: Crossplane + Argo Workflows
 - **Multi-tenancy**: Hierarchical Namespaces + Capsule
@@ -188,6 +202,7 @@ graph TB
 ### 1. Developer Portal (Backstage)
 
 **Core Features**:
+
 - Service catalog with namespace templates
 - Self-service provisioning workflows
 - Resource dashboard and monitoring
@@ -195,19 +210,20 @@ graph TB
 - Team and ownership tracking
 
 **Custom Plugins Needed**:
+
 ```typescript
 // Namespace Request Plugin
 export const namespaceRequestPlugin = createPlugin({
-  id: 'namespace-request',
+  id: "namespace-request",
   routes: {
     root: rootRouteRef,
     namespaceRequest: namespaceRequestRouteRef,
   },
 });
 
-// Resource Monitor Plugin  
+// Resource Monitor Plugin
 export const resourceMonitorPlugin = createPlugin({
-  id: 'resource-monitor',
+  id: "resource-monitor",
   routes: {
     root: rootRouteRef,
     dashboard: dashboardRouteRef,
@@ -218,6 +234,7 @@ export const resourceMonitorPlugin = createPlugin({
 ### 2. Platform API Gateway
 
 **Responsibilities**:
+
 - Authentication and authorization
 - Rate limiting per team/user
 - Request validation and transformation
@@ -225,6 +242,7 @@ export const resourceMonitorPlugin = createPlugin({
 - Metrics collection
 
 **Endpoint Structure**:
+
 ```yaml
 # Namespace Management
 POST /api/v1/namespaces/request
@@ -244,12 +262,14 @@ GET /api/v1/analytics/costs
 ### 3. Provisioning Engine (Argo Workflows)
 
 **Workflow Types**:
+
 - **Standard Namespace**: Basic namespace with default policies
 - **Microservice Namespace**: Enhanced with service mesh, monitoring
 - **Data Namespace**: Database access, data policies, compliance
 - **ML Namespace**: GPU quotas, ML frameworks, model registry access
 
 **Example Workflow**:
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
@@ -258,34 +278,35 @@ metadata:
 spec:
   entrypoint: provision-namespace
   templates:
-  - name: provision-namespace
-    inputs:
-      parameters:
-      - name: namespace-name
-      - name: team-name  
-      - name: resource-tier
-      - name: network-policy
-    dag:
-      tasks:
-      - name: create-namespace
-        template: create-namespace
-      - name: apply-quotas
-        template: apply-quotas
-        depends: create-namespace
-      - name: setup-rbac
-        template: setup-rbac
-        depends: create-namespace
-      - name: configure-network-policies
-        template: configure-network-policies
-        depends: create-namespace
-      - name: setup-monitoring
-        template: setup-monitoring
-        depends: create-namespace
+    - name: provision-namespace
+      inputs:
+        parameters:
+          - name: namespace-name
+          - name: team-name
+          - name: resource-tier
+          - name: network-policy
+      dag:
+        tasks:
+          - name: create-namespace
+            template: create-namespace
+          - name: apply-quotas
+            template: apply-quotas
+            depends: create-namespace
+          - name: setup-rbac
+            template: setup-rbac
+            depends: create-namespace
+          - name: configure-network-policies
+            template: configure-network-policies
+            depends: create-namespace
+          - name: setup-monitoring
+            template: setup-monitoring
+            depends: create-namespace
 ```
 
 ### 4. Multi-Tenancy Controller (Capsule)
 
 **Tenant Configuration**:
+
 ```yaml
 apiVersion: capsule.clastix.io/v1beta2
 kind: Tenant
@@ -293,39 +314,40 @@ metadata:
   name: team-frontend
 spec:
   owners:
-  - name: frontend-team
-    kind: Group
+    - name: frontend-team
+      kind: Group
   namespaceOptions:
-    quota: 10  # Max 10 namespaces
+    quota: 10 # Max 10 namespaces
     forbiddenListOptions:
       exactMatch: ["kube-*", "capsule-system"]
   limitRanges:
     items:
-    - limits:
-      - default:
-          cpu: "500m"
-          memory: "512Mi"
-        defaultRequest:
-          cpu: "100m" 
-          memory: "128Mi"
-        type: Container
+      - limits:
+          - default:
+              cpu: "500m"
+              memory: "512Mi"
+            defaultRequest:
+              cpu: "100m"
+              memory: "128Mi"
+            type: Container
   networkPolicies:
     items:
-    - spec:
-        podSelector: {}
-        policyTypes:
-        - Ingress
-        - Egress
-        ingress:
-        - from:
-          - namespaceSelector:
-              matchLabels:
-                capsule.clastix.io/tenant: team-frontend
+      - spec:
+          podSelector: {}
+          policyTypes:
+            - Ingress
+            - Egress
+          ingress:
+            - from:
+                - namespaceSelector:
+                    matchLabels:
+                      capsule.clastix.io/tenant: team-frontend
 ```
 
 ### 5. Service Mesh Integration (Istio)
 
 **Automatic Features per Namespace**:
+
 - Sidecar injection policies
 - Traffic management rules
 - Security policies (mTLS, AuthorizationPolicies)
@@ -339,6 +361,7 @@ spec:
 ### 1. Hard Multi-Tenancy (Namespace-level Isolation) ⭐ **RECOMMENDED**
 
 **Isolation Boundaries**:
+
 ```yaml
 # Network isolation
 kind: NetworkPolicy
@@ -351,7 +374,7 @@ spec:
         matchLabels:
           tenant: "team-a"
 
-# Resource isolation  
+# Resource isolation
 kind: ResourceQuota
 spec:
   hard:
@@ -374,6 +397,7 @@ roleRef:
 ### 2. Soft Multi-Tenancy (Shared Resources, Logical Separation)
 
 **Use Cases**:
+
 - Development/staging environments
 - Trusted internal teams
 - Cost optimization scenarios
@@ -390,7 +414,7 @@ metadata:
 spec:
   parent: organization-root
 
-# Project-level subtenant  
+# Project-level subtenant
 apiVersion: hnc.x-k8s.io/v1alpha2
 kind: SubnamespaceAnchor
 metadata:
@@ -403,9 +427,11 @@ metadata:
 ## Implementation Roadmap
 
 ### Phase 1: Foundation (Months 1-2)
+
 **Goal**: Basic namespace provisioning capability
 
 **Deliverables**:
+
 - [x] AKS cluster with ASO (already implemented)
 - [ ] Capsule multi-tenancy controller
 - [ ] Basic Backstage portal setup
@@ -413,14 +439,17 @@ metadata:
 - [ ] Basic RBAC and resource quotas
 
 **Success Criteria**:
+
 - Developers can request namespaces via portal
 - Automatic quota and RBAC application
 - Basic monitoring per namespace
 
 ### Phase 2: Enhanced Features (Months 2-3)
+
 **Goal**: Rich self-service capabilities
 
 **Deliverables**:
+
 - [ ] Advanced service catalog templates
 - [ ] Network policy automation
 - [ ] Istio service mesh integration
@@ -428,15 +457,18 @@ metadata:
 - [ ] Cost tracking per namespace
 
 **Success Criteria**:
+
 - Multiple namespace templates available
 - Automatic network isolation
 - Per-namespace cost visibility
 - Service mesh automatic configuration
 
 ### Phase 3: Enterprise Features (Months 3-4)
+
 **Goal**: Production-ready platform
 
 **Deliverables**:
+
 - [ ] Advanced workflow orchestration
 - [ ] Compliance and policy enforcement
 - [ ] Cross-cluster namespace management
@@ -444,15 +476,18 @@ metadata:
 - [ ] Disaster recovery for platform
 
 **Success Criteria**:
+
 - Policy compliance across all namespaces
 - Multi-cluster namespace provisioning
 - Advanced analytics and cost optimization
 - Full disaster recovery capability
 
 ### Phase 4: Advanced Platform (Months 4-6)
+
 **Goal**: Best-in-class platform capabilities
 
 **Deliverables**:
+
 - [ ] AI-powered resource optimization
 - [ ] Advanced security scanning integration
 - [ ] Multi-cloud namespace management
@@ -466,6 +501,7 @@ metadata:
 ### 1. Authentication & Authorization
 
 **Developer Portal Authentication**:
+
 ```yaml
 # Azure AD integration
 auth:
@@ -484,7 +520,7 @@ rbac:
     - role: namespace-admin
       users: [frontend-team-leads]
       namespaces: [team-frontend-*]
-    - role: namespace-developer  
+    - role: namespace-developer
       users: [frontend-developers]
       namespaces: [team-frontend-dev-*, team-frontend-staging-*]
 ```
@@ -492,6 +528,7 @@ rbac:
 ### 2. Policy as Code (Gatekeeper)
 
 **Namespace Security Policies**:
+
 ```yaml
 # Require security context
 apiVersion: templates.gatekeeper.sh/v1beta1
@@ -509,7 +546,7 @@ spec:
     - target: admission.k8s.gatekeeper.sh
       rego: |
         package k8srequiredsecuritycontext
-        
+
         violation[{"msg": msg}] {
           container := input.review.object.spec.containers[_]
           not container.securityContext.runAsNonRoot
@@ -517,7 +554,7 @@ spec:
         }
 
 # Apply policy to all tenant namespaces
-apiVersion: constraints.gatekeeper.sh/v1beta1  
+apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: K8sRequiredSecurityContext
 metadata:
   name: require-security-context
@@ -534,6 +571,7 @@ spec:
 ### 3. Network Security
 
 **Automatic Network Policy Generation**:
+
 ```yaml
 # Template for automatic network policy
 apiVersion: networking.k8s.io/v1
@@ -544,47 +582,47 @@ metadata:
 spec:
   podSelector: {}
   policyTypes: ["Ingress", "Egress"]
-  
+
   ingress:
-  # Allow from same tenant namespaces
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          capsule.clastix.io/tenant: "{{ .Values.tenant }}"
-  
-  # Allow from shared services
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          namespace-type: shared-services
-    ports:
-    - protocol: TCP
-      port: 443  # HTTPS only
-      
+    # Allow from same tenant namespaces
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              capsule.clastix.io/tenant: "{{ .Values.tenant }}"
+
+    # Allow from shared services
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              namespace-type: shared-services
+      ports:
+        - protocol: TCP
+          port: 443 # HTTPS only
+
   egress:
-  # Allow to same tenant
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          capsule.clastix.io/tenant: "{{ .Values.tenant }}"
-          
-  # Allow to shared services
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          namespace-type: shared-services
-          
-  # Allow DNS
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-      
-  # Allow HTTPS egress (controlled)
-  - to: []
-    ports:
-    - protocol: TCP
-      port: 443
+    # Allow to same tenant
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              capsule.clastix.io/tenant: "{{ .Values.tenant }}"
+
+    # Allow to shared services
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              namespace-type: shared-services
+
+    # Allow DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow HTTPS egress (controlled)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
 ```
 
 ---
@@ -594,6 +632,7 @@ spec:
 ### 1. Resource Quotas by Tier
 
 **Namespace Tiers**:
+
 ```yaml
 # Development Tier
 dev-tier:
@@ -604,7 +643,7 @@ dev-tier:
   services.loadbalancers: "0"
   cost_limit_monthly: "$100"
 
-# Staging Tier  
+# Staging Tier
 staging-tier:
   limits.cpu: "4"
   limits.memory: "8Gi"
@@ -626,6 +665,7 @@ prod-tier:
 ### 2. Cost Tracking and Chargeback
 
 **KubeCost Integration**:
+
 ```yaml
 # Automatic cost allocation
 apiVersion: v1
@@ -636,13 +676,13 @@ data:
   kubecost-token: ${KUBECOST_TOKEN}
   cluster-name: aks-production
   currency: "GBP"
-  
+
   # Allocation configuration
   allocation-config: |
     aggregateBy: namespace,label:team,label:environment
     accumulate: true
     includeIdle: false
-    
+
   # Cost allocation rules
   allocation-rules: |
     rules:
@@ -663,31 +703,31 @@ kind: CronJob
 metadata:
   name: namespace-budget-monitor
 spec:
-  schedule: "0 */6 * * *"  # Every 6 hours
+  schedule: "0 */6 * * *" # Every 6 hours
   jobTemplate:
     spec:
       template:
         spec:
           containers:
-          - name: budget-monitor
-            image: kubecost/cost-analyzer:latest
-            command:
-            - /bin/sh
-            - -c
-            - |
-              # Get namespace costs
-              COSTS=$(curl -s "http://kubecost-cost-analyzer:9090/model/allocation?window=1d&aggregate=namespace")
-              
-              # Check against budgets and send alerts
-              python3 /scripts/budget-checker.py --costs="$COSTS" --budgets=/config/budgets.yaml
-            
-            volumeMounts:
-            - name: budget-config
-              mountPath: /config
+            - name: budget-monitor
+              image: kubecost/cost-analyzer:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Get namespace costs
+                  COSTS=$(curl -s "http://kubecost-cost-analyzer:9090/model/allocation?window=1d&aggregate=namespace")
+
+                  # Check against budgets and send alerts
+                  python3 /scripts/budget-checker.py --costs="$COSTS" --budgets=/config/budgets.yaml
+
+              volumeMounts:
+                - name: budget-config
+                  mountPath: /config
           volumes:
-          - name: budget-config
-            configMap:
-              name: namespace-budgets
+            - name: budget-config
+              configMap:
+                name: namespace-budgets
 ```
 
 ---
@@ -697,6 +737,7 @@ spec:
 ### 1. Monitoring & Observability
 
 **Per-Namespace Dashboards**:
+
 ```yaml
 # Automatic Grafana dashboard generation
 apiVersion: v1
@@ -736,33 +777,34 @@ data:
 ```
 
 **Automatic Alert Rules**:
+
 ```yaml
 # Alert rules per namespace
 groups:
-- name: "{{ .Values.namespace }}-alerts"
-  rules:
-  - alert: HighCPUUsage
-    expr: |
-      sum(rate(container_cpu_usage_seconds_total{namespace="{{ .Values.namespace }}"}[5m])) / 
-      sum(kube_resourcequota{namespace="{{ .Values.namespace }}", resource="limits.cpu"}) > 0.8
-    for: 5m
-    labels:
-      severity: warning
-      namespace: "{{ .Values.namespace }}"
-      tenant: "{{ .Values.tenant }}"
-    annotations:
-      summary: "High CPU usage in namespace {{ .Values.namespace }}"
-      
-  - alert: MemoryQuotaExceeded  
-    expr: |
-      sum(container_memory_working_set_bytes{namespace="{{ .Values.namespace }}"}) /
-      sum(kube_resourcequota{namespace="{{ .Values.namespace }}", resource="limits.memory"}) > 0.9
-    for: 2m
-    labels:
-      severity: critical
-      namespace: "{{ .Values.namespace }}"
-    annotations:
-      summary: "Memory quota nearly exceeded in {{ .Values.namespace }}"
+  - name: "{{ .Values.namespace }}-alerts"
+    rules:
+      - alert: HighCPUUsage
+        expr: |
+          sum(rate(container_cpu_usage_seconds_total{namespace="{{ .Values.namespace }}"}[5m])) / 
+          sum(kube_resourcequota{namespace="{{ .Values.namespace }}", resource="limits.cpu"}) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          namespace: "{{ .Values.namespace }}"
+          tenant: "{{ .Values.tenant }}"
+        annotations:
+          summary: "High CPU usage in namespace {{ .Values.namespace }}"
+
+      - alert: MemoryQuotaExceeded
+        expr: |
+          sum(container_memory_working_set_bytes{namespace="{{ .Values.namespace }}"}) /
+          sum(kube_resourcequota{namespace="{{ .Values.namespace }}", resource="limits.memory"}) > 0.9
+        for: 2m
+        labels:
+          severity: critical
+          namespace: "{{ .Values.namespace }}"
+        annotations:
+          summary: "Memory quota nearly exceeded in {{ .Values.namespace }}"
 ```
 
 ### 2. Platform Health Monitoring
@@ -782,7 +824,7 @@ spec:
     path: /metrics
     interval: 30s
 
-# Platform SLI/SLO monitoring  
+# Platform SLI/SLO monitoring
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -795,13 +837,13 @@ spec:
       expr: |
         sum(rate(platform_namespace_provisions_total{status="success"}[5m])) /
         sum(rate(platform_namespace_provisions_total[5m]))
-        
+
     - record: platform:namespace_provision_duration_p95
       expr: |
-        histogram_quantile(0.95, 
+        histogram_quantile(0.95,
           sum(rate(platform_namespace_provision_duration_seconds_bucket[5m])) by (le)
         )
-        
+
     - alert: PlatformSLOViolation
       expr: platform:namespace_provision_success_rate < 0.99
       for: 5m
@@ -814,6 +856,7 @@ spec:
 ### 3. Disaster Recovery
 
 **Platform Configuration Backup**:
+
 ```yaml
 # Velero backup for platform components
 apiVersion: velero.io/v1
@@ -821,25 +864,25 @@ kind: Schedule
 metadata:
   name: platform-config-backup
 spec:
-  schedule: "0 2 * * *"  # Daily at 2 AM
+  schedule: "0 2 * * *" # Daily at 2 AM
   template:
     includeClusterResources: true
     includedNamespaces:
-    - backstage
-    - capsule-system  
-    - gatekeeper-system
-    - argo
+      - backstage
+      - capsule-system
+      - gatekeeper-system
+      - argo
     includedResources:
-    - tenants
-    - constrainttemplates
-    - workflows
-    - applications
-    
+      - tenants
+      - constrainttemplates
+      - workflows
+      - applications
+
     storageLocation: azure-backup-location
     volumeSnapshotLocations:
-    - azure-snapshot-location
-    
-    ttl: 168h  # 7 days retention
+      - azure-snapshot-location
+
+    ttl: 168h # 7 days retention
 ```
 
 ---
@@ -847,20 +890,23 @@ spec:
 ## Success Metrics
 
 ### Platform Adoption Metrics
+
 - **Time to first namespace**: < 5 minutes
 - **Self-service adoption**: >90% of requests via portal
 - **Platform team toil reduction**: >80% automation
 - **Developer satisfaction**: >4.5/5 rating
 
-### Operational Metrics  
+### Operational Metrics
+
 - **Namespace provision success rate**: >99%
 - **Platform API availability**: >99.9%
 - **Mean time to resolution**: <30 minutes
 - **Cost optimization**: >20% infrastructure savings
 
 ### Security & Compliance Metrics
+
 - **Policy compliance**: 100% enforcement
-- **Security incidents**: <1 per quarter  
+- **Security incidents**: <1 per quarter
 - **Audit coverage**: 100% of changes tracked
 - **Access review completion**: 100% quarterly
 
@@ -871,7 +917,7 @@ spec:
 Building a Namespace-as-a-Service platform is a transformative journey that requires:
 
 1. **Strategic Platform Thinking**: Moving from infrastructure to product mindset
-2. **Strong Technical Architecture**: Leveraging cloud-native tools effectively  
+2. **Strong Technical Architecture**: Leveraging cloud-native tools effectively
 3. **Developer-Centric Design**: Prioritizing user experience and self-service
 4. **Operational Excellence**: Building for scale, security, and reliability
 5. **Continuous Evolution**: Platform as a living, evolving capability

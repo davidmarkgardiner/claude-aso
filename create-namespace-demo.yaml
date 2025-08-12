@@ -32,16 +32,16 @@ metadata:
   namespace: frontend-demo-dev
 spec:
   limits:
-  - default:
-      cpu: 500m
-      memory: 512Mi
-    defaultRequest:
-      cpu: 100m
-      memory: 128Mi
-    type: Container
-  - max:
-      storage: 10Gi
-    type: PersistentVolumeClaim
+    - default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      type: Container
+    - max:
+        storage: 10Gi
+      type: PersistentVolumeClaim
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -49,12 +49,13 @@ metadata:
   name: frontend-developer
   namespace: frontend-demo-dev
 rules:
-- apiGroups: ["", "apps", "batch"]
-  resources: ["pods", "services", "deployments", "jobs", "configmaps", "secrets"]
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-- apiGroups: [""]
-  resources: ["pods/log", "pods/exec", "pods/portforward"]
-  verbs: ["get", "list", "create"]
+  - apiGroups: ["", "apps", "batch"]
+    resources:
+      ["pods", "services", "deployments", "jobs", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log", "pods/exec", "pods/portforward"]
+    verbs: ["get", "list", "create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -66,6 +67,6 @@ roleRef:
   kind: Role
   name: frontend-developer
 subjects:
-- kind: User
-  name: developer@company.com
-  apiGroup: rbac.authorization.k8s.io
+  - kind: User
+    name: developer@company.com
+    apiGroup: rbac.authorization.k8s.io

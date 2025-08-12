@@ -53,10 +53,31 @@ typings/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
-.env.test
-.env.production
+# Security - Prevent secret files from being copied into Docker images
+# This is critical for External Secrets integration
+.env*
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+secrets/
+.secrets/
+config/secrets/
+private/
+credentials/
+auth/
+ssl/
+certificates/
+oauth/
+.oauth
+
+# Environment files (secrets should come from External Secrets)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # parcel-bundler cache
 .cache
@@ -111,14 +132,42 @@ docker-compose*
 # Documentation
 README.md
 *.md
+CHANGELOG.md
+LICENSE
 
-# Test files
+# Test files and development tools
 **/*.test.*
 **/*.spec.*
 tests/
 test/
 __tests__/
+jest.config.*
+.jest/
+cypress/
+.cypress/
+e2e/
+playwright.config.*
 
-# Build artifacts
+# Build artifacts (dist excluded during build stage)
 dist/
 build/
+coverage/
+.nyc_output
+
+# External Secrets - these should NEVER be in the image
+external-secrets.yaml
+deployment/external-secrets*.yaml
+k8s/secrets/
+kubernetes/secrets/
+
+# Platform-specific development files
+platform-config-local/
+local-development/
+.local/
+scripts/build-secure.sh
+
+# Configuration that should come from External Secrets
+config/production.json
+config/secrets.json
+config/oauth.json
+config/database.json

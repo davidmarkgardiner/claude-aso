@@ -22,6 +22,7 @@ Flagger provides progressive delivery capabilities for Kubernetes applications b
 Conservative deployment strategy for production workloads.
 
 #### Configuration Parameters
+
 - **Interval**: 60s between analysis cycles
 - **Step Weight**: 5% traffic increments
 - **Max Weight**: 20% maximum canary traffic
@@ -29,12 +30,14 @@ Conservative deployment strategy for production workloads.
 - **Threshold**: 10 failed checks trigger rollback
 
 #### Success Criteria
+
 - **Success Rate**: ≥99.5% (strict)
 - **P99 Latency**: ≤500ms
 - **Error Rate**: ≤0.5%
 - **Business Metrics**: ≥95% conversion rate
 
 #### Validation Gates
+
 1. **Security Validation**: Vulnerability scan
 2. **Load Testing**: Performance baseline
 3. **Configuration Validation**: Istio config check
@@ -46,6 +49,7 @@ Conservative deployment strategy for production workloads.
 Aggressive deployment strategy for development environments.
 
 #### Configuration Parameters
+
 - **Interval**: 30s (faster cycles)
 - **Step Weight**: 10% traffic increments
 - **Max Weight**: 50% maximum canary traffic
@@ -53,6 +57,7 @@ Aggressive deployment strategy for development environments.
 - **Threshold**: 5 failed checks trigger rollback
 
 #### Relaxed Criteria
+
 - **Success Rate**: ≥95% (lenient)
 - **P99 Latency**: ≤1000ms
 - **Simplified Validation**: Basic health checks only
@@ -60,21 +65,27 @@ Aggressive deployment strategy for development environments.
 ### 3. Custom Metric Templates
 
 #### Business KPI Template
+
 Measures conversion rate from application metrics:
+
 ```promql
 sum(rate(podinfo_requests_total{deployment=~"{{ .Target }}.*"}[{{ .Interval }}])) /
 sum(rate(http_requests_total{deployment=~"{{ .Target }}.*"}[{{ .Interval }}])) * 100
 ```
 
 #### Istio Success Rate Template
+
 Uses Istio telemetry for accurate traffic analysis:
+
 ```promql
 sum(rate(istio_requests_total{response_code!~"5.*"}[{{ .Interval }}])) /
 sum(rate(istio_requests_total[{{ .Interval }}])) * 100
 ```
 
 #### P99 Latency Template
+
 Measures 99th percentile response time:
+
 ```promql
 histogram_quantile(0.99,
   sum(rate(istio_request_duration_milliseconds_bucket[{{ .Interval }}])) by (le)
@@ -84,6 +95,7 @@ histogram_quantile(0.99,
 ## Deployment Workflow
 
 ### Phase 1: Pre-Rollout Validation (0% traffic)
+
 ```
 1. Security scan of new image
 2. Load test against canary endpoint
@@ -92,6 +104,7 @@ histogram_quantile(0.99,
 ```
 
 ### Phase 2: Progressive Traffic Shift
+
 ```
 Production (Tenant A):
 0% → 5% → 10% → 15% → 20% → Promote
@@ -103,11 +116,13 @@ Each step: 30s analysis + basic validation
 ```
 
 ### Phase 3: Promotion Decision
+
 - **Success**: All metrics pass → Promote to 100%
 - **Failure**: Any metric fails → Immediate rollback
 - **Stuck**: Manual intervention after 30 minutes
 
 ### Phase 4: Post-Rollout Verification
+
 ```
 1. Health check validation
 2. Performance baseline verification
@@ -120,6 +135,7 @@ Each step: 30s analysis + basic validation
 ### Pre-Rollout Webhooks
 
 #### Security Validator
+
 ```bash
 URL: http://security-validator.shared-services.svc.cluster.local:8080/validate
 Purpose: CVE scanning, image vulnerability assessment
@@ -127,6 +143,7 @@ Timeout: 30s
 ```
 
 #### Load Tester
+
 ```bash
 URL: http://flagger-loadtester.istio-testing.svc.cluster.local:80/
 Purpose: Performance baseline validation
@@ -135,6 +152,7 @@ Timeout: 60s
 ```
 
 #### Configuration Validator
+
 ```bash
 URL: http://istio-validator.shared-services.svc.cluster.local:8080/validate-config
 Purpose: Istio resource validation
@@ -144,6 +162,7 @@ Timeout: 15s
 ### Promotion Webhooks
 
 #### Approval Gate (Production Only)
+
 ```bash
 URL: http://approval-service.shared-services.svc.cluster.local:8080/approve
 Purpose: Manual stakeholder approval
@@ -153,6 +172,7 @@ Timeout: 300s (5 minutes)
 ### Post-Rollout Webhooks
 
 #### Comprehensive Verification
+
 ```bash
 # Health check
 curl -f http://podinfo.tenant-a.svc.cluster.local:9898/healthz
@@ -167,6 +187,7 @@ curl -f http://security-validator.shared-services.svc.cluster.local:8080/verify-
 ## Monitoring and Alerting
 
 ### Flagger Metrics
+
 - `flagger_canary_status`: Current canary state (0=failed, 1=running, 2=succeeded)
 - `flagger_canary_weight`: Current traffic weight percentage
 - `flagger_canary_duration_seconds`: Time spent in canary analysis
@@ -174,6 +195,7 @@ curl -f http://security-validator.shared-services.svc.cluster.local:8080/verify-
 ### Critical Alerts
 
 #### Canary Analysis Failed
+
 ```yaml
 expr: flagger_canary_status == 0
 severity: warning
@@ -181,6 +203,7 @@ description: Automatic rollback triggered due to metric violations
 ```
 
 #### Canary Deployment Stuck
+
 ```yaml
 expr: flagger_canary_status == 1 and increase(flagger_canary_status[30m]) == 0
 severity: critical
@@ -188,6 +211,7 @@ description: Canary hasn't progressed in 30 minutes - manual intervention requir
 ```
 
 #### High Error Rate During Canary
+
 ```yaml
 expr: sum(rate(istio_requests_total{response_code=~"5.*"}[5m])) / sum(rate(istio_requests_total[5m])) * 100 > 5
 severity: critical
@@ -199,6 +223,7 @@ description: Error rate exceeds 5% during canary analysis
 The configuration includes a comprehensive Grafana dashboard showing:
 
 ### Key Panels
+
 1. **Canary Analysis Status**: Real-time status of all canary deployments
 2. **Success Rate Trends**: Success rate over time for each service
 3. **Traffic Weight Distribution**: Current canary vs primary traffic split
@@ -207,12 +232,13 @@ The configuration includes a comprehensive Grafana dashboard showing:
 6. **Deployment Timeline**: Historical view of canary events
 
 ### Dashboard Queries
+
 ```promql
 # Canary status
 flagger_canary_status
 
 # Success rate
-sum(rate(istio_requests_total{response_code!~"5.*"}[5m])) by (destination_service_name) / 
+sum(rate(istio_requests_total{response_code!~"5.*"}[5m])) by (destination_service_name) /
 sum(rate(istio_requests_total[5m])) by (destination_service_name) * 100
 
 # Traffic weight
@@ -222,6 +248,7 @@ flagger_canary_weight
 ## Usage Examples
 
 ### Trigger a Canary Deployment
+
 ```bash
 # Update the target deployment image
 kubectl set image deployment/podinfo-v1 podinfo=stefanprodan/podinfo:6.0.1 -n tenant-a
@@ -230,6 +257,7 @@ kubectl set image deployment/podinfo-v1 podinfo=stefanprodan/podinfo:6.0.1 -n te
 ```
 
 ### Monitor Canary Progress
+
 ```bash
 # Watch canary status
 kubectl get canary -n tenant-a -w
@@ -242,6 +270,7 @@ kubectl logs -n flagger-system deployment/flagger -f
 ```
 
 ### Manual Rollback
+
 ```bash
 # Force rollback if needed
 kubectl patch canary tenant-a-podinfo-progressive -n tenant-a --type='merge' -p='{"spec":{"revertOnDeletion":true}}'
@@ -255,11 +284,13 @@ kubectl delete canary tenant-a-podinfo-progressive -n tenant-a
 **Symptoms**: Canary shows "Progressing" but traffic weight remains 0%
 
 **Common Causes**:
+
 1. Pre-rollout webhook failures
 2. Security validation blocking deployment
 3. Load test not passing
 
 **Debug Steps**:
+
 ```bash
 # Check canary events
 kubectl describe canary tenant-a-podinfo-progressive -n tenant-a
@@ -276,13 +307,16 @@ curl -X POST http://security-validator.shared-services.svc.cluster.local:8080/va
 **Symptoms**: Canary fails with "metric not found" error
 
 **Solutions**:
+
 1. Verify Prometheus is scraping targets:
+
 ```bash
 kubectl port-forward -n shared-services svc/prometheus 9090:9090
 # Check targets at http://localhost:9090/targets
 ```
 
 2. Check metric template queries:
+
 ```bash
 kubectl get metrictemplate -n flagger-system
 kubectl describe metrictemplate success-rate -n flagger-system
@@ -293,6 +327,7 @@ kubectl describe metrictemplate success-rate -n flagger-system
 **Symptoms**: Canary stuck waiting for manual approval
 
 **Solutions**:
+
 ```bash
 # Check approval service
 kubectl logs -n shared-services deployment/approval-service
@@ -306,6 +341,7 @@ curl -X POST http://approval-service.shared-services.svc.cluster.local:8080/appr
 ## Best Practices
 
 ### Production Deployments
+
 1. **Always use approval gates** for critical services
 2. **Set conservative thresholds** (99.5% success rate)
 3. **Include business metrics** in analysis
@@ -313,12 +349,14 @@ curl -X POST http://approval-service.shared-services.svc.cluster.local:8080/appr
 5. **Monitor canary dashboards** during deployments
 
 ### Development Deployments
+
 1. **Use faster iterations** for quick feedback
 2. **Relax metric thresholds** for experimentation
 3. **Skip manual approvals** for automated testing
 4. **Include chaos testing** in validation
 
 ### Metric Selection
+
 1. **Primary metrics**: Success rate, latency, error rate
 2. **Secondary metrics**: Business KPIs, resource utilization
 3. **Avoid noisy metrics** that cause false rollbacks
@@ -327,12 +365,14 @@ curl -X POST http://approval-service.shared-services.svc.cluster.local:8080/appr
 ## Security Considerations
 
 ### Webhook Security
+
 - All webhooks use internal cluster DNS
 - Webhooks have timeouts to prevent hanging
 - Security validation runs before any traffic shift
 - RBAC restricts access to canary resources
 
 ### Traffic Management
+
 - Canary traffic isolated using Istio VirtualServices
 - mTLS enforced between all services
 - Header-based routing for testing
@@ -341,6 +381,7 @@ curl -X POST http://approval-service.shared-services.svc.cluster.local:8080/appr
 ## Integration with GitOps
 
 ### Flux Integration
+
 ```bash
 # Canary deployments triggered by Flux image updates
 flux create image policy podinfo-policy \
@@ -352,6 +393,7 @@ flux create image policy podinfo-policy \
 ```
 
 ### Rollback Strategy
+
 - Automatic rollback on metric violations
 - Manual rollback via kubectl or Flux
 - Image rollback through GitOps repository
@@ -360,12 +402,14 @@ flux create image policy podinfo-policy \
 ## Performance Impact
 
 ### Resource Overhead
+
 - Flagger controller: ~50MB memory, ~10m CPU
 - Analysis per canary: ~1MB memory, ~1m CPU
 - Webhook calls: Minimal network overhead
 - Prometheus queries: Configurable intervals
 
 ### Network Impact
+
 - Traffic splitting via Istio (no performance impact)
 - Webhook validation: <100ms per call
 - Metric collection: Background scraping

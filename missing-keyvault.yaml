@@ -21,7 +21,7 @@ spec:
       defaultAction: Deny
       bypass: AzureServices
       ipRules:
-        - value: "0.0.0.0/0"  # Replace with your actual IP ranges
+        - value: "0.0.0.0/0" # Replace with your actual IP ranges
     # Diagnostic settings
     enabledForDeployment: true
     enabledForTemplateDeployment: true
@@ -65,5 +65,5 @@ spec:
     contentType: "application/x-pkcs12"
     attributes:
       enabled: true
-      exp: 1735689600  # Expiration timestamp
+      exp: 1735689600 # Expiration timestamp
   value: "placeholder-certificate-data"

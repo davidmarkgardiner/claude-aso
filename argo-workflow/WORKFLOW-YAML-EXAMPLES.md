@@ -13,11 +13,7 @@ When a user requests a namespace through the Platform UI, this JSON is sent to t
   "namespaceName": "demo-team-project",
   "team": "engineering-team",
   "resourceTier": "medium",
-  "features": [
-    "istio-injection",
-    "monitoring-enhanced",
-    "logging-basic"
-  ],
+  "features": ["istio-injection", "monitoring-enhanced", "logging-basic"],
   "rbac": {
     "adminUsers": ["alice@company.com", "bob@company.com"],
     "developerUsers": ["charlie@company.com"]
@@ -31,6 +27,7 @@ When a user requests a namespace through the Platform UI, this JSON is sent to t
 The Platform API converts the frontend request into this Argo Workflow YAML:
 
 ### HTTP Request
+
 ```http
 POST https://localhost:2746/api/v1/workflows/argo
 Content-Type: application/json
@@ -58,136 +55,136 @@ spec:
   entrypoint: namespace-provisioning-dag
   arguments:
     parameters:
-    - name: namespaceName
-      value: demo-team-project
-    - name: team
-      value: engineering-team
-    - name: resourceTier
-      value: medium
-    - name: features
-      value: '["istio-injection","monitoring-enhanced","logging-basic"]'
-    - name: rbacConfig
-      value: '{"adminUsers":["alice@company.com","bob@company.com"],"developerUsers":["charlie@company.com"]}'
-    - name: requestId
-      value: req-1754949379572
+      - name: namespaceName
+        value: demo-team-project
+      - name: team
+        value: engineering-team
+      - name: resourceTier
+        value: medium
+      - name: features
+        value: '["istio-injection","monitoring-enhanced","logging-basic"]'
+      - name: rbacConfig
+        value: '{"adminUsers":["alice@company.com","bob@company.com"],"developerUsers":["charlie@company.com"]}'
+      - name: requestId
+        value: req-1754949379572
 
   templates:
-  # DAG orchestration
-  - name: namespace-provisioning-dag
-    dag:
-      tasks:
-      - name: create-namespace
-        template: create-namespace-step
-      - name: setup-rbac
-        template: setup-rbac-step
-        dependencies: [create-namespace]
-      - name: apply-quotas
-        template: apply-quotas-step
-        dependencies: [create-namespace]
-      - name: enable-features
-        template: enable-features-step
-        dependencies: [create-namespace]
-      - name: finalize
-        template: finalize-step
-        dependencies: [setup-rbac, apply-quotas, enable-features]
+    # DAG orchestration
+    - name: namespace-provisioning-dag
+      dag:
+        tasks:
+          - name: create-namespace
+            template: create-namespace-step
+          - name: setup-rbac
+            template: setup-rbac-step
+            dependencies: [create-namespace]
+          - name: apply-quotas
+            template: apply-quotas-step
+            dependencies: [create-namespace]
+          - name: enable-features
+            template: enable-features-step
+            dependencies: [create-namespace]
+          - name: finalize
+            template: finalize-step
+            dependencies: [setup-rbac, apply-quotas, enable-features]
 
-  # Step implementations
-  - name: create-namespace-step
-    container:
-      image: bitnami/kubectl:latest
-      command: ["/bin/sh", "-c"]
-      args:
-      - |
-        echo "🏗️ Creating namespace: {{workflow.parameters.namespaceName}}"
-        kubectl create namespace {{workflow.parameters.namespaceName}}
-        kubectl label namespace {{workflow.parameters.namespaceName}} \
-          platform.io/managed=true \
-          platform.io/team={{workflow.parameters.team}} \
-          platform.io/tier={{workflow.parameters.resourceTier}}
-        echo "✅ Namespace created successfully"
-      resources:
-        limits: { cpu: 200m, memory: 256Mi }
-        requests: { cpu: 100m, memory: 128Mi }
+    # Step implementations
+    - name: create-namespace-step
+      container:
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "🏗️ Creating namespace: {{workflow.parameters.namespaceName}}"
+            kubectl create namespace {{workflow.parameters.namespaceName}}
+            kubectl label namespace {{workflow.parameters.namespaceName}} \
+              platform.io/managed=true \
+              platform.io/team={{workflow.parameters.team}} \
+              platform.io/tier={{workflow.parameters.resourceTier}}
+            echo "✅ Namespace created successfully"
+        resources:
+          limits: { cpu: 200m, memory: 256Mi }
+          requests: { cpu: 100m, memory: 128Mi }
 
-  - name: setup-rbac-step
-    container:
-      image: bitnami/kubectl:latest
-      command: ["/bin/sh", "-c"]
-      args:
-      - |
-        echo "🔐 Setting up RBAC for team: {{workflow.parameters.team}}"
-        kubectl create serviceaccount team-service-account -n {{workflow.parameters.namespaceName}}
-        kubectl create role namespace-admin --verb=* --resource=* -n {{workflow.parameters.namespaceName}}
-        kubectl create rolebinding team-admin \
-          --role=namespace-admin \
-          --serviceaccount={{workflow.parameters.namespaceName}}:team-service-account \
-          -n {{workflow.parameters.namespaceName}}
-        echo "✅ RBAC configured successfully"
-      resources:
-        limits: { cpu: 200m, memory: 256Mi }
-        requests: { cpu: 100m, memory: 128Mi }
+    - name: setup-rbac-step
+      container:
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "🔐 Setting up RBAC for team: {{workflow.parameters.team}}"
+            kubectl create serviceaccount team-service-account -n {{workflow.parameters.namespaceName}}
+            kubectl create role namespace-admin --verb=* --resource=* -n {{workflow.parameters.namespaceName}}
+            kubectl create rolebinding team-admin \
+              --role=namespace-admin \
+              --serviceaccount={{workflow.parameters.namespaceName}}:team-service-account \
+              -n {{workflow.parameters.namespaceName}}
+            echo "✅ RBAC configured successfully"
+        resources:
+          limits: { cpu: 200m, memory: 256Mi }
+          requests: { cpu: 100m, memory: 128Mi }
 
-  - name: apply-quotas-step
-    container:
-      image: bitnami/kubectl:latest
-      command: ["/bin/sh", "-c"]
-      args:
-      - |
-        echo "📊 Applying {{workflow.parameters.resourceTier}} tier quotas"
-        case "{{workflow.parameters.resourceTier}}" in
-          "small") CPU="2"; MEMORY="4Gi"; PODS="10" ;;
-          "medium") CPU="4"; MEMORY="8Gi"; PODS="20" ;;
-          "large") CPU="8"; MEMORY="16Gi"; PODS="50" ;;
-        esac
-        kubectl create quota compute-resources \
-          --hard=requests.cpu=$CPU,requests.memory=$MEMORY,pods=$PODS \
-          -n {{workflow.parameters.namespaceName}}
-        echo "✅ Resource quotas applied: $CPU CPU, $MEMORY memory, $PODS pods"
-      resources:
-        limits: { cpu: 200m, memory: 256Mi }
-        requests: { cpu: 100m, memory: 128Mi }
+    - name: apply-quotas-step
+      container:
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "📊 Applying {{workflow.parameters.resourceTier}} tier quotas"
+            case "{{workflow.parameters.resourceTier}}" in
+              "small") CPU="2"; MEMORY="4Gi"; PODS="10" ;;
+              "medium") CPU="4"; MEMORY="8Gi"; PODS="20" ;;
+              "large") CPU="8"; MEMORY="16Gi"; PODS="50" ;;
+            esac
+            kubectl create quota compute-resources \
+              --hard=requests.cpu=$CPU,requests.memory=$MEMORY,pods=$PODS \
+              -n {{workflow.parameters.namespaceName}}
+            echo "✅ Resource quotas applied: $CPU CPU, $MEMORY memory, $PODS pods"
+        resources:
+          limits: { cpu: 200m, memory: 256Mi }
+          requests: { cpu: 100m, memory: 128Mi }
 
-  - name: enable-features-step
-    container:
-      image: bitnami/kubectl:latest
-      command: ["/bin/sh", "-c"]
-      args:
-      - |
-        echo "🎛️ Enabling features: {{workflow.parameters.features}}"
-        FEATURES='{{workflow.parameters.features}}'
-        if echo "$FEATURES" | grep -q "istio-injection"; then
-          kubectl label namespace {{workflow.parameters.namespaceName}} istio-injection=enabled
-          echo "✅ Istio injection enabled"
-        fi
-        if echo "$FEATURES" | grep -q "monitoring-enhanced"; then
-          kubectl label namespace {{workflow.parameters.namespaceName}} monitoring=enhanced
-          echo "✅ Enhanced monitoring enabled"
-        fi
-        if echo "$FEATURES" | grep -q "logging-basic"; then
-          kubectl label namespace {{workflow.parameters.namespaceName}} logging=basic
-          echo "✅ Basic logging enabled"
-        fi
-        echo "✅ All requested features configured"
-      resources:
-        limits: { cpu: 200m, memory: 256Mi }
-        requests: { cpu: 100m, memory: 128Mi }
+    - name: enable-features-step
+      container:
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "🎛️ Enabling features: {{workflow.parameters.features}}"
+            FEATURES='{{workflow.parameters.features}}'
+            if echo "$FEATURES" | grep -q "istio-injection"; then
+              kubectl label namespace {{workflow.parameters.namespaceName}} istio-injection=enabled
+              echo "✅ Istio injection enabled"
+            fi
+            if echo "$FEATURES" | grep -q "monitoring-enhanced"; then
+              kubectl label namespace {{workflow.parameters.namespaceName}} monitoring=enhanced
+              echo "✅ Enhanced monitoring enabled"
+            fi
+            if echo "$FEATURES" | grep -q "logging-basic"; then
+              kubectl label namespace {{workflow.parameters.namespaceName}} logging=basic
+              echo "✅ Basic logging enabled"
+            fi
+            echo "✅ All requested features configured"
+        resources:
+          limits: { cpu: 200m, memory: 256Mi }
+          requests: { cpu: 100m, memory: 128Mi }
 
-  - name: finalize-step
-    container:
-      image: bitnami/kubectl:latest
-      command: ["/bin/sh", "-c"]
-      args:
-      - |
-        echo "🎯 Finalizing namespace setup"
-        kubectl annotate namespace {{workflow.parameters.namespaceName}} \
-          platform.io/provisioned-at="$(date -Iseconds)" \
-          platform.io/status="ready"
-        echo "📋 Namespace Summary:"
-        kubectl get namespace {{workflow.parameters.namespaceName}} --show-labels
-        echo "🎉 Namespace {{workflow.parameters.namespaceName}} ready for team {{workflow.parameters.team}}!"
-      resources:
-        limits: { cpu: 200m, memory: 256Mi }
-        requests: { cpu: 100m, memory: 128Mi }
+    - name: finalize-step
+      container:
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "🎯 Finalizing namespace setup"
+            kubectl annotate namespace {{workflow.parameters.namespaceName}} \
+              platform.io/provisioned-at="$(date -Iseconds)" \
+              platform.io/status="ready"
+            echo "📋 Namespace Summary:"
+            kubectl get namespace {{workflow.parameters.namespaceName}} --show-labels
+            echo "🎉 Namespace {{workflow.parameters.namespaceName}} ready for team {{workflow.parameters.team}}!"
+        resources:
+          limits: { cpu: 200m, memory: 256Mi }
+          requests: { cpu: 100m, memory: 128Mi }
 ```
 
 ## 3. Argo Response → Platform API
@@ -251,7 +248,7 @@ As the workflow progresses, status updates show:
   "currentStep": "apply-quotas",
   "steps": {
     "create-namespace": "Succeeded",
-    "setup-rbac": "Succeeded", 
+    "setup-rbac": "Succeeded",
     "apply-quotas": "Running",
     "enable-features": "Pending",
     "finalize": "Pending"
@@ -305,19 +302,23 @@ When complete:
 ## Production Considerations
 
 ### RBAC Requirements
+
 The workflow service account needs permissions for:
+
 - Creating namespaces
 - Managing RBAC (roles, rolebindings, serviceaccounts)
 - Creating resource quotas
 - Labeling and annotating resources
 
 ### Security
+
 - Use dedicated service accounts with minimal permissions
 - Implement approval workflows for production namespaces
 - Audit all workflow executions
 - Secure container images (use signed images)
 
 ### Scalability
+
 - Monitor workflow controller resource usage
 - Implement workflow timeouts
 - Use persistent storage for large workflows

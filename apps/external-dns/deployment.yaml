@@ -25,65 +25,65 @@ spec:
         runAsNonRoot: true
         runAsUser: 65534
       containers:
-      - name: external-dns
-        image: registry.k8s.io/external-dns/external-dns:v0.18.0
-        args:
-        - --source=service
-        - --source=ingress
-        - --domain-filter=davidmarkgardiner.co.uk
-        - --provider=azure
-        - --azure-resource-group=dns
-        - --azure-subscription-id=133d5755-4074-4d6e-ad38-eb2a6ad12903
-        - --txt-owner-id=uk8s-tsshared-weu-gt025-int-prod
-        - --policy=sync
-        - --registry=txt
-        - --txt-prefix=externaldns-
-        - --interval=30s
-        - --log-format=text
-        - --log-level=info
-        env:
-        - name: AZURE_USE_WORKLOAD_IDENTITY_EXTENSION
-          value: "true"
-        - name: AZURE_CLIENT_ID
-          value: "${clientId}"
-        - name: AZURE_TENANT_ID
-          value: "${tenantId}"
-        - name: AZURE_SUBSCRIPTION_ID
-          value: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
-        ports:
-        - name: http
-          containerPort: 7979
-          protocol: TCP
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: http
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          timeoutSeconds: 5
-          successThreshold: 1
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: http
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 5
-          successThreshold: 1
-          failureThreshold: 3
-        volumeMounts:
-        - name: azure-config
-          mountPath: /etc/kubernetes
-          readOnly: true
-        resources:
-          limits:
-            cpu: 100m
-            memory: 300Mi
-          requests:
-            cpu: 50m
-            memory: 50Mi
+        - name: external-dns
+          image: registry.k8s.io/external-dns/external-dns:v0.18.0
+          args:
+            - --source=service
+            - --source=ingress
+            - --domain-filter=davidmarkgardiner.co.uk
+            - --provider=azure
+            - --azure-resource-group=dns
+            - --azure-subscription-id=133d5755-4074-4d6e-ad38-eb2a6ad12903
+            - --txt-owner-id=uk8s-tsshared-weu-gt025-int-prod
+            - --policy=sync
+            - --registry=txt
+            - --txt-prefix=externaldns-
+            - --interval=30s
+            - --log-format=text
+            - --log-level=info
+          env:
+            - name: AZURE_USE_WORKLOAD_IDENTITY_EXTENSION
+              value: "true"
+            - name: AZURE_CLIENT_ID
+              value: "${clientId}"
+            - name: AZURE_TENANT_ID
+              value: "${tenantId}"
+            - name: AZURE_SUBSCRIPTION_ID
+              value: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+          ports:
+            - name: http
+              containerPort: 7979
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          volumeMounts:
+            - name: azure-config
+              mountPath: /etc/kubernetes
+              readOnly: true
+          resources:
+            limits:
+              cpu: 100m
+              memory: 300Mi
+            requests:
+              cpu: 50m
+              memory: 50Mi
       volumes:
-      - name: azure-config
-        configMap:
-          name: azure-config
+        - name: azure-config
+          configMap:
+            name: azure-config

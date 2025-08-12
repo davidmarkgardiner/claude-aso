@@ -54,7 +54,7 @@ spec:
       useCommonAlertSchema: true
   smsReceivers:
     - name: OnCall-Engineer
-      countryCode: "44"  # UK
+      countryCode: "44" # UK
       phoneNumber: "1234567890"
   azureAppPushReceivers:
     - name: Teams-Channel

@@ -1,0 +1,172 @@
+---
+# VirtualService for Platform API routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: platform-api-vs
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "VirtualService for Platform API routing"
+spec:
+  hosts:
+    - platform-api
+    - platform-api.platform-system.svc.cluster.local
+  http:
+    - match:
+        - uri:
+            prefix: /health
+      route:
+        - destination:
+            host: platform-api
+            port:
+              number: 80
+      timeout: 5s
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+    - match:
+        - uri:
+            prefix: /metrics
+      route:
+        - destination:
+            host: platform-api
+            port:
+              number: 80
+      timeout: 10s
+    - match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: platform-api
+            port:
+              number: 80
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: 5xx,gateway-error,connect-failure,refused-stream
+    - route:
+        - destination:
+            host: platform-api
+            port:
+              number: 80
+
+---
+# DestinationRule for Platform API load balancing and circuit breaking
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: platform-api-dr
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "DestinationRule for Platform API load balancing and circuit breaking"
+spec:
+  host: platform-api
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 30s
+        keepAlive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 10
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+        maxEjectionPercent: 50
+        minHealthPercent: 30
+    circuitBreaker:
+      consecutiveGatewayErrors: 5
+      consecutiveServerErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      consecutiveServerErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+---
+# PeerAuthentication for mTLS
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: platform-api-mtls
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "PeerAuthentication for Platform API mTLS enforcement"
+spec:
+  selector:
+    matchLabels:
+      app: platform-api
+  mtls:
+    mode: STRICT
+
+---
+# AuthorizationPolicy for Platform API access control
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: platform-api-authz
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "AuthorizationPolicy for Platform API access control"
+spec:
+  selector:
+    matchLabels:
+      app: platform-api
+  rules:
+    # Allow health checks from anywhere
+    - to:
+        - operation:
+            paths: ["/health", "/health/ready"]
+            methods: ["GET"]
+    # Allow metrics collection from monitoring systems
+    - to:
+        - operation:
+            paths: ["/metrics"]
+            methods: ["GET"]
+      from:
+        - source:
+            namespaces: ["istio-system", "monitoring", "prometheus"]
+    # Allow API access from platform-ui and authorized services
+    - to:
+        - operation:
+            paths: ["/api/*"]
+      from:
+        - source:
+            namespaces: ["platform-system"]
+        - source:
+            principals: ["cluster.local/ns/platform-system/sa/platform-ui"]
+    # Allow internal service communication
+    - from:
+        - source:
+            namespaces: ["platform-system"]

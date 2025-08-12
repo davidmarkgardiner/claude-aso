@@ -16,58 +16,58 @@ spec:
   properties:
     # PostgreSQL version
     version: "15"
-    
+
     # Administrator credentials from Key Vault
     administratorLogin: postgres_admin
     administratorLoginPassword:
       name: postgres-admin-password
       key: password
-    
+
     # Compute and storage configuration
     sku:
-      name: Standard_D2s_v3  # 2 vCPUs, 8GB RAM
+      name: Standard_D2s_v3 # 2 vCPUs, 8GB RAM
       tier: GeneralPurpose
-    
+
     storage:
-      storageSizeGB: 128  # 128GB storage
+      storageSizeGB: 128 # 128GB storage
       autoGrow: Enabled
-      tier: P6  # Premium SSD
-      
+      tier: P6 # Premium SSD
+
     # Network configuration
     network:
       delegatedSubnetResourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/database-subnet
       privateDnsZoneResourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/privateDnsZones/postgres.database.azure.com
-    
+
     # Backup configuration
     backup:
-      backupRetentionDays: 35  # 5 weeks retention
+      backupRetentionDays: 35 # 5 weeks retention
       geoRedundantBackup: Enabled
       pointInTimeRestore: Enabled
-    
+
     # High availability
     highAvailability:
       mode: ZoneRedundant
       standbyAvailabilityZone: "2"
-    
+
     # Maintenance window
     maintenanceWindow:
       customWindow: Enabled
-      dayOfWeek: 1  # Monday
-      startHour: 2   # 2 AM
+      dayOfWeek: 1 # Monday
+      startHour: 2 # 2 AM
       startMinute: 0
-    
+
     # Security settings
     authConfig:
       activeDirectoryAuth: Enabled
       passwordAuth: Enabled
       tenantId: 550cfcda-8a2d-452c-ba71-d6bc6bf5bb31
-    
+
     # Enable encryption at rest
     dataEncryption:
       type: AzureKeyVault
       primaryKeyURI: https://aks-prod-keyvault.vault.azure.net/keys/postgres-encryption-key
       primaryUserAssignedIdentityId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.ManagedIdentity/userAssignedIdentities/postgres-identity
-  
+
   tags:
     environment: production
     database-engine: postgresql-15
@@ -91,7 +91,7 @@ spec:
     group: network.azure.com
     kind: VirtualNetwork
   properties:
-    addressPrefix: "10.0.4.0/24"  # 256 IP addresses for database services
+    addressPrefix: "10.0.4.0/24" # 256 IP addresses for database services
     # Delegate subnet to PostgreSQL
     delegations:
       - name: postgres-delegation
@@ -260,38 +260,38 @@ spec:
     sku:
       name: Premium
       family: P
-      capacity: 1  # 6GB cache
-    
+      capacity: 1 # 6GB cache
+
     # Redis version
     redisVersion: "6.0"
-    
+
     # Enable non-SSL port for internal communication
     enableNonSslPort: false
-    
+
     # Network configuration
     subnetId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/cache-subnet
     staticIP: "10.0.5.10"
-    
+
     # High availability
     replicasPerMaster: 1
     replicasPerPrimary: 1
     shardCount: 1
-    
+
     # Security settings
     minimumTlsVersion: "1.2"
-    
+
     # Backup settings
     rdbBackupEnabled: true
     rdbBackupFrequency: Daily
     rdbBackupMaxSnapshotCount: 7
     rdbStorageConnectionString: "DefaultEndpointsProtocol=https;AccountName=aksprodstorageukst001;AccountKey=<storage-key>"
-    
+
     # Patch schedule (maintenance window)
     patchSchedule:
       - dayOfWeek: Monday
         startHourUtc: 2
-        maintenanceWindow: PT4H  # 4-hour window
-  
+        maintenanceWindow: PT4H # 4-hour window
+
   tags:
     environment: production
     cache-tier: premium
@@ -314,7 +314,7 @@ spec:
     group: network.azure.com
     kind: VirtualNetwork
   properties:
-    addressPrefix: "10.0.5.0/28"  # 16 IP addresses for Redis
+    addressPrefix: "10.0.5.0/28" # 16 IP addresses for Redis
     serviceEndpoints:
       - service: Microsoft.Storage
         locations: ["uksouth"]
@@ -344,38 +344,38 @@ spec:
       - locationName: ukwest
         failoverPriority: 1
         isZoneRedundant: false
-    
+
     # Database consistency
     consistencyPolicy:
       defaultConsistencyLevel: Session
       maxStalenessPrefix: 100
       maxIntervalInSeconds: 300
-    
+
     # Enable automatic failover
     enableAutomaticFailover: true
     enableMultipleWriteLocations: false
-    
+
     # Network security
     isVirtualNetworkFilterEnabled: true
     virtualNetworkRules:
       - id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-prod-vnet/subnets/aks-nodes-subnet
         ignoreMissingVNetServiceEndpoint: false
-    
+
     # IP range filter for additional security
     ipRules:
-      - ipAddressOrRange: "10.0.0.0/16"  # Allow from VNet
-    
+      - ipAddressOrRange: "10.0.0.0/16" # Allow from VNet
+
     # Enable backup
     backupPolicy:
       type: Periodic
       periodicModeProperties:
-        backupIntervalInMinutes: 240  # 4 hours
-        backupRetentionIntervalInHours: 720  # 30 days
+        backupIntervalInMinutes: 240 # 4 hours
+        backupRetentionIntervalInHours: 720 # 30 days
         backupStorageRedundancy: Geo
-    
+
     # Encryption
     keyVaultKeyUri: https://aks-prod-keyvault.vault.azure.net/keys/cosmos-encryption-key
-  
+
   tags:
     environment: production
     database-type: document-store
@@ -399,7 +399,7 @@ spec:
     kind: DatabaseAccount
   properties:
     # Shared throughput for cost optimization
-    throughput: 400  # 400 RU/s shared
+    throughput: 400 # 400 RU/s shared
     options:
       enableFreeTier: false
       disableKeyBasedMetadataWriteAccess: true

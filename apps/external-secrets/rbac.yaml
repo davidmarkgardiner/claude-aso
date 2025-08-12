@@ -1,0 +1,246 @@
+# Production RBAC configuration for External Secrets Operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-secrets-kubernetes-provider
+  labels:
+    platform.io/component: "external-secrets"
+    platform.io/tier: "system"
+  annotations:
+    platform.io/description: "ClusterRole for External Secrets to access Kubernetes secrets and configmaps"
+rules:
+  # Core Kubernetes secrets access
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+    resourceNames: [] # Restrict to specific secrets if needed
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  # Events for better observability
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-secrets-kubernetes-provider
+  labels:
+    platform.io/component: "external-secrets"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-secrets-kubernetes-provider
+subjects:
+  - kind: ServiceAccount
+    name: external-secrets
+    namespace: external-secrets-system
+---
+# Production Role for managing secrets in platform-system namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: external-secrets-platform
+  namespace: platform-system
+  labels:
+    platform.io/component: "external-secrets"
+    platform.io/tier: "system"
+  annotations:
+    platform.io/description: "Role for External Secrets to manage platform-system secrets"
+rules:
+  # Full secret management for platform secrets
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "update", "delete", "get", "list", "watch", "patch"]
+  # ServiceAccount token access for some secret types
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+  # Events for audit trails
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: external-secrets-platform
+  namespace: platform-system
+  labels:
+    platform.io/component: "external-secrets"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: external-secrets-platform
+subjects:
+  - kind: ServiceAccount
+    name: external-secrets
+    namespace: external-secrets-system
+---
+# Production Role for managing secrets in cert-manager namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: external-secrets-cert-manager
+  namespace: cert-manager
+  labels:
+    platform.io/component: "external-secrets"
+    platform.io/tier: "system"
+  annotations:
+    platform.io/description: "Role for External Secrets to manage cert-manager secrets"
+rules:
+  # Cert-manager specific secret types
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "update", "delete", "get", "list", "watch", "patch"]
+    resourceNames:
+      ["acme-account-key", "cloudflare-api-token", "azure-dns-credentials"]
+  # Allow creating any secret with cert-manager labels
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "update", "patch"]
+    resourceNames: []
+  # Events for cert-manager integration
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: external-secrets-cert-manager
+  namespace: cert-manager
+  labels:
+    platform.io/component: "external-secrets"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: external-secrets-cert-manager
+subjects:
+  - kind: ServiceAccount
+    name: external-secrets
+    namespace: external-secrets-system
+---
+# Production Role for managing secrets in external-dns namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: external-secrets-external-dns
+  namespace: external-dns
+  labels:
+    platform.io/component: "external-secrets"
+    platform.io/tier: "system"
+  annotations:
+    platform.io/description: "Role for External Secrets to manage external-dns secrets"
+rules:
+  # External DNS specific secrets
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "update", "delete", "get", "list", "watch", "patch"]
+    resourceNames: ["azure-dns-credentials", "cloudflare-api-token"]
+  # Allow creating any secret with external-dns labels
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "update", "patch"]
+    resourceNames: []
+  # Events for DNS integration
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+
+---
+# Additional Role for Istio namespace secrets
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: external-secrets-istio
+  namespace: istio-system
+  labels:
+    platform.io/component: "external-secrets"
+    platform.io/tier: "system"
+  annotations:
+    platform.io/description: "Role for External Secrets to manage Istio secrets"
+rules:
+  # Istio TLS certificates and secrets
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "update", "delete", "get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+
+---
+# RoleBinding for Istio namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: external-secrets-istio
+  namespace: istio-system
+  labels:
+    platform.io/component: "external-secrets"
+    platform.io/tier: "system"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: external-secrets-istio
+subjects:
+  - kind: ServiceAccount
+    name: external-secrets
+    namespace: external-secrets-system
+
+---
+# Role for managing secrets in monitoring namespaces
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: external-secrets-monitoring
+  namespace: monitoring
+  labels:
+    platform.io/component: "external-secrets"
+    platform.io/tier: "system"
+  annotations:
+    platform.io/description: "Role for External Secrets to manage monitoring secrets"
+rules:
+  # Monitoring stack secrets (Prometheus, Grafana, etc.)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "update", "delete", "get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+
+---
+# RoleBinding for monitoring namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: external-secrets-monitoring
+  namespace: monitoring
+  labels:
+    platform.io/component: "external-secrets"
+    platform.io/tier: "system"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: external-secrets-monitoring
+subjects:
+  - kind: ServiceAccount
+    name: external-secrets
+    namespace: external-secrets-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: external-secrets-external-dns
+  namespace: external-dns
+  labels:
+    platform.io/component: "external-secrets"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: external-secrets-external-dns
+subjects:
+  - kind: ServiceAccount
+    name: external-secrets
+    namespace: external-secrets-system

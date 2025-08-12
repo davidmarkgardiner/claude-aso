@@ -16,10 +16,10 @@ spec:
   values:
     # Install CRDs with the chart
     installCRDs: true
-    
+
     global:
       logLevel: 2
-      
+
     replicaCount: 1
 
     serviceAccount:
@@ -54,10 +54,10 @@ spec:
           azure.workload.identity/client-id: "${clientId}"
         labels:
           azure.workload.identity/use: "true"
-      
+
       podLabels:
         azure.workload.identity/use: "true"
-      
+
       resources:
         requests:
           cpu: 10m
@@ -74,10 +74,10 @@ spec:
           azure.workload.identity/client-id: "${clientId}"
         labels:
           azure.workload.identity/use: "true"
-      
+
       podLabels:
         azure.workload.identity/use: "true"
-      
+
       resources:
         requests:
           cpu: 10m
@@ -94,6 +94,6 @@ spec:
           azure.workload.identity/client-id: "${clientId}"
         labels:
           azure.workload.identity/use: "true"
-      
+
       podLabels:
         azure.workload.identity/use: "true"

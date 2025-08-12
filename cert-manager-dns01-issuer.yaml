@@ -14,18 +14,18 @@ spec:
       name: letsencrypt-dns01-production
     # DNS01 solver configuration using Azure DNS
     solvers:
-    - dns01:
-        azureDNS:
-          subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
-          resourceGroupName: "dns"
-          hostedZoneName: "davidmarkgardiner.co.uk"
-          # Use workload identity for authentication
-          managedIdentity:
-            clientID: "024244f9-7bb4-426a-932a-4ceec47026a6"
-      selector:
-        dnsNames:
-        - "davidmarkgardiner.co.uk"
-        - "*.davidmarkgardiner.co.uk"
+      - dns01:
+          azureDNS:
+            subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+            resourceGroupName: "dns"
+            hostedZoneName: "davidmarkgardiner.co.uk"
+            # Use workload identity for authentication
+            managedIdentity:
+              clientID: "024244f9-7bb4-426a-932a-4ceec47026a6"
+        selector:
+          dnsNames:
+            - "davidmarkgardiner.co.uk"
+            - "*.davidmarkgardiner.co.uk"
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -43,15 +43,15 @@ spec:
       name: letsencrypt-dns01-staging
     # DNS01 solver configuration using Azure DNS
     solvers:
-    - dns01:
-        azureDNS:
-          subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
-          resourceGroupName: "dns"
-          hostedZoneName: "davidmarkgardiner.co.uk"
-          # Use workload identity for authentication
-          managedIdentity:
-            clientID: "024244f9-7bb4-426a-932a-4ceec47026a6"
-      selector:
-        dnsNames:
-        - "davidmarkgardiner.co.uk"
-        - "*.davidmarkgardiner.co.uk"
+      - dns01:
+          azureDNS:
+            subscriptionID: "133d5755-4074-4d6e-ad38-eb2a6ad12903"
+            resourceGroupName: "dns"
+            hostedZoneName: "davidmarkgardiner.co.uk"
+            # Use workload identity for authentication
+            managedIdentity:
+              clientID: "024244f9-7bb4-426a-932a-4ceec47026a6"
+        selector:
+          dnsNames:
+            - "davidmarkgardiner.co.uk"
+            - "*.davidmarkgardiner.co.uk"

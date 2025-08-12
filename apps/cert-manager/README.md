@@ -5,6 +5,7 @@ This directory contains the complete cert-manager configuration for AKS cluster 
 ## Overview
 
 Cert-manager v1.18.2 is deployed with:
+
 - ✅ Azure Workload Identity integration
 - ✅ DNS-01 challenge support via Azure DNS
 - ✅ Let's Encrypt staging and production issuers
@@ -73,12 +74,12 @@ Cert-manager v1.18.2 is deployed with:
 
 ## Available ClusterIssuers
 
-| Name | Type | Server | Use Case |
-|------|------|--------|----------|
-| `letsencrypt-staging-dns01` | DNS-01 | Staging | Testing, development |
-| `letsencrypt-prod-dns01` | DNS-01 | Production | Production certificates |
-| `letsencrypt-staging-http01` | HTTP-01 | Staging | Testing with HTTP validation |
-| `letsencrypt-prod-http01` | HTTP-01 | Production | Production with HTTP validation |
+| Name                         | Type    | Server     | Use Case                        |
+| ---------------------------- | ------- | ---------- | ------------------------------- |
+| `letsencrypt-staging-dns01`  | DNS-01  | Staging    | Testing, development            |
+| `letsencrypt-prod-dns01`     | DNS-01  | Production | Production certificates         |
+| `letsencrypt-staging-http01` | HTTP-01 | Staging    | Testing with HTTP validation    |
+| `letsencrypt-prod-http01`    | HTTP-01 | Production | Production with HTTP validation |
 
 ## Usage Examples
 
@@ -93,7 +94,7 @@ metadata:
 spec:
   secretName: my-app-tls
   dnsNames:
-  - my-app.davidmarkgardiner.co.uk
+    - my-app.davidmarkgardiner.co.uk
   issuerRef:
     name: letsencrypt-prod-dns01
     kind: ClusterIssuer
@@ -110,7 +111,7 @@ metadata:
 spec:
   secretName: wildcard-tls
   dnsNames:
-  - "*.davidmarkgardiner.co.uk"
+    - "*.davidmarkgardiner.co.uk"
   issuerRef:
     name: letsencrypt-prod-dns01
     kind: ClusterIssuer
@@ -127,20 +128,20 @@ metadata:
     cert-manager.io/cluster-issuer: "letsencrypt-prod-dns01"
 spec:
   tls:
-  - hosts:
-    - my-app.davidmarkgardiner.co.uk
-    secretName: my-app-tls
+    - hosts:
+        - my-app.davidmarkgardiner.co.uk
+      secretName: my-app-tls
   rules:
-  - host: my-app.davidmarkgardiner.co.uk
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: my-app-service
-            port:
-              number: 80
+    - host: my-app.davidmarkgardiner.co.uk
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-app-service
+                port:
+                  number: 80
 ```
 
 ## Validation
@@ -241,6 +242,7 @@ kubectl describe certificate <cert-name>
 ## Success Metrics
 
 As of deployment:
+
 - ✅ All CRDs installed and validated
 - ✅ All pods running (cert-manager, webhook, cainjector)
 - ✅ Workload identity correctly configured

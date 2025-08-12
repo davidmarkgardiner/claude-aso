@@ -14,13 +14,13 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-prod-http01
     solvers:
-    - http01:
-        ingress:
-          class: istio
-          ingressTemplate:
-            metadata:
-              annotations:
-                kubernetes.io/ingress.class: istio
+      - http01:
+          ingress:
+            class: istio
+            ingressTemplate:
+              metadata:
+                annotations:
+                  kubernetes.io/ingress.class: istio
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -36,10 +36,10 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-staging-http01
     solvers:
-    - http01:
-        ingress:
-          class: istio
-          ingressTemplate:
-            metadata:
-              annotations:
-                kubernetes.io/ingress.class: istio
+      - http01:
+          ingress:
+            class: istio
+            ingressTemplate:
+              metadata:
+                annotations:
+                  kubernetes.io/ingress.class: istio

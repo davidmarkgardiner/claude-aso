@@ -15,18 +15,18 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - name: http
-    port: 9898
-    targetPort: http
-    protocol: TCP
-  - name: http-metrics
-    port: 9797
-    targetPort: http-metrics
-    protocol: TCP
-  - name: grpc
-    port: 9999
-    targetPort: grpc
-    protocol: TCP
+    - name: http
+      port: 9898
+      targetPort: http
+      protocol: TCP
+    - name: http-metrics
+      port: 9797
+      targetPort: http-metrics
+      protocol: TCP
+    - name: grpc
+      port: 9999
+      targetPort: grpc
+      protocol: TCP
   selector:
     app: podinfo
 ---
@@ -44,14 +44,14 @@ metadata:
 spec:
   clusterIP: None
   ports:
-  - name: http
-    port: 9898
-    targetPort: http
-    protocol: TCP
-  - name: grpc
-    port: 9999
-    targetPort: grpc
-    protocol: TCP
+    - name: http
+      port: 9898
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9999
+      targetPort: grpc
+      protocol: TCP
   selector:
     app: podinfo
 # ---

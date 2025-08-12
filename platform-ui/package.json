@@ -6,8 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:secure": "./scripts/build-secure.sh",
+    "build:docker": "BUILD_DOCKER=true ./scripts/build-secure.sh",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "lint:fix": "eslint . --fix",
+    "preview": "vite preview",
+    "security:audit": "./scripts/security-audit.sh",
+    "security:scan": "npm audit --audit-level=moderate",
+    "security:fix": "npm audit fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules/.vite",
+    "start": "npm run preview"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

@@ -42,7 +42,7 @@ echo "OIDC Issuer: $OIDC_ISSUER"
 
 Create the UserAssignedIdentity resource:
 
-```yaml
+````yaml
 # uami.yaml
 apiVersion: managedidentity.azure.com/v1api20181130
 kind: UserAssignedIdentity
@@ -67,7 +67,7 @@ kubectl wait --for=condition=Ready userassignedidentity/external-dns-identity -n
 # Get the client ID
 export CLIENT_ID=$(kubectl get userassignedidentity external-dns-identity -n external-dns -o jsonpath='{.status.clientId}')
 echo "Client ID: $CLIENT_ID"
-```
+````
 
 ## Step 2: Assign DNS Zone Contributor Role
 
@@ -93,7 +93,7 @@ metadata:
 spec:
   audiences:
     - api://AzureADTokenExchange
-  issuer: ${OIDC_ISSUER}  # Replace with actual OIDC issuer URL
+  issuer: ${OIDC_ISSUER} # Replace with actual OIDC issuer URL
   subject: system:serviceaccount:external-dns:external-dns
   owner:
     name: external-dns-identity
@@ -113,16 +113,16 @@ kubectl get federatedidentitycredential -n external-dns
 
 ```yaml
 # external-dns-values.yaml
-podLabels: 
+podLabels:
   "azure.workload.identity/use": "true"
 
 serviceAccount:
   create: true
   name: external-dns
-  labels: 
+  labels:
     "azure.workload.identity/use": "true"
-  annotations: 
-    "azure.workload.identity/client-id": "${CLIENT_ID}"  # Replace with actual client ID
+  annotations:
+    "azure.workload.identity/client-id": "${CLIENT_ID}" # Replace with actual client ID
   automountServiceAccountToken: true
 
 logLevel: debug
@@ -130,7 +130,7 @@ logFormat: json
 interval: 1m
 
 provider:
-  name: azure  # Use 'azure' for public DNS
+  name: azure # Use 'azure' for public DNS
 
 sources:
   - ingress
@@ -138,7 +138,7 @@ sources:
 
 dnsPolicy: Default
 
-domainFilters: 
+domainFilters:
   - davidmarkgardiner.co.uk
 
 txtOwnerId: external-dns
@@ -201,10 +201,10 @@ spec:
         app: test-app
     spec:
       containers:
-      - name: test-app
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
+        - name: test-app
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
 ---
 apiVersion: v1
 kind: Service
@@ -215,8 +215,8 @@ spec:
   selector:
     app: test-app
   ports:
-  - port: 80
-    targetPort: 80
+    - port: 80
+      targetPort: 80
   type: ClusterIP
 ---
 apiVersion: networking.k8s.io/v1
@@ -228,16 +228,16 @@ metadata:
     external-dns.alpha.kubernetes.io/hostname: "test.davidmarkgardiner.co.uk"
 spec:
   rules:
-  - host: "test.davidmarkgardiner.co.uk"
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: test-app-service
-            port:
-              number: 80
+    - host: "test.davidmarkgardiner.co.uk"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: test-app-service
+                port:
+                  number: 80
 ```
 
 Deploy the test application:
@@ -249,11 +249,13 @@ kubectl apply -f test-app.yaml
 ## Step 7: Verification Commands
 
 ### Check External-DNS Logs
+
 ```bash
 kubectl logs -f deployment/external-dns -n external-dns
 ```
 
 ### Verify DNS Records
+
 ```bash
 # List DNS records in your zone
 az network dns record-set a list \
@@ -269,6 +271,7 @@ az network dns record-set txt list \
 ```
 
 ### Test DNS Resolution
+
 ```bash
 # Test DNS resolution
 nslookup test.davidmarkgardiner.co.uk
@@ -278,6 +281,7 @@ dig test.davidmarkgardiner.co.uk
 ```
 
 ### Check Kubernetes Resources
+
 ```bash
 # Check all external-dns resources
 kubectl get all -n external-dns
@@ -292,22 +296,26 @@ kubectl get federatedidentitycredential -n external-dns -o yaml
 ## Troubleshooting Commands
 
 ### Check Service Account Annotations
+
 ```bash
 kubectl get serviceaccount external-dns -n external-dns -o yaml
 ```
 
 ### Verify Workload Identity Setup
+
 ```bash
 kubectl describe pod -l app.kubernetes.io/name=external-dns -n external-dns
 ```
 
 ### Check RBAC Permissions
+
 ```bash
 # Verify the managed identity has proper permissions
 az role assignment list --assignee $CLIENT_ID --output table
 ```
 
 ### Debug External-DNS Issues
+
 ```bash
 # Increase log level for debugging
 helm upgrade external-dns external-dns/external-dns \
@@ -357,13 +365,17 @@ Your setup is working correctly when:
 ## Common Issues & Solutions
 
 ### Issue: "failed to get token"
+
 - **Solution**: Verify federated identity credential configuration and OIDC issuer URL
 
 ### Issue: "Access denied" or permission errors
+
 - **Solution**: Check role assignments and ensure DNS Zone Contributor role is properly assigned
 
 ### Issue: DNS records not created
+
 - **Solution**: Check domain filters and ensure ingress annotations are correct
 
 ### Issue: Service account not properly annotated
+
 - **Solution**: Verify client-id annotation matches the managed identity client ID

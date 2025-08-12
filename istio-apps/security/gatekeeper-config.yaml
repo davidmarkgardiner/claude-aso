@@ -79,7 +79,7 @@ spec:
     - target: admission.k8s.gatekeeper.sh
       rego: |
         package secureiστiogateway
-        
+
         # Ensure HTTPS is configured for production gateways
         violation[{"msg": msg}] {
           input.review.object.kind == "Gateway"
@@ -89,7 +89,7 @@ spec:
           contains(input.review.object.metadata.namespace, "prod")
           msg := sprintf("Production Gateway %v must redirect HTTP to HTTPS", [input.review.object.metadata.name])
         }
-        
+
         # Ensure TLS is properly configured
         violation[{"msg": msg}] {
           input.review.object.kind == "Gateway"
@@ -98,7 +98,7 @@ spec:
           not server.tls.credentialName
           msg := sprintf("HTTPS Gateway %v must specify TLS credentialName", [input.review.object.metadata.name])
         }
-        
+
         # Validate allowed hosts
         violation[{"msg": msg}] {
           input.review.object.kind == "Gateway"
@@ -108,11 +108,11 @@ spec:
           not allowed_host(host)
           msg := sprintf("Host %v not in allowed hosts list", [host])
         }
-        
+
         allowed_host(host) {
           input.parameters.allowedHosts[_] == host
         }
-        
+
         allowed_host(host) {
           startswith(host, "*.")
           domain := substring(host, 2, -1)
@@ -141,7 +141,7 @@ spec:
       - "*.local"
 
 ---
-# Authorization Policy Security Validation  
+# Authorization Policy Security Validation
 apiVersion: templates.gatekeeper.sh/v1beta1
 kind: ConstraintTemplate
 metadata:
@@ -166,7 +166,7 @@ spec:
     - target: admission.k8s.gatekeeper.sh
       rego: |
         package secureauthzpolicy
-        
+
         # Ensure production AuthorizationPolicies don't allow wildcards
         violation[{"msg": msg}] {
           input.review.object.kind == "AuthorizationPolicy"
@@ -176,7 +176,7 @@ spec:
           source.namespaces[_] == "*"
           msg := "Production AuthorizationPolicy cannot use wildcard namespaces"
         }
-        
+
         # Ensure explicit principals are used for production
         violation[{"msg": msg}] {
           input.review.object.kind == "AuthorizationPolicy" 
@@ -187,7 +187,7 @@ spec:
           not source.namespaces
           msg := "Production AuthorizationPolicy must specify explicit principals or namespaces"
         }
-        
+
         # Block prohibited principals
         violation[{"msg": msg}] {
           input.review.object.kind == "AuthorizationPolicy"
@@ -198,7 +198,7 @@ spec:
           contains(principal, prohibited)
           msg := sprintf("Principal %v contains prohibited pattern %v", [principal, prohibited])
         }
-        
+
         # Require explicit DENY policies for sensitive operations
         violation[{"msg": msg}] {
           input.review.object.kind == "AuthorizationPolicy"
@@ -208,7 +208,7 @@ spec:
           not has_corresponding_deny_policy
           msg := "Production namespaces should have explicit DENY policies"
         }
-        
+
         has_corresponding_deny_policy {
           # This would need to be enhanced to check for existing DENY policies
           # in the same namespace
@@ -230,7 +230,7 @@ spec:
         kinds: ["AuthorizationPolicy"]
     namespaces: ["tenant-a", "shared-services"]
   parameters:
-    prohibitedPrincipals: ["cluster.local/ns/*/sa/*"]  # Avoid overly broad service accounts
+    prohibitedPrincipals: ["cluster.local/ns/*/sa/*"] # Avoid overly broad service accounts
     requireExplicitDeny: true
 
 ---
@@ -259,7 +259,7 @@ spec:
     - target: admission.k8s.gatekeeper.sh
       rego: |
         package safevirtualservice
-        
+
         # Ensure retries are configured safely
         violation[{"msg": msg}] {
           input.review.object.kind == "VirtualService"
@@ -271,7 +271,7 @@ spec:
             input.parameters.maxRetries
           ])
         }
-        
+
         # Ensure timeouts are reasonable
         violation[{"msg": msg}] {
           input.review.object.kind == "VirtualService"
@@ -286,7 +286,7 @@ spec:
             input.parameters.maxTimeout
           ])
         }
-        
+
         # Ensure fault injection percentages are safe for production
         violation[{"msg": msg}] {
           input.review.object.kind == "VirtualService"
@@ -295,12 +295,12 @@ spec:
           route.fault.delay.percentage.value > 1.0
           msg := sprintf("Production VirtualService %v fault injection percentage too high", [input.review.object.metadata.name])
         }
-        
+
         parse_timeout(timeout_str) = seconds {
           endswith(timeout_str, "s")
           seconds := to_number(substring(timeout_str, 0, count(timeout_str) - 1))
         }
-        
+
         parse_timeout(timeout_str) = seconds {
           endswith(timeout_str, "ms") 
           milliseconds := to_number(substring(timeout_str, 0, count(timeout_str) - 2))
@@ -335,18 +335,18 @@ metadata:
     deployment-agent: istio-engineer
 spec:
   applyTo:
-  - groups: ["networking.istio.io"]
-    kinds: ["Gateway", "VirtualService", "DestinationRule"]
-    versions: ["v1alpha3", "v1beta1"]
-  - groups: ["security.istio.io"] 
-    kinds: ["AuthorizationPolicy", "PeerAuthentication"]
-    versions: ["v1beta1"]
+    - groups: ["networking.istio.io"]
+      kinds: ["Gateway", "VirtualService", "DestinationRule"]
+      versions: ["v1alpha3", "v1beta1"]
+    - groups: ["security.istio.io"]
+      kinds: ["AuthorizationPolicy", "PeerAuthentication"]
+      versions: ["v1beta1"]
   match:
     scope: Namespaced
     kinds:
-    - apiGroups: ["networking.istio.io", "security.istio.io"]
-      kinds: ["*"]
-  location: "metadata.labels.\"security-reviewed\""
+      - apiGroups: ["networking.istio.io", "security.istio.io"]
+        kinds: ["*"]
+  location: 'metadata.labels."security-reviewed"'
   parameters:
     assign:
       value: "pending"
@@ -361,14 +361,14 @@ metadata:
     deployment-agent: istio-engineer
 spec:
   applyTo:
-  - groups: [""]
-    kinds: ["Pod"]
-    versions: ["v1"]
+    - groups: [""]
+      kinds: ["Pod"]
+      versions: ["v1"]
   match:
     scope: Namespaced
     namespaces: ["tenant-a", "tenant-b", "shared-services"]
     excludedNamespaces: ["kube-system", "flux-system", "gatekeeper-system"]
-  location: "metadata.labels.\"sidecar.istio.io/inject\""
+  location: 'metadata.labels."sidecar.istio.io/inject"'
   parameters:
     assign:
       value: "true"

@@ -1,11 +1,13 @@
 # Cert-Manager Setup Summary for AKS Cluster
 
 ## Overview
+
 Cert-manager has been successfully configured for the AKS cluster `uk8s-tsshared-weu-gt025-int-prod` in UK South region with Azure Workload Identity integration and Let's Encrypt automation.
 
 ## Configuration Details
 
 ### Cluster Information
+
 - **Cluster Name**: uk8s-tsshared-weu-gt025-int-prod
 - **Region**: UK South (uksouth)
 - **Resource Group**: AT39473-WEU-DEV-PROD
@@ -14,12 +16,14 @@ Cert-manager has been successfully configured for the AKS cluster `uk8s-tsshared
 - **Service Mesh**: Istio enabled
 
 ### Cert-Manager Installation
+
 - **Version**: v1.15.3
 - **Namespace**: cert-manager
 - **Installation Method**: Helm with values file
 - **Security**: Hardened with security contexts and resource limits
 
 ### Workload Identity Configuration
+
 - **Identity Name**: cert-manager-identity
 - **Client ID**: 1317ba0a-60d3-4f05-b41e-483ed1d6acb3
 - **Principal ID**: a42ca684-811c-4441-94b5-e9383d176f4f
@@ -29,20 +33,24 @@ Cert-manager has been successfully configured for the AKS cluster `uk8s-tsshared
 ## ClusterIssuers Available
 
 ### DNS-01 Solvers (Azure DNS)
+
 1. **letsencrypt-prod-dns01** - Production Let's Encrypt with Azure DNS
 2. **letsencrypt-staging-dns01** - Staging Let's Encrypt with Azure DNS
 
 **Supports**:
-- Wildcard certificates (*.domain.com)
+
+- Wildcard certificates (\*.domain.com)
 - Private/internal domains
 - Domains without HTTP access
 - Multi-domain certificates
 
 ### HTTP-01 Solvers (Istio Gateway)
+
 1. **letsencrypt-prod-http01** - Production Let's Encrypt with HTTP-01
 2. **letsencrypt-staging-http01** - Staging Let's Encrypt with HTTP-01
 
 **Supports**:
+
 - Public domains with HTTP access
 - Istio Gateway integration
 - Single domain certificates
@@ -50,6 +58,7 @@ Cert-manager has been successfully configured for the AKS cluster `uk8s-tsshared
 ## Usage Examples
 
 ### DNS-01 Certificate (Recommended for wildcards)
+
 ```yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -62,11 +71,12 @@ spec:
     name: letsencrypt-prod-dns01
     kind: ClusterIssuer
   dnsNames:
-  - "*.your-domain.davidmarkgardiner.co.uk"
-  - "your-domain.davidmarkgardiner.co.uk"
+    - "*.your-domain.davidmarkgardiner.co.uk"
+    - "your-domain.davidmarkgardiner.co.uk"
 ```
 
 ### HTTP-01 Certificate (For public domains)
+
 ```yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -79,10 +89,11 @@ spec:
     name: letsencrypt-prod-http01
     kind: ClusterIssuer
   dnsNames:
-  - "app.davidmarkgardiner.co.uk"
+    - "app.davidmarkgardiner.co.uk"
 ```
 
 ### Istio Gateway with TLS
+
 ```yaml
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
@@ -93,15 +104,15 @@ spec:
   selector:
     istio: ingressgateway
   servers:
-  - port:
-      number: 443
-      name: https
-      protocol: HTTPS
-    tls:
-      mode: SIMPLE
-      credentialName: your-cert-tls  # Same as Certificate secretName
-    hosts:
-    - "app.davidmarkgardiner.co.uk"
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: your-cert-tls # Same as Certificate secretName
+      hosts:
+        - "app.davidmarkgardiner.co.uk"
 ```
 
 ## Files Created
@@ -116,6 +127,7 @@ spec:
 ## Testing Status
 
 Two test certificates have been created:
+
 - **test-dns01-cert**: Single domain DNS-01 challenge
 - **test-wildcard-cert**: Wildcard domain DNS-01 challenge
 
@@ -124,6 +136,7 @@ Both certificates are using staging Let's Encrypt and should complete within 5-1
 ## Monitoring Setup
 
 ServiceMonitors and PrometheusRules are configured for:
+
 - Cert-manager controller metrics
 - Certificate expiration alerts (21 days warning, 7 days critical)
 - Rate limiting alerts
@@ -174,12 +187,14 @@ nslookup _acme-challenge.<domain>.davidmarkgardiner.co.uk
 ## Troubleshooting
 
 ### Common Issues:
+
 1. **DNS propagation delays**: DNS-01 challenges can take 2-10 minutes
 2. **Workload identity**: Ensure pod has the correct annotations
 3. **Azure permissions**: Verify DNS Zone Contributor role assignment
 4. **Rate limits**: Use staging issuer for testing
 
 ### Debug Commands:
+
 ```bash
 # Check workload identity
 kubectl get serviceaccount cert-manager -n cert-manager -o yaml

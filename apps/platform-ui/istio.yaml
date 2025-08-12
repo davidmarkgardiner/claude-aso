@@ -1,0 +1,330 @@
+---
+# VirtualService for Platform UI routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: platform-ui-vs
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "VirtualService for Platform UI routing and traffic management"
+spec:
+  hosts:
+    - platform-ui
+    - platform-ui.platform-system.svc.cluster.local
+    - platform.aks.local # External domain
+  http:
+    # Health check route
+    - match:
+        - uri:
+            exact: /health
+      route:
+        - destination:
+            host: platform-ui
+            port:
+              number: 80
+      timeout: 5s
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+    # API proxy routes (proxy to platform-api)
+    - match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: platform-api
+            port:
+              number: 80
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: 5xx,gateway-error,connect-failure,refused-stream
+      headers:
+        request:
+          add:
+            x-forwarded-by: platform-ui
+    # WebSocket route (proxy to platform-api)
+    - match:
+        - uri:
+            prefix: /ws
+        - headers:
+            upgrade:
+              exact: websocket
+      route:
+        - destination:
+            host: platform-api
+            port:
+              number: 80
+      timeout: 300s
+    # Static assets with caching
+    - match:
+        - uri:
+            regex: ".*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$"
+      route:
+        - destination:
+            host: platform-ui
+            port:
+              number: 80
+      timeout: 10s
+      headers:
+        response:
+          add:
+            cache-control: "public, max-age=31536000"
+    # Main SPA route (catch-all)
+    - route:
+        - destination:
+            host: platform-ui
+            port:
+              number: 80
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: 5xx,gateway-error,connect-failure,refused-stream
+
+---
+# DestinationRule for Platform UI load balancing and circuit breaking
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: platform-ui-dr
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "DestinationRule for Platform UI load balancing and circuit breaking"
+spec:
+  host: platform-ui
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 30s
+        keepAlive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 10
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+        maxEjectionPercent: 50
+        minHealthPercent: 30
+    circuitBreaker:
+      consecutiveGatewayErrors: 5
+      consecutiveServerErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      consecutiveServerErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+---
+# Gateway for external access to Platform UI
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: platform-ui-gateway
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "Gateway for external access to Platform UI"
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - platform.aks.local
+      tls:
+        httpsRedirect: true
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - platform.aks.local
+      tls:
+        mode: SIMPLE
+        credentialName: platform-ui-tls-cert
+
+---
+# VirtualService for external Gateway routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: platform-ui-gateway-vs
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "VirtualService for external Gateway routing to Platform UI"
+spec:
+  hosts:
+    - platform.aks.local
+  gateways:
+    - platform-ui-gateway
+  http:
+    # Health check route
+    - match:
+        - uri:
+            exact: /health
+      route:
+        - destination:
+            host: platform-ui.platform-system.svc.cluster.local
+            port:
+              number: 80
+      timeout: 5s
+    # API proxy routes (direct to platform-api)
+    - match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: platform-api.platform-system.svc.cluster.local
+            port:
+              number: 80
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: 5xx,gateway-error,connect-failure,refused-stream
+      headers:
+        request:
+          add:
+            x-forwarded-by: platform-ui-gateway
+            x-forwarded-proto: https
+    # WebSocket route (direct to platform-api)
+    - match:
+        - uri:
+            prefix: /ws
+        - headers:
+            upgrade:
+              exact: websocket
+      route:
+        - destination:
+            host: platform-api.platform-system.svc.cluster.local
+            port:
+              number: 80
+      timeout: 300s
+    # Static assets with caching
+    - match:
+        - uri:
+            regex: ".*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$"
+      route:
+        - destination:
+            host: platform-ui.platform-system.svc.cluster.local
+            port:
+              number: 80
+      timeout: 10s
+      headers:
+        response:
+          add:
+            cache-control: "public, max-age=31536000"
+            x-content-type-options: "nosniff"
+    # Main SPA route (catch-all)
+    - route:
+        - destination:
+            host: platform-ui.platform-system.svc.cluster.local
+            port:
+              number: 80
+      timeout: 30s
+      headers:
+        response:
+          add:
+            x-frame-options: "SAMEORIGIN"
+            x-xss-protection: "1; mode=block"
+            x-content-type-options: "nosniff"
+            referrer-policy: "no-referrer-when-downgrade"
+
+---
+# PeerAuthentication for mTLS
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: platform-ui-mtls
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "PeerAuthentication for Platform UI mTLS enforcement"
+spec:
+  selector:
+    matchLabels:
+      app: platform-ui
+  mtls:
+    mode: STRICT
+
+---
+# AuthorizationPolicy for Platform UI access control
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: platform-ui-authz
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "AuthorizationPolicy for Platform UI access control"
+spec:
+  selector:
+    matchLabels:
+      app: platform-ui
+  rules:
+    # Allow health checks from anywhere
+    - to:
+        - operation:
+            paths: ["/health"]
+            methods: ["GET"]
+    # Allow all HTTP traffic to UI (since authentication is handled by the app)
+    - to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+      from:
+        - source:
+            namespaces: ["istio-system"] # From ingress gateway
+    # Allow access from platform-api for server-side rendering or API calls
+    - to:
+        - operation:
+            methods: ["GET", "POST"]
+      from:
+        - source:
+            principals: ["cluster.local/ns/platform-system/sa/platform-api"]
+    # Allow monitoring access
+    - to:
+        - operation:
+            paths: ["/metrics"]
+            methods: ["GET"]
+      from:
+        - source:
+            namespaces: ["monitoring", "prometheus", "istio-system"]

@@ -12,6 +12,7 @@ External DNS has been successfully installed and configured on the AKS cluster w
 ## 🏗️ Architecture
 
 ### Azure Resources Created
+
 - **User Assigned Identity**: `external-dns-identity` (Resource Group: `dns`)
   - Client ID: `721782e9-90d6-4563-8e92-a0889337243e`
   - Principal ID: `c3f62a7d-bb18-43b8-a10a-acebe4f3e275`
@@ -21,6 +22,7 @@ External DNS has been successfully installed and configured on the AKS cluster w
   - Issuer: AKS OIDC endpoint
 
 ### Kubernetes Resources Deployed
+
 - **Namespace**: `external-dns` (with Workload Identity labels)
 - **ServiceAccount**: `external-dns` (with Azure client ID annotation)
 - **ClusterRole**: `external-dns` (with comprehensive RBAC permissions)
@@ -32,6 +34,7 @@ External DNS has been successfully installed and configured on the AKS cluster w
 ## ⚙️ Configuration
 
 ### External DNS Settings
+
 - **Provider**: Azure DNS
 - **Domain Filter**: `davidmarkgardiner.co.uk`
 - **Sources**: Services and Ingresses
@@ -43,6 +46,7 @@ External DNS has been successfully installed and configured on the AKS cluster w
 - **Log Level**: info
 
 ### Azure Integration
+
 - **Subscription ID**: `133d5755-4074-4d6e-ad38-eb2a6ad12903`
 - **Tenant ID**: `550cfcda-8a2d-452c-ba71-d6bc6bf5bb31`
 - **Resource Group**: `dns`
@@ -52,21 +56,26 @@ External DNS has been successfully installed and configured on the AKS cluster w
 ## ✅ Validation Results
 
 ### 1. Pod Status
+
 ```
 NAME                            READY   STATUS    RESTARTS   AGE
 external-dns-7d57b85654-q4jm4   1/1     Running   0          2m
 ```
 
 ### 2. Authentication Test
+
 ✅ Successfully authenticated using Azure Workload Identity:
+
 ```
 time="2025-08-09T17:29:39Z" level=info msg="Using workload identity extension to retrieve access token for Azure API."
 ```
 
 ### 3. DNS Record Creation Test
+
 ✅ Created test service `external-dns-test` with LoadBalancer IP `85.210.74.198`:
 
 **A Record Created**:
+
 ```json
 {
   "name": "external-dns-test",
@@ -77,6 +86,7 @@ time="2025-08-09T17:29:39Z" level=info msg="Using workload identity extension to
 ```
 
 **TXT Record Created**:
+
 ```json
 {
   "name": "externaldns-a-external-dns-test",
@@ -86,7 +96,9 @@ time="2025-08-09T17:29:39Z" level=info msg="Using workload identity extension to
 ```
 
 ### 4. External DNS Logs
+
 ✅ Successfully processing records:
+
 ```
 time="2025-08-09T17:30:40Z" level=info msg="Updating A record named 'external-dns-test' to '85.210.74.198' for Azure DNS zone 'davidmarkgardiner.co.uk'."
 time="2025-08-09T17:30:40Z" level=info msg="Updating TXT record named 'externaldns-a-external-dns-test' to '\"heritage=external-dns,external-dns/owner=uk8s-tsshared-weu-gt025-int-prod,external-dns/resource=service/default/external-dns-test\"' for Azure DNS zone 'davidmarkgardiner.co.uk'."
@@ -112,6 +124,7 @@ All configurations have been saved to `/apps/external-dns/` for GitOps deploymen
 ## 🔧 Usage Examples
 
 ### Service with External DNS
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -123,12 +136,13 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - port: 80
+    - port: 80
   selector:
     app: my-app
 ```
 
 ### Ingress with External DNS
+
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -136,29 +150,32 @@ metadata:
   name: my-app
 spec:
   rules:
-  - host: my-app.davidmarkgardiner.co.uk
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: my-app
-            port:
-              number: 80
+    - host: my-app.davidmarkgardiner.co.uk
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-app
+                port:
+                  number: 80
 ```
 
 ## 📊 Monitoring
 
 ### Health Checks
+
 - **Liveness Probe**: `http://localhost:7979/healthz`
 - **Readiness Probe**: `http://localhost:7979/healthz`
 
 ### Metrics
+
 - **Endpoint**: `http://external-dns.external-dns.svc.cluster.local:7979/metrics`
 - **Prometheus Annotations**: Configured for automatic scraping
 
 ### Logs Monitoring
+
 ```bash
 kubectl logs -n external-dns deployment/external-dns -f
 ```
@@ -174,7 +191,7 @@ kubectl logs -n external-dns deployment/external-dns -f
 ## 🚀 Performance Metrics
 
 - **DNS Sync Time**: ~30 seconds from service creation to DNS record
-- **Resource Usage**: 
+- **Resource Usage**:
   - CPU Request: 50m, Limit: 100m
   - Memory Request: 50Mi, Limit: 300Mi
 - **API Calls**: Optimized with 30-second sync interval
@@ -182,6 +199,7 @@ kubectl logs -n external-dns deployment/external-dns -f
 ## 🛠️ Operational Commands
 
 ### Deployment
+
 ```bash
 # Deploy via kubectl
 kubectl apply -k /apps/external-dns/
@@ -192,6 +210,7 @@ kubectl logs -n external-dns deployment/external-dns
 ```
 
 ### DNS Verification
+
 ```bash
 # List A records
 az network dns record-set a list \
@@ -206,6 +225,7 @@ az network dns record-set txt list \
 ```
 
 ### Troubleshooting
+
 ```bash
 # Check workload identity
 kubectl describe pod -n external-dns -l app.kubernetes.io/name=external-dns
@@ -226,7 +246,7 @@ kubectl exec -it -n external-dns deployment/external-dns -- /bin/sh
 ✅ A and TXT records created successfully  
 ✅ Monitoring and health checks operational  
 ✅ GitOps-ready configurations exported  
-✅ Comprehensive documentation provided  
+✅ Comprehensive documentation provided
 
 ## 📋 Next Steps
 
@@ -239,7 +259,7 @@ kubectl exec -it -n external-dns deployment/external-dns -- /bin/sh
 ## 📞 Support Information
 
 - **Cluster**: uk8s-tsshared-weu-gt025-int-prod
-- **DNS Zone**: davidmarkgardiner.co.uk  
+- **DNS Zone**: davidmarkgardiner.co.uk
 - **Identity**: external-dns-identity (dns resource group)
 - **Namespace**: external-dns
 - **Version**: External DNS v0.18.0

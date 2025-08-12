@@ -25,6 +25,7 @@ Create a new branch with a descriptive name based on the type of work you're abo
 ## Interactive Branch Creation Steps
 
 1. **Check current state and ensure you're up to date:**
+
    ```bash
    git status
    git fetch origin
@@ -41,6 +42,7 @@ Create a new branch with a descriptive name based on the type of work you're abo
    - `experiment` - Experimental features
 
 3. **Get branch description** (from user):
+
    ```bash
    # Prompt: "What is this branch for? (brief description):"
    # User provides: "add user authentication"
@@ -55,6 +57,7 @@ Create a new branch with a descriptive name based on the type of work you're abo
 ## Branch Name Formatting Rules
 
 **Automatic formatting applied:**
+
 - Convert spaces to hyphens
 - Convert to lowercase
 - Remove special characters
@@ -62,6 +65,7 @@ Create a new branch with a descriptive name based on the type of work you're abo
 - Remove duplicate hyphens
 
 **Examples of formatting:**
+
 - Input: `"User Authentication System"` → `user-authentication-system`
 - Input: `"Fix: Login Bug!!"` → `fix-login-bug`
 - Input: `"API v2.0 endpoints"` → `api-v2-0-endpoints`
@@ -109,7 +113,7 @@ else
     echo "7) chore - Maintenance"
     echo "8) experiment - Experimental"
     read -p "Enter number (1-8): " choice
-    
+
     case $choice in
         1) BRANCH_TYPE="feature" ;;
         2) BRANCH_TYPE="fix" ;;
@@ -180,16 +184,18 @@ git checkout -b experiment/ai-recommendations
 ## Branch Creation Best Practices
 
 1. **Always pull latest changes first:**
+
    ```bash
    git pull origin main  # or master/develop
    ```
 
 2. **Create from the right base branch:**
+
    ```bash
    # For features (from develop)
    git checkout develop
    git checkout -b feature/new-feature
-   
+
    # For hotfixes (from main/master)
    git checkout main
    git checkout -b hotfix/urgent-fix
@@ -204,16 +210,19 @@ git checkout -b experiment/ai-recommendations
 ## Advanced Options
 
 **Create branch from specific commit:**
+
 ```bash
 git checkout -b feature/new-feature abc123f
 ```
 
 **Create branch from remote branch:**
+
 ```bash
 git checkout -b feature/new-feature origin/develop
 ```
 
 **Create branch and set upstream:**
+
 ```bash
 git checkout -b feature/new-feature
 git push -u origin feature/new-feature
@@ -222,6 +231,7 @@ git push -u origin feature/new-feature
 ## Validation Checks
 
 Before creating a branch, ensure:
+
 - [ ] You're in the correct repository
 - [ ] Working directory is clean (no uncommitted changes)
 - [ ] You've pulled the latest changes
@@ -231,6 +241,7 @@ Before creating a branch, ensure:
 ## Error Handling
 
 **If branch already exists:**
+
 ```bash
 # Check existing branches
 git branch | grep <branch-name>
@@ -243,6 +254,7 @@ git checkout -b <branch-name>-v2
 ```
 
 **If you're in the wrong base branch:**
+
 ```bash
 # Check current branch
 git branch --show-current
@@ -259,11 +271,13 @@ git checkout -b feature/new-feature
 After creating your branch:
 
 1. **Push to remote (optional but recommended):**
+
    ```bash
    git push -u origin HEAD
    ```
 
 2. **Verify branch creation:**
+
    ```bash
    git branch --show-current
    git log --oneline -1

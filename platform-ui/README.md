@@ -24,17 +24,20 @@ A modern, Backstage-inspired developer portal providing self-service namespace p
 ### Local Development
 
 1. **Install Dependencies**
+
    ```bash
    npm install
    ```
 
 2. **Configure Environment**
+
    ```bash
    cp .env.sample .env
    # Edit .env with your configuration
    ```
 
 3. **Start Development Server**
+
    ```bash
    npm run dev
    ```
@@ -58,13 +61,13 @@ npx serve dist
 
 ### Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `VITE_API_BASE_URL` | Platform API base URL | `http://localhost:3001` | Yes |
-| `VITE_AUTH_ENABLED` | Enable Azure AD authentication | `false` | No |
-| `VITE_AZURE_CLIENT_ID` | Azure AD app client ID | - | If auth enabled |
-| `VITE_AZURE_TENANT_ID` | Azure AD tenant ID | - | If auth enabled |
-| `VITE_FEATURE_FLAGS` | Comma-separated feature flags | - | No |
+| Variable               | Description                    | Default                 | Required        |
+| ---------------------- | ------------------------------ | ----------------------- | --------------- |
+| `VITE_API_BASE_URL`    | Platform API base URL          | `http://localhost:3001` | Yes             |
+| `VITE_AUTH_ENABLED`    | Enable Azure AD authentication | `false`                 | No              |
+| `VITE_AZURE_CLIENT_ID` | Azure AD app client ID         | -                       | If auth enabled |
+| `VITE_AZURE_TENANT_ID` | Azure AD tenant ID             | -                       | If auth enabled |
+| `VITE_FEATURE_FLAGS`   | Comma-separated feature flags  | -                       | No              |
 
 ### Example `.env` File
 
@@ -129,6 +132,7 @@ src/
 ### 🏠 Dashboard
 
 The main dashboard provides an overview of:
+
 - **Personal Namespaces** - Quick access to your team's namespaces
 - **Recent Activity** - Latest deployments and changes
 - **Resource Usage** - Current quota utilization across namespaces
@@ -148,6 +152,7 @@ interface DashboardData {
 ### 📦 Namespace Management
 
 Self-service namespace provisioning with:
+
 - **Resource Tiers** - Pre-configured resource allocations (small/medium/large)
 - **Feature Selection** - Opt-in capabilities (Istio, monitoring, GPU access)
 - **Team Isolation** - Automatic RBAC and network policy application
@@ -157,8 +162,8 @@ Self-service namespace provisioning with:
 interface NamespaceRequest {
   name: string;
   team: string;
-  environment: 'development' | 'staging' | 'production';
-  resourceTier: 'small' | 'medium' | 'large';
+  environment: "development" | "staging" | "production";
+  resourceTier: "small" | "medium" | "large";
   features: FeatureFlag[];
   description?: string;
 }
@@ -167,6 +172,7 @@ interface NamespaceRequest {
 ### 🛍️ Service Catalog
 
 Browse and deploy standardized services:
+
 - **Template Gallery** - Pre-built application templates
 - **Parameter Forms** - Dynamic forms based on template parameters
 - **Deployment Tracking** - Real-time deployment progress
@@ -188,6 +194,7 @@ interface ServiceTemplate {
 ### 📊 Analytics Dashboard
 
 Comprehensive platform metrics:
+
 - **Usage Analytics** - Namespace adoption, resource utilization
 - **Cost Tracking** - Spend analysis by team and environment
 - **Performance Metrics** - API response times, success rates
@@ -249,20 +256,22 @@ class PlatformAPIClient {
   }
 
   async createNamespace(request: NamespaceRequest): Promise<Namespace> {
-    return this.post('/api/platform/namespaces', request);
+    return this.post("/api/platform/namespaces", request);
   }
 
   async getNamespaces(team?: string): Promise<Namespace[]> {
-    const params = team ? `?team=${team}` : '';
+    const params = team ? `?team=${team}` : "";
     return this.get(`/api/platform/namespaces${params}`);
   }
 
   async getServiceTemplates(): Promise<ServiceTemplate[]> {
-    return this.get('/api/platform/catalog/templates');
+    return this.get("/api/platform/catalog/templates");
   }
 
-  async deployService(deployment: ServiceDeployment): Promise<DeploymentResult> {
-    return this.post('/api/platform/catalog/deploy', deployment);
+  async deployService(
+    deployment: ServiceDeployment,
+  ): Promise<DeploymentResult> {
+    return this.post("/api/platform/catalog/deploy", deployment);
   }
 }
 ```
@@ -277,11 +286,11 @@ interface PlatformStore {
   namespaces: Namespace[];
   loadNamespaces: () => Promise<void>;
   createNamespace: (request: NamespaceRequest) => Promise<void>;
-  
+
   // Service Catalog
   templates: ServiceTemplate[];
   loadTemplates: () => Promise<void>;
-  
+
   // User & Auth
   user: User | null;
   login: () => Promise<void>;
@@ -292,12 +301,12 @@ const usePlatformStore = create<PlatformStore>((set, get) => ({
   namespaces: [],
   templates: [],
   user: null,
-  
+
   loadNamespaces: async () => {
     const namespaces = await apiClient.getNamespaces();
     set({ namespaces });
   },
-  
+
   // ... other actions
 }));
 ```
@@ -317,31 +326,34 @@ const usePlatformStore = create<PlatformStore>((set, get) => ({
 ### Development Workflow
 
 1. **Component Development**
+
    ```bash
    # Create new component
    npm run generate:component MyComponent
-   
+
    # Start Storybook for component development
    npm run storybook
    ```
 
 2. **API Integration**
+
    ```bash
    # Mock API server for development
    npm run mock-api
-   
+
    # Test against real API
    VITE_API_BASE_URL=http://localhost:3001 npm run dev
    ```
 
 3. **Testing**
+
    ```bash
    # Run tests in watch mode
    npm run test:watch
-   
+
    # Run tests with coverage
    npm run test:coverage
-   
+
    # Run E2E tests
    npm run test:e2e
    ```
@@ -428,15 +440,15 @@ interface User {
 }
 
 // HOC for role-based rendering
-export const withRole = (allowedRoles: string[]) => 
-  <P extends object>(Component: React.ComponentType<P>) => 
+export const withRole = (allowedRoles: string[]) =>
+  <P extends object>(Component: React.ComponentType<P>) =>
     (props: P) => {
       const { user } = useAuth();
-      
+
       if (!user || !user.roles.some(role => allowedRoles.includes(role))) {
         return <AccessDenied />;
       }
-      
+
       return <Component {...props} />;
     };
 
@@ -495,13 +507,13 @@ spec:
         app: platform-ui
     spec:
       containers:
-      - name: platform-ui
-        image: platform-ui:latest
-        ports:
-        - containerPort: 80
-        env:
-        - name: VITE_API_BASE_URL
-          value: "https://platform-api.company.com"
+        - name: platform-ui
+          image: platform-ui:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: VITE_API_BASE_URL
+              value: "https://platform-api.company.com"
 ---
 apiVersion: v1
 kind: Service
@@ -511,8 +523,8 @@ spec:
   selector:
     app: platform-ui
   ports:
-  - port: 80
-    targetPort: 80
+    - port: 80
+      targetPort: 80
   type: ClusterIP
 ```
 
@@ -533,10 +545,10 @@ const ServiceCatalog = lazy(() => import('./pages/ServiceCatalog'));
 
 // Memoized expensive component
 const ResourceChart = React.memo(({ data }: { data: ResourceData }) => {
-  const chartData = useMemo(() => 
+  const chartData = useMemo(() =>
     processResourceData(data), [data]
   );
-  
+
   return <Chart data={chartData} />;
 });
 ```
@@ -562,7 +574,7 @@ describe('NamespaceCard', () => {
     };
 
     render(<NamespaceCard namespace={namespace} onSelect={jest.fn()} />);
-    
+
     expect(screen.getByText('test-namespace')).toBeInTheDocument();
     expect(screen.getByText('frontend')).toBeInTheDocument();
   });
@@ -575,13 +587,13 @@ describe('NamespaceCard', () => {
 describe('Namespace Creation Flow', () => {
   it('creates namespace successfully', async () => {
     const user = userEvent.setup();
-    
+
     render(<ProvisionNamespace />);
-    
+
     await user.type(screen.getByLabelText('Namespace Name'), 'my-app-dev');
     await user.selectOptions(screen.getByLabelText('Team'), 'frontend');
     await user.click(screen.getByRole('button', { name: 'Create' }));
-    
+
     await waitFor(() => {
       expect(screen.getByText('Namespace created successfully')).toBeInTheDocument();
     });
@@ -592,23 +604,23 @@ describe('Namespace Creation Flow', () => {
 ### E2E Tests
 
 ```typescript
-test('complete user journey', async ({ page }) => {
-  await page.goto('/');
-  
+test("complete user journey", async ({ page }) => {
+  await page.goto("/");
+
   // Login
-  await page.click('[data-testid=login-button]');
-  await page.fill('[name=email]', 'user@company.com');
-  await page.fill('[name=password]', 'password');
-  await page.click('[type=submit]');
-  
+  await page.click("[data-testid=login-button]");
+  await page.fill("[name=email]", "user@company.com");
+  await page.fill("[name=password]", "password");
+  await page.click("[type=submit]");
+
   // Create namespace
-  await page.click('[data-testid=provision-namespace]');
-  await page.fill('[name=namespaceName]', 'test-app-dev');
-  await page.selectOption('[name=team]', 'frontend');
-  await page.click('[type=submit]');
-  
+  await page.click("[data-testid=provision-namespace]");
+  await page.fill("[name=namespaceName]", "test-app-dev");
+  await page.selectOption("[name=team]", "frontend");
+  await page.click("[type=submit]");
+
   // Verify creation
-  await expect(page.locator('[data-testid=success-message]')).toBeVisible();
+  await expect(page.locator("[data-testid=success-message]")).toBeVisible();
 });
 ```
 
@@ -617,10 +629,11 @@ test('complete user journey', async ({ page }) => {
 ### Common Issues
 
 1. **API Connection Errors**
+
    ```bash
    # Check API URL configuration
    echo $VITE_API_BASE_URL
-   
+
    # Test API connectivity
    curl $VITE_API_BASE_URL/health
    ```
@@ -631,21 +644,23 @@ test('complete user journey', async ({ page }) => {
    - Ensure proper scopes are requested
 
 3. **Build Errors**
+
    ```bash
    # Clear cache and reinstall
    rm -rf node_modules package-lock.json
    npm install
-   
+
    # Check TypeScript errors
    npm run typecheck
    ```
 
 4. **Performance Issues**
+
    ```bash
    # Analyze bundle size
    npm run build
    npx vite-bundle-analyzer dist
-   
+
    # Profile performance
    npm run dev -- --profile
    ```
@@ -682,6 +697,7 @@ MIT License - see LICENSE file for details.
 ## Support
 
 For questions and support:
+
 - Create an issue in the repository
 - Contact the platform team at platform-team@company.com
 - Check the documentation wiki

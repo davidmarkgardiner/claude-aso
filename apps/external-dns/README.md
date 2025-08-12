@@ -17,6 +17,7 @@ External DNS automatically creates and manages DNS records for Kubernetes servic
 ## Components
 
 ### Core Resources
+
 - `namespace.yaml` - External DNS namespace with Workload Identity labels
 - `azure-config.yaml` - Azure configuration for Workload Identity
 - `serviceaccount.yaml` - Service Account with Azure annotations
@@ -27,6 +28,7 @@ External DNS automatically creates and manages DNS records for Kubernetes servic
 - `kustomization.yaml` - Kustomize configuration
 
 ### Azure Resources (Pre-configured)
+
 - **User Assigned Identity**: `external-dns-identity` in resource group `dns`
 - **Role Assignment**: DNS Zone Contributor on `davidmarkgardiner.co.uk`
 - **Federated Credential**: For service account `system:serviceaccount:external-dns:external-dns`
@@ -34,18 +36,22 @@ External DNS automatically creates and manages DNS records for Kubernetes servic
 ## Configuration
 
 ### Sources
+
 - **Services**: LoadBalancer and NodePort services with External DNS annotations
 - **Ingresses**: Ingresses with hostnames matching domain filter
 
 ### Domain Filter
+
 - `davidmarkgardiner.co.uk` - Only manages records in this DNS zone
 
 ### TXT Registry
+
 - **Owner ID**: `uk8s-tsshared-weu-gt025-int-prod`
 - **Prefix**: `externaldns-`
 - TXT records track ownership and prevent conflicts
 
 ### Sync Settings
+
 - **Interval**: 30 seconds
 - **Policy**: sync (creates, updates, and deletes records)
 - **TTL**: Configurable via service annotations (default: 300)
@@ -53,6 +59,7 @@ External DNS automatically creates and manages DNS records for Kubernetes servic
 ## Usage
 
 ### Service Example
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -64,12 +71,13 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - port: 80
+    - port: 80
   selector:
     app: my-app
 ```
 
 ### Ingress Example
+
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -77,30 +85,33 @@ metadata:
   name: my-app
 spec:
   rules:
-  - host: my-app.davidmarkgardiner.co.uk
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: my-app
-            port:
-              number: 80
+    - host: my-app.davidmarkgardiner.co.uk
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-app
+                port:
+                  number: 80
 ```
 
 ## Monitoring
 
 ### Metrics
+
 - External DNS exposes Prometheus metrics on port 7979 at `/metrics`
 - Health check available at `/healthz`
 
 ### Logs
+
 ```bash
 kubectl logs -n external-dns deployment/external-dns -f
 ```
 
 ### DNS Record Verification
+
 ```bash
 # Check A records
 az network dns record-set a list \
@@ -119,16 +130,19 @@ az network dns record-set txt list \
 ## Deployment
 
 ### Via kubectl
+
 ```bash
 kubectl apply -k apps/external-dns/
 ```
 
 ### Via Kustomize
+
 ```bash
 kustomize build apps/external-dns/ | kubectl apply -f -
 ```
 
 ### Validation
+
 ```bash
 # Check pod status
 kubectl get pods -n external-dns
@@ -176,6 +190,7 @@ EOF
    - Check for conflicting External DNS deployments
 
 ### Debug Commands
+
 ```bash
 # View External DNS configuration
 kubectl get deployment external-dns -n external-dns -o yaml

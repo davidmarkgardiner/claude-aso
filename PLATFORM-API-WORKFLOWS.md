@@ -8,22 +8,23 @@ This solution uses **Argo Workflows** for namespace provisioning, which is **NOT
 
 ### Standard Backstage vs. Our Custom Platform API
 
-| Aspect | Standard Backstage | Our Custom Platform API |
-|--------|-------------------|--------------------------|
-| **Template Engine** | Built-in Software Templates with Cookiecutter/Yeoman | Custom Platform API with Argo Workflows |
-| **Scaffolding** | File-based template scaffolding | Kubernetes resource orchestration |
-| **Orchestration** | Simple shell scripts or webhook calls | Complex multi-step workflow DAGs |
-| **State Management** | Basic status tracking | Persistent workflow state with retries |
-| **Auditability** | Limited audit trail | Full workflow execution history |
-| **Complex Operations** | Limited to simple operations | Multi-step, conditional, parallel operations |
+| Aspect                 | Standard Backstage                                   | Our Custom Platform API                      |
+| ---------------------- | ---------------------------------------------------- | -------------------------------------------- |
+| **Template Engine**    | Built-in Software Templates with Cookiecutter/Yeoman | Custom Platform API with Argo Workflows      |
+| **Scaffolding**        | File-based template scaffolding                      | Kubernetes resource orchestration            |
+| **Orchestration**      | Simple shell scripts or webhook calls                | Complex multi-step workflow DAGs             |
+| **State Management**   | Basic status tracking                                | Persistent workflow state with retries       |
+| **Auditability**       | Limited audit trail                                  | Full workflow execution history              |
+| **Complex Operations** | Limited to simple operations                         | Multi-step, conditional, parallel operations |
 
 ### 🎯 Why Argo Workflows Was Chosen
 
 1. **Complex Namespace Provisioning Requirements**
+
    ```yaml
    # Example workflow steps:
    - Create namespace with labels/annotations
-   - Apply resource quotas and limits  
+   - Apply resource quotas and limits
    - Setup RBAC (ServiceAccounts, Roles, RoleBindings)
    - Configure network policies
    - Install monitoring (ServiceMonitor, PodMonitor)
@@ -86,11 +87,13 @@ This solution uses **Argo Workflows** for namespace provisioning, which is **NOT
 ### Step 1: Install Argo Workflows
 
 #### 1.1 Create Namespace
+
 ```bash
 kubectl create namespace argo-workflows
 ```
 
 #### 1.2 Install Argo Workflows with Helm
+
 ```bash
 # Add Argo Helm repository
 helm repo add argo https://argoproj.github.io/argo-helm
@@ -107,6 +110,7 @@ helm install argo-workflows argo/argo-workflows \
 ```
 
 #### 1.3 Alternative: Direct Kubernetes Manifests
+
 ```bash
 # Quick install (not for production)
 kubectl apply -n argo-workflows -f https://github.com/argoproj/argo-workflows/releases/download/v3.5.0/install.yaml
@@ -303,7 +307,7 @@ spec:
     inputs:
       parameters:
       - name: namespace-name
-      - name: team-name  
+      - name: team-name
       - name: network-policy
     script:
       image: bitnami/kubectl:latest
@@ -426,7 +430,7 @@ const jwt = require('jsonwebtoken');
 const SECRET = 'change-me-in-production';
 const token = jwt.sign({
   sub: 'test-argo-user',
-  email: 'test@platform.local', 
+  email: 'test@platform.local',
   name: 'Argo Test User',
   groups: ['Platform-Admins'],
   roles: ['platform:admin', 'namespace:admin', 'user:authenticated'],
@@ -439,10 +443,10 @@ const token = jwt.sign({
 
 async function testArgoIntegration() {
   const testNamespace = `argo-test-${Date.now()}`.substring(0, 30);
-  
+
   console.log('🧪 Testing Argo Workflows Integration');
   console.log(`📝 Creating namespace: ${testNamespace}`);
-  
+
   const payload = {
     namespaceName: testNamespace,
     team: 'platform',
@@ -455,12 +459,12 @@ async function testArgoIntegration() {
 
   try {
     const response = await makeRequest('POST', '/api/platform/namespaces/request', payload);
-    
+
     if (response.status === 201) {
       console.log('✅ Workflow submitted successfully!');
       console.log(`📋 Request ID: ${response.data.requestId}`);
       console.log(`🔄 Workflow ID: ${response.data.workflowId}`);
-      
+
       // Monitor workflow progress
       if (response.data.requestId) {
         console.log('\n⏳ Monitoring workflow progress...');
@@ -478,13 +482,13 @@ async function testArgoIntegration() {
 async function monitorWorkflow(requestId) {
   for (let i = 0; i < 12; i++) { // Check for 2 minutes
     await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
-    
+
     const statusResponse = await makeRequest('GET', `/api/platform/namespaces/request/${requestId}/status`);
-    
+
     if (statusResponse.status === 200) {
       const status = statusResponse.data.status;
       console.log(`   Check ${i + 1}: ${status}`);
-      
+
       if (status === 'completed') {
         console.log('✅ Workflow completed successfully!');
         break;
@@ -524,7 +528,7 @@ function makeRequest(method, path, data = null) {
     });
 
     req.on('error', reject);
-    
+
     if (data) {
       req.write(JSON.stringify(data));
     }
@@ -543,14 +547,17 @@ node test-argo-integration.js
 ### Step 6: Access Argo Workflows UI
 
 #### 6.1 Port Forward to Argo Server
+
 ```bash
 kubectl port-forward svc/argo-workflows-server -n argo-workflows 2746:2746
 ```
 
 #### 6.2 Access UI
+
 Open browser to: http://localhost:2746
 
 #### 6.3 Create Ingress (Optional)
+
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -562,34 +569,36 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   tls:
-  - hosts:
-    - argo.your-domain.com
-    secretName: argo-tls
+    - hosts:
+        - argo.your-domain.com
+      secretName: argo-tls
   rules:
-  - host: argo.your-domain.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: argo-workflows-server
-            port:
-              number: 2746
+    - host: argo.your-domain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argo-workflows-server
+                port:
+                  number: 2746
 ```
 
 ## 🔧 Troubleshooting Common Issues
 
 ### Issue 1: Workflow Submission Fails
+
 ```bash
 # Check Argo Workflows server logs
 kubectl logs -n argo-workflows deployment/argo-workflows-server
 
-# Check workflow controller logs  
+# Check workflow controller logs
 kubectl logs -n argo-workflows deployment/argo-workflows-workflow-controller
 ```
 
 ### Issue 2: RBAC Permission Denied
+
 ```bash
 # Verify service account exists
 kubectl get serviceaccount platform-provisioner -n argo-workflows
@@ -602,12 +611,14 @@ kubectl auth can-i create workflows --as=system:serviceaccount:argo-workflows:pl
 ```
 
 ### Issue 3: Platform API Cannot Connect to Argo
+
 ```bash
 # Test connectivity from platform-api pod
 kubectl exec -it deployment/platform-api -n platform-system -- curl -v http://argo-workflows-server.argo-workflows:2746/api/v1/version
 ```
 
 ### Issue 4: Workflow Templates Not Found
+
 ```bash
 # List available workflow templates
 kubectl get workflowtemplates -n argo-workflows

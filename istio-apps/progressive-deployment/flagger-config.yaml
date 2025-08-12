@@ -15,14 +15,14 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: podinfo-v1
-  
+
   # Deployment strategy
   progressDeadlineSeconds: 600
   autoscalerRef:
     apiVersion: autoscaling/v2
     kind: HorizontalPodAutoscaler
     name: podinfo-v1
-  
+
   # Service configuration
   service:
     name: podinfo-canary
@@ -41,7 +41,7 @@ spec:
         add:
           x-canary-deployment: "true"
           x-deployment-agent: "istio-engineer"
-    
+
   # Progressive deployment analysis
   analysis:
     # Canary analysis configuration
@@ -50,13 +50,13 @@ spec:
     maxWeight: 20
     stepWeight: 5
     iterations: 10
-    
+
     # Success/failure thresholds
     match:
       - headers:
-          x-canary: 
+          x-canary:
             exact: "true"
-    
+
     # Metrics for decision making
     metrics:
       # Success rate (primary metric)
@@ -67,25 +67,25 @@ spec:
         thresholdRange:
           min: 99.5
         interval: 60s
-        
+
       # Response time (P99 latency)
       - name: request-duration-p99
         templateRef:
           name: latency-p99
           namespace: flagger-system
         thresholdRange:
-          max: 500  # 500ms
+          max: 500 # 500ms
         interval: 60s
-        
+
       # Error rate
       - name: error-rate
         templateRef:
           name: error-rate
           namespace: flagger-system
         thresholdRange:
-          max: 0.5  # 0.5%
+          max: 0.5 # 0.5%
         interval: 60s
-        
+
       # Custom business metrics
       - name: business-metric
         templateRef:
@@ -94,7 +94,7 @@ spec:
         thresholdRange:
           min: 95
         interval: 30s
-    
+
     # Pre-deployment validation webhooks
     webhooks:
       # Security validation
@@ -105,8 +105,8 @@ spec:
         metadata:
           deployment: "{{ .Name }}"
           namespace: "{{ .Namespace }}"
-          
-      # Load testing before promotion  
+
+      # Load testing before promotion
       - name: load-test-validation
         type: pre-rollout
         url: http://flagger-loadtester.istio-testing.svc.cluster.local:80/
@@ -119,19 +119,19 @@ spec:
               -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
               -H "x-canary: true" \
               http://podinfo-canary.tenant-a.svc.cluster.local:9898/
-            
+
       # Configuration validation
       - name: istio-config-validation
-        type: pre-rollout  
+        type: pre-rollout
         url: http://istio-validator.shared-services.svc.cluster.local:8080/validate-config
         timeout: 15s
-        
+
       # Business approval gate (manual)
       - name: approval-gate
         type: confirm-promotion
         url: http://approval-service.shared-services.svc.cluster.local:8080/approve
-        timeout: 300s  # 5 minute timeout for manual approval
-        
+        timeout: 300s # 5 minute timeout for manual approval
+
       # Post-deployment verification
       - name: post-deployment-test
         type: post-rollout
@@ -142,17 +142,17 @@ spec:
           cmd: |
             # Verify deployment success with comprehensive testing
             echo "=== Post-Deployment Verification ==="
-            
+
             # Health check
             curl -f http://podinfo.tenant-a.svc.cluster.local:9898/healthz
-            
+
             # Performance baseline
             fortio load -c 5 -n 50 -qps 10 \
               http://podinfo.tenant-a.svc.cluster.local:9898/
-            
+
             # Security verification
             curl -f http://security-validator.shared-services.svc.cluster.local:8080/verify-deployment
-            
+
       # Rollback notification
       - name: rollback-notification
         type: rollback
@@ -165,7 +165,7 @@ spec:
 
 ---
 # Flagger Canary for Tenant B (Development - More Aggressive)
-apiVersion: flagger.app/v1beta1  
+apiVersion: flagger.app/v1beta1
 kind: Canary
 metadata:
   name: tenant-b-podinfo-progressive
@@ -179,9 +179,9 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: podinfo-v2
-    
-  progressDeadlineSeconds: 300  # Faster for development
-  
+
+  progressDeadlineSeconds: 300 # Faster for development
+
   service:
     name: podinfo-canary
     port: 9898
@@ -190,32 +190,32 @@ spec:
       - aks-istio-system/main-gateway
     hosts:
       - podinfo.tenant-b.davidmarkgardiner.co.uk
-  
+
   analysis:
     # More aggressive deployment for development
     interval: 30s
-    threshold: 5  
-    maxWeight: 50  # Allow more traffic to canary
+    threshold: 5
+    maxWeight: 50 # Allow more traffic to canary
     stepWeight: 10 # Bigger steps
-    iterations: 5  # Fewer iterations
-    
+    iterations: 5 # Fewer iterations
+
     metrics:
       - name: request-success-rate
         templateRef:
           name: success-rate
           namespace: flagger-system
         thresholdRange:
-          min: 95  # Lower threshold for development
+          min: 95 # Lower threshold for development
         interval: 30s
-        
+
       - name: request-duration-p99
         templateRef:
           name: latency-p99
           namespace: flagger-system
         thresholdRange:
-          max: 1000  # More lenient for development
+          max: 1000 # More lenient for development
         interval: 30s
-    
+
     webhooks:
       - name: basic-validation
         type: pre-rollout
@@ -382,7 +382,7 @@ data:
           description: "Error rate {{ $value }}% exceeds threshold during canary analysis"
 
 ---
-# Notification Provider for Canary Events  
+# Notification Provider for Canary Events
 apiVersion: notification.toolkit.fluxcd.io/v1beta1
 kind: Provider
 metadata:
@@ -392,7 +392,7 @@ metadata:
     deployment-agent: istio-engineer
 spec:
   type: slack
-  channel: '#canary-deployments'
+  channel: "#canary-deployments"
   secretRef:
     name: slack-webhook-secret
 

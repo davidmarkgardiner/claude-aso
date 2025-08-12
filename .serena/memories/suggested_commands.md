@@ -1,6 +1,7 @@
 # Suggested Commands
 
 ## Environment Setup
+
 ```bash
 # Initialize development environment
 devbox shell
@@ -16,6 +17,7 @@ nu dot.nu destroy [aws|azure|google|kind]
 ```
 
 ## Kubernetes & Infrastructure Management
+
 ```bash
 # Create cluster for specific provider
 nu scripts/kubernetes.nu create kubernetes [aws|azure|google|kind] --name cluster-name
@@ -40,6 +42,7 @@ flux get sources git
 ```
 
 ## Platform API Development
+
 ```bash
 # Development server with hot reload
 cd platform-api
@@ -68,6 +71,7 @@ npm run docker:run
 ```
 
 ## Platform UI Development
+
 ```bash
 # Development server with HMR
 cd platform-ui
@@ -84,6 +88,7 @@ npm run lint
 ```
 
 ## ASO Development Workflow
+
 ```bash
 # Query available ASO CRDs
 kubectl get crd | grep azure
@@ -99,6 +104,7 @@ kubectl describe <resource-name>
 ```
 
 ## Istio Service Mesh
+
 ```bash
 # Check Istio installation
 kubectl get pods -n istio-system
@@ -112,6 +118,7 @@ istioctl analyze
 ```
 
 ## Useful Kubernetes Commands
+
 ```bash
 # Check cluster connectivity
 kubectl cluster-info
@@ -127,6 +134,7 @@ kubectl port-forward service/<name> <local-port>:<service-port> -n <namespace>
 ```
 
 ## Secret Scanning & Security
+
 ```bash
 # Scan for secrets in codebase
 ./scripts/scan-secrets.sh

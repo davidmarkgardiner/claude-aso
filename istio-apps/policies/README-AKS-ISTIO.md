@@ -28,7 +28,7 @@ kind: Namespace
 metadata:
   name: tenant-a
   labels:
-    istio.io/rev: asm-1-25  # Correct for AKS
+    istio.io/rev: asm-1-25 # Correct for AKS
     # istio-injection: enabled  # WRONG - Don't use this
 ```
 
@@ -62,8 +62,8 @@ spec:
       #   sidecar.istio.io/inject: "true"  # Optional, namespace label is enough
     spec:
       containers:
-      - name: podinfo
-        image: stefanprodan/podinfo:latest
+        - name: podinfo
+          image: stefanprodan/podinfo:latest
 ```
 
 ### Force Injection at Pod Level
@@ -76,9 +76,9 @@ kind: Pod
 metadata:
   name: test-pod
   labels:
-    istio.io/rev: asm-1-25  # Pod-level injection
+    istio.io/rev: asm-1-25 # Pod-level injection
   annotations:
-    sidecar.istio.io/inject: "true"  # Alternative method
+    sidecar.istio.io/inject: "true" # Alternative method
 ```
 
 ## Migration from Generic Labels
@@ -127,6 +127,7 @@ kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\t"}{.m
 ### 1. OPA Gatekeeper Policy (`validation-policies.yaml`)
 
 Updated to check for:
+
 - Pod annotation: `sidecar.istio.io/inject: "true"`
 - Pod label: `istio.io/rev: asm-1-25`
 - Namespace label: `istio.io/rev: asm-1-25`
@@ -136,16 +137,19 @@ Updated to check for:
 Three policies ensure AKS compatibility:
 
 #### Policy 1: Enforce Sidecar Injection
+
 - Validates namespace has `istio.io/rev: asm-1-25`
 - Blocks incorrect `istio-injection: enabled`
 - Ensures pods get sidecars
 
 #### Policy 2: Auto-Mutation
+
 - Adds correct labels automatically
 - Removes incorrect labels
 - Helps with migration
 
 #### Policy 3: Configuration Validation
+
 - Validates Gateway selectors
 - Ensures EnvoyFilter compatibility
 - Checks ServiceEntry conflicts
@@ -155,11 +159,13 @@ Three policies ensure AKS compatibility:
 ### Issue: Sidecar Not Injected
 
 **Check namespace label:**
+
 ```bash
 kubectl get namespace tenant-a -o yaml | grep -A5 labels
 ```
 
 **Fix:**
+
 ```bash
 kubectl label namespace tenant-a istio.io/rev=asm-1-25 --overwrite
 kubectl rollout restart deployment -n tenant-a
@@ -168,6 +174,7 @@ kubectl rollout restart deployment -n tenant-a
 ### Issue: Gateway Not Working
 
 **Check selector:**
+
 ```yaml
 # Correct for AKS
 spec:
@@ -185,6 +192,7 @@ spec:
 **Error:** `admission webhook "validation.istio.io" denied the request`
 
 **Fix:** Ensure revision label matches installed version:
+
 ```bash
 # Check installed revision
 kubectl get mutatingwebhookconfigurations | grep istio
@@ -236,10 +244,10 @@ kubectl get k8srequireistiosidecar -o yaml
 ## Version Compatibility
 
 | AKS Version | ASM Version | Revision Label | Istio Version |
-|-------------|-------------|----------------|---------------|
-| 1.28+       | 1.25        | asm-1-25      | 1.20.x        |
-| 1.27+       | 1.24        | asm-1-24      | 1.19.x        |
-| 1.26+       | 1.23        | asm-1-23      | 1.18.x        |
+| ----------- | ----------- | -------------- | ------------- |
+| 1.28+       | 1.25        | asm-1-25       | 1.20.x        |
+| 1.27+       | 1.24        | asm-1-24       | 1.19.x        |
+| 1.26+       | 1.23        | asm-1-23       | 1.18.x        |
 
 ## References
 

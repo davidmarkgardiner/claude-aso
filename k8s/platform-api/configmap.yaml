@@ -9,6 +9,7 @@ metadata:
 data:
   NODE_ENV: "development"
   PORT: "3000"
+  CORS_ORIGINS: "http://localhost:3000,http://localhost:7007,http://platform-ui.platform-system.svc.cluster.local:3000"
   KUBE_NAMESPACE: "default"
   LOG_LEVEL: "info"
   LOG_FORMAT: "json"
@@ -16,3 +17,7 @@ data:
   DB_SSL: "false"
   RATE_LIMIT_MAX_REQUESTS: "1000"
   RATE_LIMIT_WINDOW_MS: "900000"
+  # Argo Workflows Configuration
+  ARGO_WORKFLOWS_URL: "http://argo-workflows-server.argo:2746"
+  ARGO_NAMESPACE: "argo"
+  ARGO_TIMEOUT: "30000"

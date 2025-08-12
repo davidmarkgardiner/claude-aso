@@ -3,17 +3,17 @@ kind: Kustomization
 
 metadata:
   name: platform-services
-  
+
 resources:
-- platform-api/namespace.yaml
-- platform-api/configmap.yaml
-- platform-api/secret.yaml
-- platform-api/serviceaccount.yaml
-- platform-api/deployment.yaml
-- platform-api/service.yaml
-- platform-ui/configmap.yaml
-- platform-ui/deployment.yaml
-- platform-ui/service.yaml
+  - platform-api/namespace.yaml
+  - platform-api/configmap.yaml
+  - platform-api/secret.yaml
+  - platform-api/serviceaccount.yaml
+  - platform-api/deployment.yaml
+  - platform-api/service.yaml
+  - platform-ui/configmap.yaml
+  - platform-ui/deployment.yaml
+  - platform-ui/service.yaml
 
 commonLabels:
   platform.io/managed: "true"
@@ -22,9 +22,9 @@ commonLabels:
 namespace: platform-system
 
 images:
-- name: platform-api
-  newName: davidgardiner/platform-api
-  newTag: v1.0.0
-- name: platform-ui
-  newName: davidgardiner/platform-ui
-  newTag: v1.0.0
+  - name: platform-api
+    newName: davidgardiner/platform-api
+    newTag: v1.0.0
+  - name: platform-ui
+    newName: davidgardiner/platform-ui
+    newTag: v1.0.0

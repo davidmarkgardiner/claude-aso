@@ -5,16 +5,16 @@ metadata:
   namespace: test-dns
 spec:
   containers:
-  - name: test-client
-    image: curlimages/curl:latest
-    command: ["sh", "-c", "sleep 3600"]
-    resources:
-      requests:
-        memory: "16Mi"
-        cpu: "5m"
-      limits:
-        memory: "32Mi"
-        cpu: "10m"
+    - name: test-client
+      image: curlimages/curl:latest
+      command: ["sh", "-c", "sleep 3600"]
+      resources:
+        requests:
+          memory: "16Mi"
+          cpu: "5m"
+        limits:
+          memory: "32Mi"
+          cpu: "10m"
   restartPolicy: Never
 ---
 apiVersion: batch/v1
@@ -26,32 +26,32 @@ spec:
   template:
     spec:
       containers:
-      - name: test
-        image: curlimages/curl:latest
-        command:
-        - sh
-        - -c
-        - |
-          echo "=== External DNS VirtualService Test ==="
-          echo "Testing direct service access..."
-          curl -s http://podinfo.test-dns.svc.cluster.local:80/ | head -5
-          echo ""
-          
-          echo "Testing through Istio ingress gateway cluster IP..."
-          curl -s -H "Host: test-vs.davidmarkgardiner.co.uk" http://10.251.76.226:80/ | head -5
-          echo ""
-          
-          echo "Testing podinfo through ingress gateway..."
-          curl -s -H "Host: podinfo.davidmarkgardiner.co.uk" http://10.251.76.226:80/ | head -5
-          echo ""
-          
-          echo "Test completed!"
-        resources:
-          requests:
-            memory: "16Mi"
-            cpu: "5m"
-          limits:
-            memory: "32Mi"  
-            cpu: "10m"
+        - name: test
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "=== External DNS VirtualService Test ==="
+              echo "Testing direct service access..."
+              curl -s http://podinfo.test-dns.svc.cluster.local:80/ | head -5
+              echo ""
+
+              echo "Testing through Istio ingress gateway cluster IP..."
+              curl -s -H "Host: test-vs.davidmarkgardiner.co.uk" http://10.251.76.226:80/ | head -5
+              echo ""
+
+              echo "Testing podinfo through ingress gateway..."
+              curl -s -H "Host: podinfo.davidmarkgardiner.co.uk" http://10.251.76.226:80/ | head -5
+              echo ""
+
+              echo "Test completed!"
+          resources:
+            requests:
+              memory: "16Mi"
+              cpu: "5m"
+            limits:
+              memory: "32Mi"
+              cpu: "10m"
       restartPolicy: Never
   backoffLimit: 2

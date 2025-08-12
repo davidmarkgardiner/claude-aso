@@ -1,0 +1,17 @@
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: platform-api-pdb
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "PDB for Platform API to ensure high availability during disruptions"
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: platform-api

@@ -1,6 +1,6 @@
 {
   "name": "namespace-platform-api",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Platform API for namespace-as-a-service with managed identity and RBAC",
   "main": "dist/server.js",
   "scripts": {
@@ -13,9 +13,17 @@
     "test:unit": "jest tests/unit/",
     "test:integration": "jest tests/integration/",
     "test:demo": "jest tests/demo/platform-demo.test.ts --verbose --no-coverage",
+    "test:security": "jest tests/security-validation.test.ts --verbose",
     "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "security:scan": "./scripts/scan-secrets.sh",
+    "security:validate": "npm run test:security && npm run security:scan",
+    "config:validate": "node -e \"require('./src/config/config').config; console.log('✅ Configuration is valid')\"",
+    "deploy:secure": "./scripts/deploy-secure.sh",
     "docker:build": "docker build -t platform-api:latest .",
-    "docker:run": "docker run -p 3000:3000 platform-api:latest"
+    "docker:run": "docker run -p 3000:3000 platform-api:latest",
+    "docker:dev": "docker-compose up -d",
+    "docker:down": "docker-compose down"
   },
   "dependencies": {
     "@azure/arm-authorization": "^9.0.0",

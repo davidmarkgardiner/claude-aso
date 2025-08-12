@@ -1,0 +1,172 @@
+---
+# NetworkPolicy for Platform API ingress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: platform-api-ingress
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "NetworkPolicy for Platform API ingress traffic control"
+spec:
+  podSelector:
+    matchLabels:
+      app: platform-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from Istio ingress gateway
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+        - podSelector:
+            matchLabels:
+              app: istio-proxy
+    # Allow traffic from platform-ui
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: platform-system
+        - podSelector:
+            matchLabels:
+              app: platform-ui
+    # Allow traffic from monitoring systems
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: prometheus
+    # Allow traffic from same namespace (platform-system)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: platform-system
+    # Allow health checks from load balancers
+    - ports:
+        - protocol: TCP
+          port: 3000
+      from: [] # Allow from anywhere for health checks
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS to external services (Azure APIs, etc.)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow HTTP to internal services
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8080
+    # Allow access to PostgreSQL
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow access to Redis
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow access to Kubernetes API server
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 6443
+        - protocol: TCP
+          port: 443
+    # Allow access to Argo Workflows
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: argo
+      ports:
+        - protocol: TCP
+          port: 2746
+
+---
+# NetworkPolicy for Platform API egress traffic (more restrictive)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: platform-api-egress-strict
+  namespace: platform-system
+  labels:
+    app: platform-api
+    platform.io/component: "platform-api"
+    version: v1.1.0
+    policy-type: strict
+  annotations:
+    platform.io/description: "Strict NetworkPolicy for Platform API egress traffic (optional, can be enabled for enhanced security)"
+spec:
+  podSelector:
+    matchLabels:
+      app: platform-api
+      policy-type: strict # Only apply to pods with this label
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow access to Kubernetes API server
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 6443
+    # Allow access to Azure APIs (specific IP ranges can be added)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow access to internal databases
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+    # Allow access to Argo Workflows
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: argo
+      ports:
+        - protocol: TCP
+          port: 2746

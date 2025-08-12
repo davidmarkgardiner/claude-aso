@@ -20,6 +20,7 @@ This guide ensures that **ALL** communication within the Istio service mesh uses
 ### 1. Istio mTLS Configuration (`mtls-strict-enforcement.yaml`)
 
 #### Mesh-Wide Policy
+
 ```yaml
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
@@ -28,11 +29,13 @@ metadata:
   namespace: istio-system
 spec:
   mtls:
-    mode: STRICT  # Forces mTLS everywhere
+    mode: STRICT # Forces mTLS everywhere
 ```
 
 #### Namespace-Specific Policies
+
 Each namespace has its own PeerAuthentication:
+
 - `tenant-a`: STRICT mode
 - `tenant-b`: STRICT mode
 - `shared-services`: STRICT mode
@@ -41,6 +44,7 @@ Each namespace has its own PeerAuthentication:
 - `aks-istio-system`: STRICT mode
 
 #### DestinationRules
+
 ```yaml
 # Forces Istio mTLS for all inter-service communication
 spec:
@@ -53,25 +57,30 @@ spec:
 ### 2. Kyverno Enforcement Policies (`kyverno-mtls-policies.yaml`)
 
 #### Policy 1: Block Non-Strict PeerAuthentication
+
 - **Blocks**: PERMISSIVE and DISABLE modes
 - **Enforces**: Only STRICT mode allowed
 - **Port-Level**: Prevents port-specific exceptions
 
 #### Policy 2: Enforce mTLS in DestinationRules
+
 - **Internal Services**: Must use ISTIO_MUTUAL
 - **Blocks**: DISABLE and SIMPLE modes for cluster services
 - **Subsets**: Cannot downgrade TLS
 
 #### Policy 3: Auto-Generate Default Policy
+
 - **Creates**: Default PeerAuthentication if missing
 - **Location**: istio-system namespace
 - **Mode**: Always STRICT
 
 #### Policy 4: Secure Sidecar Configuration
+
 - **Tenants**: Must use REGISTRY_ONLY (not ALLOW_ANY)
 - **Scope**: Requires workloadSelector
 
 #### Policy 5: Audit Compliance
+
 - **Services**: Checks for bypass annotations
 - **Workloads**: Identifies pods without sidecars
 - **Database Ports**: Ensures critical ports have mTLS
@@ -79,11 +88,14 @@ spec:
 ### 3. Verification Tools (`mtls-verification.yaml`)
 
 #### Test Resources
+
 - **mtls-test-pod**: Pod without sidecar (should fail)
 - **insecure-test-service**: Service without mTLS (blocked)
 
 #### Verification Script
+
 Comprehensive checks including:
+
 1. Mesh-wide policy validation
 2. Namespace policy audit
 3. DestinationRule TLS settings
@@ -94,6 +106,7 @@ Comprehensive checks including:
 ## Deployment Steps
 
 ### Step 1: Apply Kyverno Policies First
+
 ```bash
 # Install Kyverno if not already installed
 kubectl apply -f https://github.com/kyverno/kyverno/releases/latest/download/install.yaml
@@ -106,6 +119,7 @@ kubectl apply -f istio-apps/security/kyverno-mtls-policies.yaml
 ```
 
 ### Step 2: Apply Istio mTLS Configuration
+
 ```bash
 # Apply strict mTLS configuration
 kubectl apply -f istio-apps/security/mtls-strict-enforcement.yaml
@@ -116,6 +130,7 @@ kubectl get destinationrule -A
 ```
 
 ### Step 3: Run Verification
+
 ```bash
 # Deploy verification resources
 kubectl apply -f istio-apps/security/mtls-verification.yaml
@@ -130,6 +145,7 @@ kubectl logs -n istio-testing job/mtls-verify-$(date +%s)
 ## Verification Commands
 
 ### Check mTLS Status
+
 ```bash
 # Verify mesh-wide policy
 kubectl get peerauthentication default -n istio-system -o yaml
@@ -142,6 +158,7 @@ kubectl get destinationrule -A -o custom-columns=NAMESPACE:.metadata.namespace,N
 ```
 
 ### Test mTLS Enforcement
+
 ```bash
 # Test from pod with sidecar (should work)
 kubectl exec -n tenant-a deployment/podinfo-v1 -c podinfo -- \
@@ -154,6 +171,7 @@ kubectl exec -n istio-testing mtls-test-pod -- \
 ```
 
 ### Monitor Kyverno Violations
+
 ```bash
 # Check policy violations
 kubectl get events -A --field-selector reason=PolicyViolation
@@ -172,7 +190,9 @@ kubectl describe cpol enforce-strict-mtls-peerauthentication
 **Symptom**: 503 errors or connection refused
 
 **Solutions**:
+
 1. Ensure sidecar injection is enabled:
+
 ```yaml
 metadata:
   labels:
@@ -180,11 +200,13 @@ metadata:
 ```
 
 2. Restart pods to inject sidecars:
+
 ```bash
 kubectl rollout restart deployment/<name> -n <namespace>
 ```
 
 3. Check sidecar status:
+
 ```bash
 kubectl get pods -n <namespace> -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[*].name}{"\n"}{end}'
 ```
@@ -195,6 +217,7 @@ kubectl get pods -n <namespace> -o jsonpath='{range .items[*]}{.metadata.name}{"
 
 **Solution**:
 Check if trying to create non-STRICT mode:
+
 ```bash
 kubectl get peerauthentication <name> -n <namespace> -o yaml --dry-run=client
 ```
@@ -204,19 +227,22 @@ kubectl get peerauthentication <name> -n <namespace> -o yaml --dry-run=client
 **Symptom**: Cannot reach external APIs
 
 **Note**: External services don't use mTLS. Ensure:
+
 1. ServiceEntry exists for the external service
 2. DestinationRule uses SIMPLE mode for external hosts:
+
 ```yaml
 spec:
   host: external-api.com
   trafficPolicy:
     tls:
-      mode: SIMPLE  # OK for external services
+      mode: SIMPLE # OK for external services
 ```
 
 ## Security Best Practices
 
 ### Do's ✅
+
 1. **Always use STRICT mode** for all namespaces
 2. **Enable sidecar injection** for all workloads
 3. **Use ISTIO_MUTUAL** for internal DestinationRules
@@ -224,6 +250,7 @@ spec:
 5. **Test after deployment** changes
 
 ### Don'ts ❌
+
 1. **Never use PERMISSIVE mode** in production
 2. **Never disable sidecar injection** for services
 3. **Don't use DISABLE mode** for any PeerAuthentication
@@ -233,6 +260,7 @@ spec:
 ## Monitoring and Alerting
 
 ### Prometheus Metrics
+
 ```yaml
 # Alert for services without mTLS
 - alert: ServiceWithoutMTLS
@@ -256,6 +284,7 @@ spec:
 ### Grafana Dashboard Queries
 
 Check mTLS adoption:
+
 ```promql
 # Percentage of mTLS connections
 sum(rate(istio_tcp_connections_opened_total{security_policy="mutual_tls"}[5m])) /
@@ -263,6 +292,7 @@ sum(rate(istio_tcp_connections_opened_total[5m])) * 100
 ```
 
 Identify non-mTLS traffic:
+
 ```promql
 # Services receiving non-mTLS traffic
 sum by (destination_service_name) (
@@ -273,6 +303,7 @@ sum by (destination_service_name) (
 ## Compliance Validation
 
 ### Audit Checklist
+
 - [ ] All namespaces have PeerAuthentication with STRICT mode
 - [ ] No PERMISSIVE or DISABLE modes in any configuration
 - [ ] All internal DestinationRules use ISTIO_MUTUAL
@@ -282,6 +313,7 @@ sum by (destination_service_name) (
 - [ ] External services properly configured with ServiceEntries
 
 ### Compliance Report Script
+
 ```bash
 #!/bin/bash
 echo "mTLS Compliance Report - $(date)"
@@ -310,29 +342,34 @@ echo "================================"
 If currently using PERMISSIVE mode:
 
 1. **Audit Current State**:
+
 ```bash
 kubectl get peerauthentication -A -o yaml | grep -B5 "mode: PERMISSIVE"
 ```
 
 2. **Deploy Kyverno in Audit Mode First**:
+
 ```yaml
 spec:
-  validationFailureAction: Audit  # Change to Enforce later
+  validationFailureAction: Audit # Change to Enforce later
 ```
 
 3. **Gradually Update Namespaces**:
+
 ```bash
 # Update one namespace at a time
 kubectl patch peerauthentication <name> -n <namespace> --type='merge' -p '{"spec":{"mtls":{"mode":"STRICT"}}}'
 ```
 
 4. **Monitor for Issues**:
+
 ```bash
 # Watch for 503 errors
 kubectl logs -n istio-system deployment/istiod | grep "mTLS"
 ```
 
 5. **Enable Enforcement**:
+
 ```bash
 # Update Kyverno to Enforce mode
 kubectl patch cpol enforce-strict-mtls-peerauthentication --type='merge' -p '{"spec":{"validationFailureAction":"Enforce"}}'

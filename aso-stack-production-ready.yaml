@@ -6,59 +6,59 @@ kind: Kustomization
 
 resources:
   # ========== EXISTING RESOURCES (Well Configured) ==========
-  - resourcegroup.yaml              # ✅ Base resource group
-  - identity.yaml                  # ✅ Workload identities
-  - roleassignment.yaml           # ✅ DNS permissions
-  - cluster.yaml                  # ✅ AKS cluster (comprehensive config)
-  - federated.yaml               # ✅ Federated credentials
-  - extension.yaml               # ✅ Flux extension
-  - fluxconfiguration.yaml      # ✅ GitOps configuration
-  - dns.yaml                    # ✅ Public DNS zone
+  - resourcegroup.yaml # ✅ Base resource group
+  - identity.yaml # ✅ Workload identities
+  - roleassignment.yaml # ✅ DNS permissions
+  - cluster.yaml # ✅ AKS cluster (comprehensive config)
+  - federated.yaml # ✅ Federated credentials
+  - extension.yaml # ✅ Flux extension
+  - fluxconfiguration.yaml # ✅ GitOps configuration
+  - dns.yaml # ✅ Public DNS zone
 
   # ========== MISSING CRITICAL COMPONENTS ==========
-  
+
   # 1. SECURITY & GOVERNANCE
-  - keyvault.yaml                # ❌ MISSING: Azure Key Vault for secrets
-  - policyassignment.yaml        # ❌ MISSING: Azure Policy enforcement
-  - networksecuritygroup.yaml   # ❌ MISSING: Network security rules
+  - keyvault.yaml # ❌ MISSING: Azure Key Vault for secrets
+  - policyassignment.yaml # ❌ MISSING: Azure Policy enforcement
+  - networksecuritygroup.yaml # ❌ MISSING: Network security rules
   - useraccessadministrator.yaml # ❌ MISSING: RBAC role assignments
-  
+
   # 2. MONITORING & OBSERVABILITY
-  - loganalyticsworkspace.yaml   # ❌ MISSING: Centralized logging
-  - applicationinsights.yaml     # ❌ MISSING: Application monitoring
-  - diagnosticsettings.yaml      # ❌ MISSING: Resource diagnostics
-  - actiongroup.yaml             # ❌ MISSING: Alert notifications
-  - metricalert.yaml            # ❌ MISSING: Custom alerts
-  
-  # 3. STORAGE & DATA SERVICES  
-  - storageaccount.yaml          # ❌ MISSING: Persistent storage
-  - containerregistry.yaml      # ❌ MISSING: Private container images
-  - postgresqlserver.yaml        # ❌ MISSING: Database services
-  - cosmosdbaccount.yaml         # ❌ MISSING: NoSQL database option
-  
+  - loganalyticsworkspace.yaml # ❌ MISSING: Centralized logging
+  - applicationinsights.yaml # ❌ MISSING: Application monitoring
+  - diagnosticsettings.yaml # ❌ MISSING: Resource diagnostics
+  - actiongroup.yaml # ❌ MISSING: Alert notifications
+  - metricalert.yaml # ❌ MISSING: Custom alerts
+
+  # 3. STORAGE & DATA SERVICES
+  - storageaccount.yaml # ❌ MISSING: Persistent storage
+  - containerregistry.yaml # ❌ MISSING: Private container images
+  - postgresqlserver.yaml # ❌ MISSING: Database services
+  - cosmosdbaccount.yaml # ❌ MISSING: NoSQL database option
+
   # 4. NETWORKING ENHANCEMENTS
-  - virtualnetwork.yaml          # ❌ MISSING: Dedicated VNet
-  - publicip.yaml               # ❌ MISSING: Static public IPs
-  - applicationgateway.yaml     # ❌ MISSING: Application Gateway Ingress
-  - loadbalancer.yaml           # ❌ MISSING: Load balancer configuration
-  - privateendpoint.yaml        # ❌ MISSING: Private connectivity
-  
+  - virtualnetwork.yaml # ❌ MISSING: Dedicated VNet
+  - publicip.yaml # ❌ MISSING: Static public IPs
+  - applicationgateway.yaml # ❌ MISSING: Application Gateway Ingress
+  - loadbalancer.yaml # ❌ MISSING: Load balancer configuration
+  - privateendpoint.yaml # ❌ MISSING: Private connectivity
+
   # 5. BACKUP & DISASTER RECOVERY
-  - recoveryvault.yaml          # ❌ MISSING: Backup services
-  - backuppolicy.yaml           # ❌ MISSING: Backup policies
-  - sitereplication.yaml        # ❌ MISSING: Multi-region setup
-  
+  - recoveryvault.yaml # ❌ MISSING: Backup services
+  - backuppolicy.yaml # ❌ MISSING: Backup policies
+  - sitereplication.yaml # ❌ MISSING: Multi-region setup
+
   # 6. COMPLIANCE & GOVERNANCE
-  - managementgroup.yaml        # ❌ MISSING: Resource organization
-  - blueprint.yaml              # ❌ MISSING: Governance templates
-  - costanalysis.yaml           # ❌ MISSING: Cost management
-  - resourcelock.yaml           # ❌ MISSING: Resource protection
-  
+  - managementgroup.yaml # ❌ MISSING: Resource organization
+  - blueprint.yaml # ❌ MISSING: Governance templates
+  - costanalysis.yaml # ❌ MISSING: Cost management
+  - resourcelock.yaml # ❌ MISSING: Resource protection
+
   # 7. ADVANCED SECURITY
-  - sentinel.yaml               # ❌ MISSING: Security monitoring
-  - securitycenter.yaml         # ❌ MISSING: Security recommendations
-  - keyvaultcertificate.yaml    # ❌ MISSING: Certificate management
-  - privatednszones.yaml        # ❌ MISSING: Private DNS resolution
+  - sentinel.yaml # ❌ MISSING: Security monitoring
+  - securitycenter.yaml # ❌ MISSING: Security recommendations
+  - keyvaultcertificate.yaml # ❌ MISSING: Certificate management
+  - privatednszones.yaml # ❌ MISSING: Private DNS resolution
 
 # ========== CURRENT STATE ASSESSMENT ==========
 

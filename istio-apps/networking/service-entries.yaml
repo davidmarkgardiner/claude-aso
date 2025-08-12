@@ -11,14 +11,14 @@ metadata:
     test-scenario: external-http-testing
 spec:
   hosts:
-  - httpbin.org
+    - httpbin.org
   ports:
-  - number: 80
-    name: http
-    protocol: HTTP
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 80
+      name: http
+      protocol: HTTP
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -34,14 +34,14 @@ metadata:
     test-scenario: external-api-integration
 spec:
   hosts:
-  - jsonplaceholder.typicode.com
+    - jsonplaceholder.typicode.com
   ports:
-  - number: 80
-    name: http
-    protocol: HTTP
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 80
+      name: http
+      protocol: HTTP
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -57,11 +57,11 @@ metadata:
     test-scenario: ci-cd-integration
 spec:
   hosts:
-  - api.github.com
+    - api.github.com
   ports:
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -77,14 +77,14 @@ metadata:
     test-scenario: container-registry
 spec:
   hosts:
-  - registry-1.docker.io
-  - index.docker.io
-  - dseasb33srnrn.cloudfront.net
-  - production.cloudflare.docker.com
+    - registry-1.docker.io
+    - index.docker.io
+    - dseasb33srnrn.cloudfront.net
+    - production.cloudflare.docker.com
   ports:
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -100,13 +100,13 @@ metadata:
     test-scenario: azure-integration
 spec:
   hosts:
-  - ods.opinsights.azure.com
-  - oms.opinsights.azure.com
-  - monitoring.azure.com
+    - ods.opinsights.azure.com
+    - oms.opinsights.azure.com
+    - monitoring.azure.com
   ports:
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -122,12 +122,12 @@ metadata:
     test-scenario: certificate-management
 spec:
   hosts:
-  - acme-v02.api.letsencrypt.org
-  - acme-staging-v02.api.letsencrypt.org
+    - acme-v02.api.letsencrypt.org
+    - acme-staging-v02.api.letsencrypt.org
   ports:
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -143,16 +143,16 @@ metadata:
     test-scenario: istio-telemetry
 spec:
   hosts:
-  - telemetry.istio.io
-  - www.googletagmanager.com
-  - www.google-analytics.com
+    - telemetry.istio.io
+    - www.googletagmanager.com
+    - www.google-analytics.com
   ports:
-  - number: 443
-    name: https
-    protocol: HTTPS
-  - number: 80
-    name: http
-    protocol: HTTP
+    - number: 443
+      name: https
+      protocol: HTTPS
+    - number: 80
+      name: http
+      protocol: HTTP
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -168,11 +168,11 @@ metadata:
     test-scenario: time-synchronization
 spec:
   hosts:
-  - pool.ntp.org
+    - pool.ntp.org
   ports:
-  - number: 123
-    name: ntp
-    protocol: UDP
+    - number: 123
+      name: ntp
+      protocol: UDP
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -188,11 +188,11 @@ metadata:
     test-scenario: time-synchronization
 spec:
   hosts:
-  - time.nist.gov
+    - time.nist.gov
   ports:
-  - number: 123
-    name: ntp
-    protocol: UDP
+    - number: 123
+      name: ntp
+      protocol: UDP
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -208,17 +208,17 @@ metadata:
     test-scenario: dns-resolution
 spec:
   hosts:
-  - dns.google
+    - dns.google
   ports:
-  - number: 53
-    name: dns
-    protocol: UDP
-  - number: 853
-    name: dns-tls
-    protocol: TCP
-  - number: 443
-    name: dns-https
-    protocol: HTTPS
+    - number: 53
+      name: dns
+      protocol: UDP
+    - number: 853
+      name: dns-tls
+      protocol: TCP
+    - number: 443
+      name: dns-https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -234,16 +234,16 @@ metadata:
     test-scenario: dns-resolution
 spec:
   hosts:
-  - cloudflare-dns.com
+    - cloudflare-dns.com
   ports:
-  - number: 53
-    name: dns
-    protocol: UDP
-  - number: 853
-    name: dns-tls
-    protocol: TCP
-  - number: 443
-    name: dns-https
-    protocol: HTTPS
+    - number: 53
+      name: dns
+      protocol: UDP
+    - number: 853
+      name: dns-tls
+      protocol: TCP
+    - number: 443
+      name: dns-https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS

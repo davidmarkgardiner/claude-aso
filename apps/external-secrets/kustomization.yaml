@@ -1,0 +1,97 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: external-secrets-system
+
+# Production-ready resources for External Secrets Operator
+resources:
+  - namespace.yaml
+  - helm-repository.yaml
+  - helm-release.yaml
+  - cluster-secret-store.yaml
+  - rbac.yaml
+  - monitoring.yaml
+  - security.yaml
+  - disaster-recovery.yaml
+
+# Production configuration
+configMapGenerator:
+  - name: external-secrets-config
+    literals:
+      # Azure Configuration
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}
+      - KEY_VAULT_NAME=aks-prod-keyvault
+      - KEY_VAULT_URL=https://aks-prod-keyvault.vault.azure.net
+      - EXTERNAL_SECRETS_CLIENT_ID=${EXTERNAL_SECRETS_CLIENT_ID}
+
+      # Production settings
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - METRICS_ENABLED=true
+      - HEALTH_CHECK_ENABLED=true
+
+      # Refresh intervals (in minutes)
+      - DEFAULT_REFRESH_INTERVAL=30
+      - CERTIFICATE_REFRESH_INTERVAL=360 # 6 hours
+      - DATABASE_REFRESH_INTERVAL=60 # 1 hour
+
+      # Retry configuration
+      - MAX_RETRIES=5
+      - RETRY_INTERVAL=30s
+      - BACKOFF_MULTIPLIER=2
+
+      # Resource limits
+      - CONCURRENT_RECONCILES=5
+      - LEADER_ELECTION_NAMESPACE=external-secrets-system
+
+# Production labels and annotations
+commonLabels:
+  platform.io/component: external-secrets
+  platform.io/tier: system
+  platform.io/managed-by: kustomize
+  app.kubernetes.io/part-of: platform-infrastructure
+
+commonAnnotations:
+  platform.io/description: "External Secrets Operator for Azure Key Vault integration"
+  platform.io/documentation: "https://external-secrets.io/"
+  platform.io/support: "platform-team@company.com"
+  platform.io/version: "0.10.5"
+
+# Production patches for fine-tuning
+patches:
+  # Increase resources for production workload
+  - target:
+      group: helm.toolkit.fluxcd.io
+      version: v2
+      kind: HelmRelease
+      name: external-secrets
+    patch: |-
+      - op: add
+        path: /metadata/annotations/platform.io~1production-ready
+        value: "true"
+      - op: add
+        path: /metadata/annotations/platform.io~1last-updated
+        value: "2025-01-20"
+
+# Replace environment-specific variables
+replacements:
+  - source:
+      kind: ConfigMap
+      name: external-secrets-config
+      fieldPath: data.AZURE_TENANT_ID
+    targets:
+      - select:
+          kind: ClusterSecretStore
+        fieldPaths:
+          - spec.provider.azurekv.tenantId
+
+  - source:
+      kind: ConfigMap
+      name: external-secrets-config
+      fieldPath: data.KEY_VAULT_URL
+    targets:
+      - select:
+          kind: ClusterSecretStore
+        fieldPaths:
+          - spec.provider.azurekv.vaultUrl

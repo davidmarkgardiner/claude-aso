@@ -15,35 +15,35 @@ spec:
   properties:
     # Enable RBAC instead of access policies for better security
     enableRbacAuthorization: true
-    
+
     # Soft delete protection (required for production)
     enableSoftDelete: true
     softDeleteRetentionInDays: 90
-    
+
     # Purge protection prevents permanent deletion
     enablePurgeProtection: true
-    
+
     # Network access restrictions
     networkAcls:
       defaultAction: Deny
       bypass: AzureServices
       # Allow access from AKS subnet and management IPs
       ipRules:
-        - value: "10.0.0.0/16"  # AKS cluster CIDR
-        - value: "20.90.132.0/24"  # Azure services range
-    
+        - value: "10.0.0.0/16" # AKS cluster CIDR
+        - value: "20.90.132.0/24" # Azure services range
+
     # Enable for Azure services integration
     enabledForDeployment: true
     enabledForTemplateDeployment: true
     enabledForDiskEncryption: true
-    
+
     # Tenant ID for RBAC
     tenantId: 550cfcda-8a2d-452c-ba71-d6bc6bf5bb31
-  
+
   sku:
     family: A
-    name: standard  # Use premium for HSM-backed keys if needed
-  
+    name: standard # Use premium for HSM-backed keys if needed
+
   tags:
     environment: production
     cost-center: infra
@@ -167,7 +167,7 @@ spec:
       issuer: "cert-manager"
       auto-renewal: "enabled"
   # Placeholder - actual certificate will be managed by cert-manager
-  value: "MIIxxxxxx..."  # Base64 encoded certificate
+  value: "MIIxxxxxx..." # Base64 encoded certificate
 
 ---
 # Database connection string secret

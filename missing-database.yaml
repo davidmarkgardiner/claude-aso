@@ -23,7 +23,7 @@ spec:
     geoRedundantBackup: Disabled
   # High availability (for production)
   highAvailability:
-    mode: Disabled  # Enable for production: ZoneRedundant or SameZone
+    mode: Disabled # Enable for production: ZoneRedundant or SameZone
   # Network configuration
   network:
     # Delegate to subnet for VNet integration
@@ -34,7 +34,7 @@ spec:
       armId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/privateDnsZones/postgres.database.azure.com
   # Administrator credentials (should be stored in Key Vault)
   administratorLogin: adminuser
-  administratorLoginPassword: "TempPassword123!"  # Use Key Vault reference in production
+  administratorLoginPassword: "TempPassword123!" # Use Key Vault reference in production
   # Server parameters
   configurations:
     - name: log_connections
@@ -109,7 +109,7 @@ spec:
     type: Periodic
     periodicModeProperties:
       backupIntervalInMinutes: 240
-      backupRetentionIntervalInHours: 720  # 30 days
+      backupRetentionIntervalInHours: 720 # 30 days
       backupStorageRedundancy: Local
   # Security features
   enableFreeTier: false

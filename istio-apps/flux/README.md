@@ -9,6 +9,7 @@ The `health-checks.yaml` file defines a comprehensive GitOps health monitoring a
 ## Core Components
 
 ### 1. Flux Kustomization
+
 - Monitors critical Istio resources with health checks
 - Validates Gateway readiness (`main-gateway`)
 - Checks VirtualService health for tenant applications
@@ -16,11 +17,13 @@ The `health-checks.yaml` file defines a comprehensive GitOps health monitoring a
 - Runs on a 5-minute sync interval with 10-minute timeout
 
 ### 2. Slack Notifications
+
 - Sends deployment alerts to `#istio-deployments` channel
 - Triggers on deployment failures
 - Provides error severity filtering
 
 ### 3. Progressive Deployment (Flagger)
+
 - Implements canary deployments with gradual traffic shifting
 - Traffic increases in 2% increments up to 10% maximum
 - Validates key metrics:
@@ -33,7 +36,9 @@ The `health-checks.yaml` file defines a comprehensive GitOps health monitoring a
 ### 4. Resource Controls
 
 #### ResourceQuota
+
 Limits for tenant-a namespace:
+
 - CPU: 4 cores maximum
 - Memory: 8Gi maximum
 - Pods: 20 maximum
@@ -41,6 +46,7 @@ Limits for tenant-a namespace:
 - Services: 10 maximum
 
 #### NetworkPolicy
+
 - Isolates tenant traffic between namespaces
 - Allows Istio system plane access
 - Permits monitoring from shared-services
@@ -64,16 +70,19 @@ Limits for tenant-a namespace:
 ## Usage
 
 Apply the configuration:
+
 ```bash
 kubectl apply -f health-checks.yaml
 ```
 
 Monitor health check status:
+
 ```bash
 flux get kustomizations istio-health-checks
 ```
 
 Check canary deployment progress:
+
 ```bash
 kubectl get canary -n tenant-a
 ```
@@ -81,6 +90,7 @@ kubectl get canary -n tenant-a
 ## Configuration
 
 To customize for your environment:
+
 1. Update the Slack channel and webhook secret reference
 2. Adjust resource quotas based on your tenant requirements
 3. Modify canary analysis thresholds for your SLOs

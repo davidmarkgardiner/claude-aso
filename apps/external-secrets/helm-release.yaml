@@ -1,0 +1,207 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-secrets
+  namespace: external-secrets-system
+  labels:
+    platform.io/component: "external-secrets"
+    platform.io/tier: "system"
+  annotations:
+    platform.io/description: "External Secrets Operator Helm Release"
+spec:
+  interval: 10m
+  timeout: 5m
+  maxHistory: 5
+  upgrade:
+    timeout: 10m
+    cleanupOnFail: true
+    crds: CreateReplace
+  rollback:
+    timeout: 5m
+    cleanupOnFail: true
+  chart:
+    spec:
+      chart: external-secrets
+      version: "0.10.5"
+      sourceRef:
+        kind: HelmRepository
+        name: external-secrets
+        namespace: external-secrets-system
+  values:
+    installCRDs: true
+
+    # Production-ready replicas with high availability
+    replicaCount: 3
+
+    serviceAccount:
+      create: true
+      name: external-secrets
+      annotations:
+        azure.workload.identity/client-id: "${EXTERNAL_SECRETS_CLIENT_ID}"
+      labels:
+        azure.workload.identity/use: "true"
+        platform.io/component: "external-secrets"
+
+    podLabels:
+      azure.workload.identity/use: "true"
+      app.kubernetes.io/component: "external-secrets"
+      platform.io/managed: "true"
+
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8080"
+      prometheus.io/path: "/metrics"
+
+    # Production webhook configuration
+    webhook:
+      replicaCount: 2
+      port: 9443
+      resources:
+        limits:
+          cpu: 200m
+          memory: 256Mi
+          ephemeral-storage: 1Gi
+        requests:
+          cpu: 50m
+          memory: 128Mi
+          ephemeral-storage: 512Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 65534
+        capabilities:
+          drop:
+            - ALL
+        seccompProfile:
+          type: RuntimeDefault
+      podSecurityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+
+    # Production cert-controller configuration
+    certController:
+      replicaCount: 2
+      resources:
+        limits:
+          cpu: 200m
+          memory: 256Mi
+          ephemeral-storage: 1Gi
+        requests:
+          cpu: 50m
+          memory: 128Mi
+          ephemeral-storage: 512Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 65534
+        capabilities:
+          drop:
+            - ALL
+        seccompProfile:
+          type: RuntimeDefault
+      podSecurityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+
+    # Main controller resources - production sizing
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+        ephemeral-storage: 2Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+        ephemeral-storage: 1Gi
+
+    # Security context for main controller
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 65534
+      capabilities:
+        drop:
+          - ALL
+      seccompProfile:
+        type: RuntimeDefault
+
+    # Pod security context
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      fsGroup: 65534
+      seccompProfile:
+        type: RuntimeDefault
+
+    # Production metrics and monitoring
+    metrics:
+      service:
+        enabled: true
+        port: 8080
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "8080"
+          prometheus.io/path: "/metrics"
+
+    # Node and pod scheduling
+    nodeSelector:
+      kubernetes.io/os: linux
+
+    tolerations:
+      - key: "CriticalAddonsOnly"
+        operator: "Exists"
+
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - external-secrets
+              topologyKey: kubernetes.io/hostname
+
+    # Production logging configuration
+    env:
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      METRICS_ADDR: ":8080"
+
+    # Enable leader election for HA
+    leaderElection:
+      enabled: true
+      namespace: external-secrets-system
+
+    # Production-ready concurrent workers
+    concurrent: 5
+
+    # Health checks
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: 8081
+      initialDelaySeconds: 15
+      periodSeconds: 20
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: 8081
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3

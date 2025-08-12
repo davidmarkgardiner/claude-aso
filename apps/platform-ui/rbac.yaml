@@ -1,0 +1,107 @@
+---
+# ClusterRole for Platform UI - read-only access for UI operations
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: platform-ui
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "ClusterRole for Platform UI read-only operations"
+rules:
+  # Read access to namespaces for UI display
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  # Read access to nodes for cluster information
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+  # Read access to pods for namespace details
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  # Read access to deployments and replicasets
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  # Read access to ingress resources
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  # Read access to Istio resources for service mesh information
+  - apiGroups: ["networking.istio.io"]
+    resources: ["virtualservices", "destinationrules"]
+    verbs: ["get", "list", "watch"]
+  # Read access to monitoring resources
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors", "prometheusrules"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding for Platform UI
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: platform-ui
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "ClusterRoleBinding for Platform UI ServiceAccount"
+subjects:
+  - kind: ServiceAccount
+    name: platform-ui
+    namespace: platform-system
+roleRef:
+  kind: ClusterRole
+  name: platform-ui
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Role for Platform UI - additional permissions within platform-system namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: platform-ui-namespace
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "Role for Platform UI operations within platform-system namespace"
+rules:
+  # Full access to secrets in platform-system (for External Secrets)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Access to events for debugging
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding for Platform UI namespace permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-ui-namespace
+  namespace: platform-system
+  labels:
+    app: platform-ui
+    platform.io/component: "platform-ui"
+    version: v1.1.0
+  annotations:
+    platform.io/description: "RoleBinding for Platform UI namespace operations"
+subjects:
+  - kind: ServiceAccount
+    name: platform-ui
+    namespace: platform-system
+roleRef:
+  kind: Role
+  name: platform-ui-namespace
+  apiGroup: rbac.authorization.k8s.io

@@ -19,25 +19,25 @@ resources:
   - ../aso-stack/federated.yaml
   - ../aso-stack/extension.yaml
   - ../aso-stack/fluxconfiguration.yaml
-  
+
   # Enhanced Security Components
   - keyvault.yaml
-  
+
   # Monitoring & Observability Stack
   - monitoring.yaml
-  
+
   # Storage & Container Registry
   - storage.yaml
-  
+
   # Enhanced Networking
   - networking.yaml
-  
+
   # Database Services
   - database.yaml
-  
+
   # Backup & Disaster Recovery
   - backup-recovery.yaml
-  
+
   # Compliance & Governance
   - compliance.yaml
 

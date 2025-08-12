@@ -1,0 +1,67 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: platform-ui
+  annotations:
+    platform.io/description: "Kustomization for Platform UI v1.1.0 production deployment"
+
+namespace: platform-system
+
+resources:
+  - serviceaccount.yaml
+  - rbac.yaml
+  - configmap.yaml
+  - secret.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - networkpolicy.yaml
+  - istio.yaml
+  - monitoring.yaml
+  - ingress.yaml
+
+commonLabels:
+  app: platform-ui
+  platform.io/component: platform-ui
+  version: v1.1.0
+
+commonAnnotations:
+  platform.io/version: v1.1.0
+  platform.io/managed-by: flux
+
+images:
+  - name: davidgardiner/platform-ui
+    newTag: v1.1.0
+
+# configMapGenerator removed to avoid conflicts with existing ConfigMap
+
+patchesStrategicMerge:
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: platform-ui
+      namespace: platform-system
+    spec:
+      template:
+        spec:
+          containers:
+          - name: platform-ui
+            env:
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-identity-cm
+                  key: clientId
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-ui-identity-cm
+                  key: tenantId
+
+replicas:
+  - name: platform-ui
+    count: 3

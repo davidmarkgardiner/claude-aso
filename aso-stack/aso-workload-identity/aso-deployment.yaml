@@ -56,39 +56,39 @@ spec:
     spec:
       restartPolicy: Never
       containers:
-      - name: setup-workload-identity
-        image: bitnami/kubectl:latest
-        command:
-        - /bin/bash
-        - -c
-        - |
-          # Wait for the identity ConfigMap to be populated
-          while ! kubectl get configmap aso-identity-cm -n azure-system -o jsonpath='{.data.clientId}' 2>/dev/null; do
-            echo "Waiting for aso-identity-cm ConfigMap..."
-            sleep 5
-          done
-          
-          CLIENT_ID=$(kubectl get configmap aso-identity-cm -n azure-system -o jsonpath='{.data.clientId}')
-          
-          if [ -n "$CLIENT_ID" ]; then
-            echo "Found client ID: $CLIENT_ID"
-            
-            # Update the ServiceAccount annotation
-            kubectl annotate serviceaccount azureserviceoperator-default \
-              azure.workload.identity/client-id="$CLIENT_ID" \
-              --overwrite=true \
-              -n azureserviceoperator-system
-            
-            # Update the ConfigMap with client ID
-            kubectl patch configmap aso-workload-identity-config \
-              -p '{"data":{"client-id":"'$CLIENT_ID'"}}' \
-              -n azureserviceoperator-system
-            
-            echo "Workload identity setup completed successfully"
-          else
-            echo "ERROR: Could not retrieve client ID from aso-identity-cm"
-            exit 1
-          fi
+        - name: setup-workload-identity
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Wait for the identity ConfigMap to be populated
+              while ! kubectl get configmap aso-identity-cm -n azure-system -o jsonpath='{.data.clientId}' 2>/dev/null; do
+                echo "Waiting for aso-identity-cm ConfigMap..."
+                sleep 5
+              done
+
+              CLIENT_ID=$(kubectl get configmap aso-identity-cm -n azure-system -o jsonpath='{.data.clientId}')
+
+              if [ -n "$CLIENT_ID" ]; then
+                echo "Found client ID: $CLIENT_ID"
+                
+                # Update the ServiceAccount annotation
+                kubectl annotate serviceaccount azureserviceoperator-default \
+                  azure.workload.identity/client-id="$CLIENT_ID" \
+                  --overwrite=true \
+                  -n azureserviceoperator-system
+                
+                # Update the ConfigMap with client ID
+                kubectl patch configmap aso-workload-identity-config \
+                  -p '{"data":{"client-id":"'$CLIENT_ID'"}}' \
+                  -n azureserviceoperator-system
+                
+                echo "Workload identity setup completed successfully"
+              else
+                echo "ERROR: Could not retrieve client ID from aso-identity-cm"
+                exit 1
+              fi
       serviceAccountName: azureserviceoperator-default
 ---
 # ASO Controller Manager Deployment (simplified version - typically managed by Helm)
@@ -115,80 +115,80 @@ spec:
         runAsNonRoot: true
         runAsUser: 65534
       containers:
-      - name: manager
-        image: mcr.microsoft.com/k8s/azureserviceoperator:v2.10.0
-        command:
-        - /manager
-        args:
-        - --metrics-bind-addr=localhost:8080
-        - --leader-elect
-        env:
-        - name: AZURE_SUBSCRIPTION_ID
-          valueFrom:
-            secretKeyRef:
-              name: aso-controller-settings
-              key: AZURE_SUBSCRIPTION_ID
-        - name: AZURE_TENANT_ID
-          valueFrom:
-            secretKeyRef:
-              name: aso-controller-settings
-              key: AZURE_TENANT_ID
-        - name: AZURE_CLIENT_ID
-          valueFrom:
-            configMapKeyRef:
-              name: aso-workload-identity-config
-              key: client-id
-        - name: USE_WORKLOAD_IDENTITY_AUTH
-          valueFrom:
-            secretKeyRef:
-              name: aso-controller-settings
-              key: USE_WORKLOAD_IDENTITY_AUTH
-        - name: AZURE_OPERATOR_KEYVAULT
-          valueFrom:
-            secretKeyRef:
-              name: aso-controller-settings
-              key: AZURE_OPERATOR_KEYVAULT
-        - name: AZURE_SYNC_PERIOD
-          valueFrom:
-            secretKeyRef:
-              name: aso-controller-settings
-              key: AZURE_SYNC_PERIOD
-        - name: AZURE_MAX_CONCURRENT_RECONCILES
-          valueFrom:
-            secretKeyRef:
-              name: aso-controller-settings
-              key: AZURE_MAX_CONCURRENT_RECONCILES
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8081
-          initialDelaySeconds: 15
-          periodSeconds: 20
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8081
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        resources:
-          limits:
-            cpu: 500m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-        volumeMounts:
-        - mountPath: /tmp
-          name: temp-volume
+        - name: manager
+          image: mcr.microsoft.com/k8s/azureserviceoperator:v2.10.0
+          command:
+            - /manager
+          args:
+            - --metrics-bind-addr=localhost:8080
+            - --leader-elect
+          env:
+            - name: AZURE_SUBSCRIPTION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aso-controller-settings
+                  key: AZURE_SUBSCRIPTION_ID
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aso-controller-settings
+                  key: AZURE_TENANT_ID
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: aso-workload-identity-config
+                  key: client-id
+            - name: USE_WORKLOAD_IDENTITY_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: aso-controller-settings
+                  key: USE_WORKLOAD_IDENTITY_AUTH
+            - name: AZURE_OPERATOR_KEYVAULT
+              valueFrom:
+                secretKeyRef:
+                  name: aso-controller-settings
+                  key: AZURE_OPERATOR_KEYVAULT
+            - name: AZURE_SYNC_PERIOD
+              valueFrom:
+                secretKeyRef:
+                  name: aso-controller-settings
+                  key: AZURE_SYNC_PERIOD
+            - name: AZURE_MAX_CONCURRENT_RECONCILES
+              valueFrom:
+                secretKeyRef:
+                  name: aso-controller-settings
+                  key: AZURE_MAX_CONCURRENT_RECONCILES
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - mountPath: /tmp
+              name: temp-volume
       volumes:
-      - name: temp-volume
-        emptyDir: {}
+        - name: temp-volume
+          emptyDir: {}
       terminationGracePeriodSeconds: 10
 ---
 # Service for ASO webhook
@@ -199,9 +199,9 @@ metadata:
   namespace: azureserviceoperator-system
 spec:
   ports:
-  - name: webhook-server
-    port: 443
-    protocol: TCP
-    targetPort: 9443
+    - name: webhook-server
+      port: 443
+      protocol: TCP
+      targetPort: 9443
   selector:
     app: azureserviceoperator-controller-manager

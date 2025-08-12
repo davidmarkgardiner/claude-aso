@@ -1,7 +1,7 @@
-const express = require('express');
-const cors = require('cors');
-const k8s = require('@kubernetes/client-node');
-const { v4: uuidv4 } = require('uuid');
+const express = require("express");
+const cors = require("cors");
+const k8s = require("@kubernetes/client-node");
+const { v4: uuidv4 } = require("uuid");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,15 +15,17 @@ const kc = new k8s.KubeConfig();
 
 // Try to load from specific kubeconfig file first, then fallback to default
 try {
-  kc.loadFromFile('/Users/davidgardiner/Desktop/repo/cluade-setup/claude-aso/aks-kubeconfig');
-  console.log('✅ Loaded kubeconfig from aks-kubeconfig');
+  kc.loadFromFile(
+    "/Users/davidgardiner/Desktop/repo/cluade-setup/claude-aso/aks-kubeconfig",
+  );
+  console.log("✅ Loaded kubeconfig from aks-kubeconfig");
 } catch (error) {
-  console.log('⚠️  Failed to load aks-kubeconfig, trying default...');
+  console.log("⚠️  Failed to load aks-kubeconfig, trying default...");
   try {
     kc.loadFromDefault();
-    console.log('✅ Loaded default kubeconfig');
+    console.log("✅ Loaded default kubeconfig");
   } catch (defaultError) {
-    console.error('❌ Failed to load any kubeconfig:', defaultError.message);
+    console.error("❌ Failed to load any kubeconfig:", defaultError.message);
   }
 }
 
@@ -34,52 +36,79 @@ const k8sRbacApi = kc.makeApiClient(k8s.RbacAuthorizationV1Api);
 const provisioningRequests = new Map();
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // Get templates (mock data for now)
-app.get('/api/platform/catalog/templates', (req, res) => {
+app.get("/api/platform/catalog/templates", (req, res) => {
   const templates = [
     {
-      id: 'microservice-api',
-      name: 'Microservice API',
-      version: '2.1.0',
-      description: 'Production-ready REST API microservice with database integration, monitoring, and security features',
-      category: 'microservice',
-      tags: ['nodejs', 'api', 'postgresql', 'redis', 'monitoring'],
-      author: 'Platform Team',
+      id: "microservice-api",
+      name: "Microservice API",
+      version: "2.1.0",
+      description:
+        "Production-ready REST API microservice with database integration, monitoring, and security features",
+      category: "microservice",
+      tags: ["nodejs", "api", "postgresql", "redis", "monitoring"],
+      author: "Platform Team",
       parameters: [
-        { name: 'serviceName', type: 'string', required: true, description: 'Name of the microservice' },
-        { name: 'databaseType', type: 'select', required: true, description: 'Type of database to use', options: ['postgresql', 'mysql', 'mongodb'] }
+        {
+          name: "serviceName",
+          type: "string",
+          required: true,
+          description: "Name of the microservice",
+        },
+        {
+          name: "databaseType",
+          type: "select",
+          required: true,
+          description: "Type of database to use",
+          options: ["postgresql", "mysql", "mongodb"],
+        },
       ],
       examples: [
-        { name: 'Payment API', description: 'Payment processing service with PostgreSQL' }
-      ]
+        {
+          name: "Payment API",
+          description: "Payment processing service with PostgreSQL",
+        },
+      ],
     },
     {
-      id: 'static-website',
-      name: 'Static Website',
-      version: '1.3.0',
-      description: 'Static website hosting with CDN, SSL, and automated deployments',
-      category: 'frontend',
-      tags: ['react', 'nextjs', 'static', 'cdn', 'ssl'],
-      author: 'Frontend Team',
+      id: "static-website",
+      name: "Static Website",
+      version: "1.3.0",
+      description:
+        "Static website hosting with CDN, SSL, and automated deployments",
+      category: "frontend",
+      tags: ["react", "nextjs", "static", "cdn", "ssl"],
+      author: "Frontend Team",
       parameters: [
-        { name: 'siteName', type: 'string', required: true, description: 'Name of the static site' },
-        { name: 'framework', type: 'select', required: true, description: 'Frontend framework', options: ['react', 'nextjs', 'vue', 'angular'] }
+        {
+          name: "siteName",
+          type: "string",
+          required: true,
+          description: "Name of the static site",
+        },
+        {
+          name: "framework",
+          type: "select",
+          required: true,
+          description: "Frontend framework",
+          options: ["react", "nextjs", "vue", "angular"],
+        },
       ],
       examples: [
-        { name: 'Marketing Site', description: 'Corporate marketing website' }
-      ]
-    }
+        { name: "Marketing Site", description: "Corporate marketing website" },
+      ],
+    },
   ];
-  
+
   res.json(templates);
 });
 
 // Request namespace provisioning
-app.post('/api/platform/namespaces/request', async (req, res) => {
+app.post("/api/platform/namespaces/request", async (req, res) => {
   try {
     const {
       namespaceName,
@@ -89,20 +118,22 @@ app.post('/api/platform/namespaces/request', async (req, res) => {
       networkPolicy,
       features,
       description,
-      costCenter
+      costCenter,
     } = req.body;
 
     // Basic validation
     if (!namespaceName || !team) {
       return res.status(400).json({
-        error: 'Namespace name and team are required'
+        error: "Namespace name and team are required",
       });
     }
 
     // Generate request ID
     const requestId = `req-${Date.now()}`;
-    
-    console.log(`[${new Date().toISOString()}] Provisioning request: ${requestId} for namespace: ${namespaceName}`);
+
+    console.log(
+      `[${new Date().toISOString()}] Provisioning request: ${requestId} for namespace: ${namespaceName}`,
+    );
 
     // Store request
     const request = {
@@ -113,16 +144,16 @@ app.post('/api/platform/namespaces/request', async (req, res) => {
       resourceTier,
       networkPolicy,
       features: features || [],
-      description: description || '',
-      costCenter: costCenter || '',
-      status: 'provisioning',
+      description: description || "",
+      costCenter: costCenter || "",
+      status: "provisioning",
       createdAt: new Date().toISOString(),
       workflowStatus: {
-        phase: 'Running',
-        message: 'Creating namespace and setting up resources...'
-      }
+        phase: "Running",
+        message: "Creating namespace and setting up resources...",
+      },
     };
-    
+
     provisioningRequests.set(requestId, request);
 
     // Start provisioning process
@@ -133,7 +164,7 @@ app.post('/api/platform/namespaces/request', async (req, res) => {
         console.error(`Provisioning failed for ${requestId}:`, error);
         const failedRequest = provisioningRequests.get(requestId);
         if (failedRequest) {
-          failedRequest.status = 'failed';
+          failedRequest.status = "failed";
           failedRequest.errorMessage = error.message;
           failedRequest.completedAt = new Date().toISOString();
           provisioningRequests.set(requestId, failedRequest);
@@ -143,91 +174,100 @@ app.post('/api/platform/namespaces/request', async (req, res) => {
 
     res.json(request);
   } catch (error) {
-    console.error('Request processing error:', error);
+    console.error("Request processing error:", error);
     res.status(500).json({
-      error: 'Internal server error'
+      error: "Internal server error",
     });
   }
 });
 
 // Get provisioning request status
-app.get('/api/platform/namespaces/request/:id/status', (req, res) => {
+app.get("/api/platform/namespaces/request/:id/status", (req, res) => {
   const requestId = req.params.id;
   const request = provisioningRequests.get(requestId);
-  
+
   if (!request) {
     return res.status(404).json({
-      error: 'Request not found'
+      error: "Request not found",
     });
   }
-  
+
   res.json(request);
 });
 
 // List namespaces for a team
-app.get('/api/platform/namespaces/team/:team', async (req, res) => {
+app.get("/api/platform/namespaces/team/:team", async (req, res) => {
   try {
     const team = req.params.team;
-    
+
     // Get all namespaces with team label
     const response = await k8sApi.listNamespace(
       undefined, // pretty
       undefined, // allowWatchBookmarks
       undefined, // continue
       undefined, // fieldSelector
-      `team=${team}` // labelSelector
+      `team=${team}`, // labelSelector
     );
-    
-    const namespaces = response.body.items.map(ns => ({
+
+    const namespaces = response.body.items.map((ns) => ({
       name: ns.metadata.name,
-      team: ns.metadata.labels?.team || 'unknown',
-      environment: ns.metadata.labels?.environment || 'unknown',
-      resourceTier: ns.metadata.labels?.['resource-tier'] || 'unknown',
+      team: ns.metadata.labels?.team || "unknown",
+      environment: ns.metadata.labels?.environment || "unknown",
+      resourceTier: ns.metadata.labels?.["resource-tier"] || "unknown",
       createdAt: ns.metadata.creationTimestamp,
-      status: ns.status.phase
+      status: ns.status.phase,
     }));
-    
+
     res.json(namespaces);
   } catch (error) {
-    console.error('Error listing namespaces:', error);
+    console.error("Error listing namespaces:", error);
     res.status(500).json({
-      error: 'Failed to list namespaces'
+      error: "Failed to list namespaces",
     });
   }
 });
 
 // Function to actually provision namespace in Kubernetes
 async function provisionNamespace(requestId, request) {
-  const { namespaceName, team, environment, resourceTier, networkPolicy, features } = request;
-  
-  console.log(`[${new Date().toISOString()}] Starting provisioning for: ${namespaceName}`);
-  
+  const {
+    namespaceName,
+    team,
+    environment,
+    resourceTier,
+    networkPolicy,
+    features,
+  } = request;
+
+  console.log(
+    `[${new Date().toISOString()}] Starting provisioning for: ${namespaceName}`,
+  );
+
   // Update status
   const currentRequest = provisioningRequests.get(requestId);
-  currentRequest.workflowStatus.message = 'Creating namespace...';
+  currentRequest.workflowStatus.message = "Creating namespace...";
   provisioningRequests.set(requestId, currentRequest);
-  
+
   // Create namespace
   const namespaceManifest = {
-    apiVersion: 'v1',
-    kind: 'Namespace',
+    apiVersion: "v1",
+    kind: "Namespace",
     metadata: {
       name: namespaceName,
       labels: {
-        'team': team,
-        'environment': environment,
-        'resource-tier': resourceTier,
-        'network-policy': networkPolicy,
-        'managed-by': 'platform-api',
-        'created-by': 'namespace-provisioning'
+        team: team,
+        environment: environment,
+        "resource-tier": resourceTier,
+        "network-policy": networkPolicy,
+        "managed-by": "platform-api",
+        "created-by": "namespace-provisioning",
       },
       annotations: {
-        'platform.company.com/description': request.description,
-        'platform.company.com/cost-center': request.costCenter,
-        'platform.company.com/features': features.join(','),
-        'platform.company.com/request-id': requestId
-      }
-    }
+        "platform.company.com/description": request.description,
+        "platform.company.com/cost-center": request.costCenter,
+        "platform.company.com/features": features.join(","),
+        "platform.company.com/request-id": requestId,
+      },
+    },
   };
 
   try {
@@ -240,22 +280,22 @@ async function provisionNamespace(requestId, request) {
       throw error;
     }
   }
-  
+
   // Create resource quota based on tier
-  currentRequest.workflowStatus.message = 'Setting up resource quotas...';
+  currentRequest.workflowStatus.message = "Setting up resource quotas...";
   provisioningRequests.set(requestId, currentRequest);
-  
+
   const resourceLimits = getResourceLimits(resourceTier);
   const quotaManifest = {
-    apiVersion: 'v1',
-    kind: 'ResourceQuota',
+    apiVersion: "v1",
+    kind: "ResourceQuota",
     metadata: {
-      name: 'compute-resources',
-      namespace: namespaceName
+      name: "compute-resources",
+      namespace: namespaceName,
     },
     spec: {
-      hard: resourceLimits
-    }
+      hard: resourceLimits,
+    },
   };
 
   try {
@@ -268,49 +308,52 @@ async function provisionNamespace(requestId, request) {
   }
 
   // Create RBAC for team
-  currentRequest.workflowStatus.message = 'Setting up RBAC...';
+  currentRequest.workflowStatus.message = "Setting up RBAC...";
   provisioningRequests.set(requestId, currentRequest);
-  
+
   const roleManifest = {
-    apiVersion: 'rbac.authorization.k8s.io/v1',
-    kind: 'Role',
+    apiVersion: "rbac.authorization.k8s.io/v1",
+    kind: "Role",
     metadata: {
       name: `${team}-role`,
-      namespace: namespaceName
+      namespace: namespaceName,
     },
     rules: [
       {
-        apiGroups: ['*'],
-        resources: ['*'],
-        verbs: ['*']
-      }
-    ]
+        apiGroups: ["*"],
+        resources: ["*"],
+        verbs: ["*"],
+      },
+    ],
   };
 
   const roleBindingManifest = {
-    apiVersion: 'rbac.authorization.k8s.io/v1',
-    kind: 'RoleBinding',
+    apiVersion: "rbac.authorization.k8s.io/v1",
+    kind: "RoleBinding",
     metadata: {
       name: `${team}-binding`,
-      namespace: namespaceName
+      namespace: namespaceName,
     },
     subjects: [
       {
-        kind: 'Group',
+        kind: "Group",
         name: `team-${team}`,
-        apiGroup: 'rbac.authorization.k8s.io'
-      }
+        apiGroup: "rbac.authorization.k8s.io",
+      },
     ],
     roleRef: {
-      kind: 'Role',
+      kind: "Role",
       name: `${team}-role`,
-      apiGroup: 'rbac.authorization.k8s.io'
-    }
+      apiGroup: "rbac.authorization.k8s.io",
+    },
   };
 
   try {
     await k8sRbacApi.createNamespacedRole(namespaceName, roleManifest);
-    await k8sRbacApi.createNamespacedRoleBinding(namespaceName, roleBindingManifest);
+    await k8sRbacApi.createNamespacedRoleBinding(
+      namespaceName,
+      roleBindingManifest,
+    );
     console.log(`✅ RBAC created for team ${team} in ${namespaceName}`);
   } catch (error) {
     if (error.response?.statusCode !== 409) {
@@ -319,21 +362,29 @@ async function provisionNamespace(requestId, request) {
   }
 
   // Apply features
-  if (features.includes('istio-injection')) {
-    currentRequest.workflowStatus.message = 'Enabling Istio injection...';
+  if (features.includes("istio-injection")) {
+    currentRequest.workflowStatus.message = "Enabling Istio injection...";
     provisioningRequests.set(requestId, currentRequest);
-    
+
     try {
       // Add Istio injection label
-      await k8sApi.patchNamespace(namespaceName, {
-        metadata: {
-          labels: {
-            'istio-injection': 'enabled'
-          }
-        }
-      }, undefined, undefined, undefined, undefined, {
-        headers: { 'Content-Type': 'application/merge-patch+json' }
-      });
+      await k8sApi.patchNamespace(
+        namespaceName,
+        {
+          metadata: {
+            labels: {
+              "istio-injection": "enabled",
+            },
+          },
+        },
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          headers: { "Content-Type": "application/merge-patch+json" },
+        },
+      );
       console.log(`✅ Istio injection enabled for ${namespaceName}`);
     } catch (error) {
       console.error(`❌ Failed to enable Istio injection: ${error.message}`);
@@ -341,14 +392,14 @@ async function provisionNamespace(requestId, request) {
   }
 
   // Mark as completed
-  currentRequest.status = 'completed';
+  currentRequest.status = "completed";
   currentRequest.completedAt = new Date().toISOString();
   currentRequest.workflowStatus = {
-    phase: 'Succeeded',
-    message: 'Namespace provisioning completed successfully'
+    phase: "Succeeded",
+    message: "Namespace provisioning completed successfully",
   };
   provisioningRequests.set(requestId, currentRequest);
-  
+
   console.log(`✅ Provisioning completed for ${namespaceName} (${requestId})`);
 }
 
@@ -356,39 +407,39 @@ async function provisionNamespace(requestId, request) {
 function getResourceLimits(tier) {
   const limits = {
     micro: {
-      'requests.cpu': '500m',
-      'requests.memory': '1Gi',
-      'limits.cpu': '1000m',
-      'limits.memory': '2Gi',
-      'persistentvolumeclaims': '5',
-      'requests.storage': '10Gi'
+      "requests.cpu": "500m",
+      "requests.memory": "1Gi",
+      "limits.cpu": "1000m",
+      "limits.memory": "2Gi",
+      persistentvolumeclaims: "5",
+      "requests.storage": "10Gi",
     },
     small: {
-      'requests.cpu': '1000m',
-      'requests.memory': '2Gi', 
-      'limits.cpu': '2000m',
-      'limits.memory': '4Gi',
-      'persistentvolumeclaims': '10',
-      'requests.storage': '20Gi'
+      "requests.cpu": "1000m",
+      "requests.memory": "2Gi",
+      "limits.cpu": "2000m",
+      "limits.memory": "4Gi",
+      persistentvolumeclaims: "10",
+      "requests.storage": "20Gi",
     },
     medium: {
-      'requests.cpu': '2000m',
-      'requests.memory': '4Gi',
-      'limits.cpu': '4000m', 
-      'limits.memory': '8Gi',
-      'persistentvolumeclaims': '15',
-      'requests.storage': '50Gi'
+      "requests.cpu": "2000m",
+      "requests.memory": "4Gi",
+      "limits.cpu": "4000m",
+      "limits.memory": "8Gi",
+      persistentvolumeclaims: "15",
+      "requests.storage": "50Gi",
     },
     large: {
-      'requests.cpu': '4000m',
-      'requests.memory': '8Gi',
-      'limits.cpu': '8000m',
-      'limits.memory': '16Gi', 
-      'persistentvolumeclaims': '20',
-      'requests.storage': '100Gi'
-    }
+      "requests.cpu": "4000m",
+      "requests.memory": "8Gi",
+      "limits.cpu": "8000m",
+      "limits.memory": "16Gi",
+      persistentvolumeclaims: "20",
+      "requests.storage": "100Gi",
+    },
   };
-  
+
   return limits[tier] || limits.small;
 }
 

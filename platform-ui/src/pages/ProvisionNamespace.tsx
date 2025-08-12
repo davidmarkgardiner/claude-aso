@@ -1,43 +1,70 @@
-import React, { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import React, { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import {
   CheckCircleIcon,
   ClockIcon,
   XCircleIcon,
-  InformationCircleIcon
-} from '@heroicons/react/24/outline';
-import type { NamespaceRequest, ProvisioningRequest } from '../types/simple';
-import { platformApi } from '../services/api';
+  InformationCircleIcon,
+} from "@heroicons/react/24/outline";
+import type { NamespaceRequest, ProvisioningRequest } from "../types/simple";
+import { platformApi } from "../services/api";
 
 const ProvisionNamespace: React.FC = () => {
   const [formData, setFormData] = useState<NamespaceRequest>({
-    namespaceName: '',
-    team: '',
-    environment: 'development',
-    resourceTier: 'small',
-    networkPolicy: 'team-shared',
+    namespaceName: "",
+    team: "",
+    environment: "development",
+    resourceTier: "small",
+    networkPolicy: "team-shared",
     features: [],
-    description: '',
-    costCenter: ''
+    description: "",
+    costCenter: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentStep, setCurrentStep] = useState(1);
-  const [provisioningResult, setProvisioningResult] = useState<ProvisioningRequest | null>(null);
+  const [provisioningResult, setProvisioningResult] =
+    useState<ProvisioningRequest | null>(null);
 
   // Available features
   const availableFeatures = [
-    { id: 'istio-injection', name: 'Istio Service Mesh', description: 'Enable service mesh with traffic management and security' },
-    { id: 'monitoring-enhanced', name: 'Enhanced Monitoring', description: 'Advanced metrics, alerting, and dashboards' },
-    { id: 'backup-enabled', name: 'Automated Backups', description: 'Regular backup of stateful workloads' },
-    { id: 'gpu-access', name: 'GPU Access', description: 'Access to GPU resources for ML workloads' },
-    { id: 'database-access', name: 'Database Access', description: 'Access to managed database services' },
-    { id: 'external-ingress', name: 'External Ingress', description: 'Public internet access with load balancing' }
+    {
+      id: "istio-injection",
+      name: "Istio Service Mesh",
+      description: "Enable service mesh with traffic management and security",
+    },
+    {
+      id: "monitoring-enhanced",
+      name: "Enhanced Monitoring",
+      description: "Advanced metrics, alerting, and dashboards",
+    },
+    {
+      id: "backup-enabled",
+      name: "Automated Backups",
+      description: "Regular backup of stateful workloads",
+    },
+    {
+      id: "gpu-access",
+      name: "GPU Access",
+      description: "Access to GPU resources for ML workloads",
+    },
+    {
+      id: "database-access",
+      name: "Database Access",
+      description: "Access to managed database services",
+    },
+    {
+      id: "external-ingress",
+      name: "External Ingress",
+      description: "Public internet access with load balancing",
+    },
   ];
 
   // Real provisioning mutation using the API
   const provisionMutation = useMutation({
-    mutationFn: async (request: NamespaceRequest): Promise<ProvisioningRequest> => {
+    mutationFn: async (
+      request: NamespaceRequest,
+    ): Promise<ProvisioningRequest> => {
       return await platformApi.requestNamespace(request);
     },
     onSuccess: (result) => {
@@ -45,29 +72,35 @@ const ProvisionNamespace: React.FC = () => {
       setCurrentStep(3);
     },
     onError: (error: Error) => {
-      console.error('Provisioning failed:', error);
-    }
+      console.error("Provisioning failed:", error);
+    },
   });
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.namespaceName) {
-      newErrors.namespaceName = 'Namespace name is required';
-    } else if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(formData.namespaceName)) {
-      newErrors.namespaceName = 'Namespace name must be lowercase alphanumeric with hyphens';
-    } else if (formData.namespaceName.length < 1 || formData.namespaceName.length > 63) {
-      newErrors.namespaceName = 'Namespace name must be 1-63 characters';
+      newErrors.namespaceName = "Namespace name is required";
+    } else if (
+      !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(formData.namespaceName)
+    ) {
+      newErrors.namespaceName =
+        "Namespace name must be lowercase alphanumeric with hyphens";
+    } else if (
+      formData.namespaceName.length < 1 ||
+      formData.namespaceName.length > 63
+    ) {
+      newErrors.namespaceName = "Namespace name must be 1-63 characters";
     }
 
     if (!formData.team) {
-      newErrors.team = 'Team is required';
+      newErrors.team = "Team is required";
     } else if (!/^[a-z0-9-]+$/.test(formData.team)) {
-      newErrors.team = 'Team name must be lowercase alphanumeric with hyphens';
+      newErrors.team = "Team name must be lowercase alphanumeric with hyphens";
     }
 
     if (formData.description && formData.description.length > 500) {
-      newErrors.description = 'Description must be less than 500 characters';
+      newErrors.description = "Description must be less than 500 characters";
     }
 
     setErrors(newErrors);
@@ -84,14 +117,14 @@ const ProvisionNamespace: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      namespaceName: '',
-      team: '',
-      environment: 'development',
-      resourceTier: 'small',
-      networkPolicy: 'team-shared',
+      namespaceName: "",
+      team: "",
+      environment: "development",
+      resourceTier: "small",
+      networkPolicy: "team-shared",
       features: [],
-      description: '',
-      costCenter: ''
+      description: "",
+      costCenter: "",
     });
     setErrors({});
     setCurrentStep(1);
@@ -99,27 +132,52 @@ const ProvisionNamespace: React.FC = () => {
   };
 
   const toggleFeature = (featureId: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       features: prev.features.includes(featureId)
-        ? prev.features.filter(f => f !== featureId)
-        : [...prev.features, featureId]
+        ? prev.features.filter((f) => f !== featureId)
+        : [...prev.features, featureId],
     }));
   };
 
   // Step indicators
   const steps = [
-    { id: 1, name: 'Configuration', status: currentStep === 1 ? 'current' : currentStep > 1 ? 'complete' : 'upcoming' },
-    { id: 2, name: 'Provisioning', status: currentStep === 2 ? 'current' : currentStep > 2 ? 'complete' : 'upcoming' },
-    { id: 3, name: 'Complete', status: currentStep === 3 ? 'current' : 'upcoming' }
+    {
+      id: 1,
+      name: "Configuration",
+      status:
+        currentStep === 1
+          ? "current"
+          : currentStep > 1
+            ? "complete"
+            : "upcoming",
+    },
+    {
+      id: 2,
+      name: "Provisioning",
+      status:
+        currentStep === 2
+          ? "current"
+          : currentStep > 2
+            ? "complete"
+            : "upcoming",
+    },
+    {
+      id: 3,
+      name: "Complete",
+      status: currentStep === 3 ? "current" : "upcoming",
+    },
   ];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Provision Namespace</h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Provision Namespace
+        </h1>
         <p className="mt-2 text-gray-600">
-          Create a new namespace for your team with the resources and features you need
+          Create a new namespace for your team with the resources and features
+          you need
         </p>
       </div>
 
@@ -130,19 +188,21 @@ const ProvisionNamespace: React.FC = () => {
             <div className="flex items-center">
               <div
                 className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                  step.status === 'complete'
-                    ? 'bg-primary-600 border-primary-600'
-                    : step.status === 'current'
-                    ? 'border-primary-600 bg-white'
-                    : 'border-gray-300 bg-white'
+                  step.status === "complete"
+                    ? "bg-primary-600 border-primary-600"
+                    : step.status === "current"
+                      ? "border-primary-600 bg-white"
+                      : "border-gray-300 bg-white"
                 }`}
               >
-                {step.status === 'complete' ? (
+                {step.status === "complete" ? (
                   <CheckCircleIcon className="w-6 h-6 text-white" />
                 ) : (
                   <span
                     className={`text-sm font-medium ${
-                      step.status === 'current' ? 'text-primary-600' : 'text-gray-500'
+                      step.status === "current"
+                        ? "text-primary-600"
+                        : "text-gray-500"
                     }`}
                   >
                     {step.id}
@@ -151,7 +211,9 @@ const ProvisionNamespace: React.FC = () => {
               </div>
               <span
                 className={`ml-3 text-sm font-medium ${
-                  step.status === 'current' ? 'text-primary-600' : 'text-gray-500'
+                  step.status === "current"
+                    ? "text-primary-600"
+                    : "text-gray-500"
                 }`}
               >
                 {step.name}
@@ -176,12 +238,19 @@ const ProvisionNamespace: React.FC = () => {
               <input
                 type="text"
                 value={formData.namespaceName}
-                onChange={(e) => setFormData(prev => ({ ...prev, namespaceName: e.target.value }))}
-                className={`form-input ${errors.namespaceName ? 'border-red-500' : ''}`}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    namespaceName: e.target.value,
+                  }))
+                }
+                className={`form-input ${errors.namespaceName ? "border-red-500" : ""}`}
                 placeholder="my-app-dev"
               />
               {errors.namespaceName && (
-                <p className="mt-1 text-sm text-red-600">{errors.namespaceName}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.namespaceName}
+                </p>
               )}
               <p className="mt-1 text-sm text-gray-500">
                 Lowercase alphanumeric with hyphens, 1-63 characters
@@ -196,8 +265,10 @@ const ProvisionNamespace: React.FC = () => {
               <input
                 type="text"
                 value={formData.team}
-                onChange={(e) => setFormData(prev => ({ ...prev, team: e.target.value }))}
-                className={`form-input ${errors.team ? 'border-red-500' : ''}`}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, team: e.target.value }))
+                }
+                className={`form-input ${errors.team ? "border-red-500" : ""}`}
                 placeholder="frontend"
               />
               {errors.team && (
@@ -210,7 +281,15 @@ const ProvisionNamespace: React.FC = () => {
               <label className="form-label">Environment</label>
               <select
                 value={formData.environment}
-                onChange={(e) => setFormData(prev => ({ ...prev, environment: e.target.value as 'development' | 'staging' | 'production' }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    environment: e.target.value as
+                      | "development"
+                      | "staging"
+                      | "production",
+                  }))
+                }
                 className="form-input"
               >
                 <option value="development">Development</option>
@@ -224,7 +303,16 @@ const ProvisionNamespace: React.FC = () => {
               <label className="form-label">Resource Tier</label>
               <select
                 value={formData.resourceTier}
-                onChange={(e) => setFormData(prev => ({ ...prev, resourceTier: e.target.value as 'micro' | 'small' | 'medium' | 'large' }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    resourceTier: e.target.value as
+                      | "micro"
+                      | "small"
+                      | "medium"
+                      | "large",
+                  }))
+                }
                 className="form-input"
               >
                 <option value="micro">Micro (1 CPU, 2GB RAM)</option>
@@ -239,11 +327,21 @@ const ProvisionNamespace: React.FC = () => {
               <label className="form-label">Network Policy</label>
               <select
                 value={formData.networkPolicy}
-                onChange={(e) => setFormData(prev => ({ ...prev, networkPolicy: e.target.value as 'isolated' | 'team-shared' | 'open' }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    networkPolicy: e.target.value as
+                      | "isolated"
+                      | "team-shared"
+                      | "open",
+                  }))
+                }
                 className="form-input"
               >
                 <option value="isolated">Isolated - No external traffic</option>
-                <option value="team-shared">Team Shared - Team members only</option>
+                <option value="team-shared">
+                  Team Shared - Team members only
+                </option>
                 <option value="open">Open - Cross-team communication</option>
               </select>
             </div>
@@ -254,7 +352,12 @@ const ProvisionNamespace: React.FC = () => {
               <input
                 type="text"
                 value={formData.costCenter}
-                onChange={(e) => setFormData(prev => ({ ...prev, costCenter: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    costCenter: e.target.value,
+                  }))
+                }
                 className="form-input"
                 placeholder="CC-12345"
               />
@@ -266,8 +369,13 @@ const ProvisionNamespace: React.FC = () => {
             <label className="form-label">Description</label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className={`form-input ${errors.description ? 'border-red-500' : ''}`}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
+              className={`form-input ${errors.description ? "border-red-500" : ""}`}
               rows={3}
               placeholder="Brief description of this namespace's purpose..."
             />
@@ -290,10 +398,15 @@ const ProvisionNamespace: React.FC = () => {
                     className="mt-0.5 h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   <div className="ml-3">
-                    <label htmlFor={feature.id} className="text-sm font-medium text-gray-900 cursor-pointer">
+                    <label
+                      htmlFor={feature.id}
+                      className="text-sm font-medium text-gray-900 cursor-pointer"
+                    >
                       {feature.name}
                     </label>
-                    <p className="text-sm text-gray-500">{feature.description}</p>
+                    <p className="text-sm text-gray-500">
+                      {feature.description}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -301,10 +414,7 @@ const ProvisionNamespace: React.FC = () => {
           </div>
 
           <div className="flex justify-end">
-            <button
-              type="submit"
-              className="btn-primary"
-            >
+            <button type="submit" className="btn-primary">
               Provision Namespace
             </button>
           </div>
@@ -317,11 +427,14 @@ const ProvisionNamespace: React.FC = () => {
           <div className="animate-spin mx-auto h-12 w-12 text-primary-600">
             <ClockIcon />
           </div>
-          <h2 className="mt-4 text-lg font-medium text-gray-900">Provisioning Namespace</h2>
+          <h2 className="mt-4 text-lg font-medium text-gray-900">
+            Provisioning Namespace
+          </h2>
           <p className="mt-2 text-gray-600">
-            Creating your namespace and configuring resources. This may take a few minutes...
+            Creating your namespace and configuring resources. This may take a
+            few minutes...
           </p>
-          
+
           {provisionMutation.isError && (
             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
               <div className="flex items-center">
@@ -331,7 +444,8 @@ const ProvisionNamespace: React.FC = () => {
                 </h3>
               </div>
               <p className="mt-2 text-sm text-red-700">
-                {(provisionMutation.error as Error)?.message || 'An error occurred during provisioning'}
+                {(provisionMutation.error as Error)?.message ||
+                  "An error occurred during provisioning"}
               </p>
               <button
                 onClick={() => setCurrentStep(1)}
@@ -349,34 +463,49 @@ const ProvisionNamespace: React.FC = () => {
         <div className="card">
           <div className="text-center">
             <CheckCircleIcon className="mx-auto h-12 w-12 text-success-600" />
-            <h2 className="mt-4 text-lg font-medium text-gray-900">Namespace Provisioning Started</h2>
+            <h2 className="mt-4 text-lg font-medium text-gray-900">
+              Namespace Provisioning Started
+            </h2>
             <p className="mt-2 text-gray-600">
-              Your namespace provisioning request has been submitted successfully
+              Your namespace provisioning request has been submitted
+              successfully
             </p>
           </div>
 
           <div className="mt-6 bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Provisioning Details</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">
+              Provisioning Details
+            </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Request ID:</span>
-                <span className="text-gray-900 font-medium">{provisioningResult.requestId}</span>
+                <span className="text-gray-900 font-medium">
+                  {provisioningResult.requestId}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Namespace:</span>
-                <span className="text-gray-900 font-medium">{provisioningResult.namespaceName}</span>
+                <span className="text-gray-900 font-medium">
+                  {provisioningResult.namespaceName}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Team:</span>
-                <span className="text-gray-900 font-medium">{provisioningResult.team}</span>
+                <span className="text-gray-900 font-medium">
+                  {provisioningResult.team}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Environment:</span>
-                <span className="text-gray-900 font-medium">{provisioningResult.environment}</span>
+                <span className="text-gray-900 font-medium">
+                  {provisioningResult.environment}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Status:</span>
-                <span className="status-badge-provisioning">{provisioningResult.status}</span>
+                <span className="status-badge-provisioning">
+                  {provisioningResult.status}
+                </span>
               </div>
             </div>
           </div>
@@ -385,25 +514,25 @@ const ProvisionNamespace: React.FC = () => {
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
               <div className="flex items-center">
                 <InformationCircleIcon className="h-5 w-5 text-blue-400" />
-                <h4 className="ml-2 text-sm font-medium text-blue-800">Current Status</h4>
+                <h4 className="ml-2 text-sm font-medium text-blue-800">
+                  Current Status
+                </h4>
               </div>
               <p className="mt-1 text-sm text-blue-700">
-                {provisioningResult.workflowStatus.phase}: {provisioningResult.workflowStatus.message}
+                {provisioningResult.workflowStatus.phase}:{" "}
+                {provisioningResult.workflowStatus.message}
               </p>
             </div>
           )}
 
           <div className="mt-6 flex justify-center space-x-3">
             <button
-              onClick={() => window.location.href = '/namespaces'}
+              onClick={() => (window.location.href = "/namespaces")}
               className="btn-primary"
             >
               View All Namespaces
             </button>
-            <button
-              onClick={resetForm}
-              className="btn-secondary"
-            >
+            <button onClick={resetForm} className="btn-secondary">
               Provision Another
             </button>
           </div>

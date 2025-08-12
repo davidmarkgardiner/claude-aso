@@ -16,18 +16,18 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - name: http
-    port: 9898
-    targetPort: http
-    protocol: TCP
-  - name: http-metrics
-    port: 9797
-    targetPort: http-metrics
-    protocol: TCP
-  - name: grpc
-    port: 9999
-    targetPort: grpc
-    protocol: TCP
+    - name: http
+      port: 9898
+      targetPort: http
+      protocol: TCP
+    - name: http-metrics
+      port: 9797
+      targetPort: http-metrics
+      protocol: TCP
+    - name: grpc
+      port: 9999
+      targetPort: grpc
+      protocol: TCP
   selector:
     app: podinfo
 ---
@@ -46,17 +46,17 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - name: http
-    port: 80
-    targetPort: http
-    protocol: TCP
-  - name: grpc
-    port: 9999
-    targetPort: grpc
-    protocol: TCP
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9999
+      targetPort: grpc
+      protocol: TCP
   selector:
     app: podinfo
-    version: v2  # Point to primary development version
+    version: v2 # Point to primary development version
 # ---
 # # ServiceMonitor for Prometheus scraping (development)
 # # Commented out - requires Prometheus operator to be installed first

@@ -46,11 +46,11 @@ spec:
     kind: ClusterIssuer
   commonName: podinfo.tenant-a.cluster.local
   dnsNames:
-  - podinfo.tenant-a.cluster.local
-  - podinfo.tenant-a.svc.cluster.local
-  duration: 8760h  # 1 year
+    - podinfo.tenant-a.cluster.local
+    - podinfo.tenant-a.svc.cluster.local
+  duration: 8760h # 1 year
   renewBefore: 720h # 30 days before expiry
-  
+
 ---
 # Certificate Rotation Policy
 apiVersion: security.istio.io/v1beta1
@@ -65,7 +65,7 @@ spec:
   mtls:
     mode: STRICT
   # Envoy will automatically rotate certificates based on cert-manager
-  
+
 ---
 # SPIFFE/SPIRE Integration for Enhanced Identity
 apiVersion: v1
@@ -90,7 +90,7 @@ data:
         common_name = "SPIRE Server CA",
       }
     }
-    
+
     plugins {
       DataStore "sql" {
         plugin_data {
@@ -146,53 +146,52 @@ spec:
       hostNetwork: true
       hostPID: true
       containers:
-      - name: falco
-        image: falcosecurity/falco:0.36.2
-        args:
-        - /usr/bin/falco
-        - --k8s-api
-        - --k8s-api-cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-        - --k8s-api-token=/var/run/secrets/kubernetes.io/serviceaccount/token
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - name: dev-fs
-          mountPath: /host/dev
-        - name: proc-fs
-          mountPath: /host/proc
-        - name: boot-fs
-          mountPath: /host/boot
-        - name: modules
-          mountPath: /host/lib/modules
-        - name: usr-fs
-          mountPath: /host/usr
-        - name: etc-fs
-          mountPath: /host/etc
-        - name: falco-config
-          mountPath: /etc/falco
+        - name: falco
+          image: falcosecurity/falco:0.36.2
+          args:
+            - /usr/bin/falco
+            - --k8s-api
+            - --k8s-api-cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            - --k8s-api-token=/var/run/secrets/kubernetes.io/serviceaccount/token
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: dev-fs
+              mountPath: /host/dev
+            - name: proc-fs
+              mountPath: /host/proc
+            - name: boot-fs
+              mountPath: /host/boot
+            - name: modules
+              mountPath: /host/lib/modules
+            - name: usr-fs
+              mountPath: /host/usr
+            - name: etc-fs
+              mountPath: /host/etc
+            - name: falco-config
+              mountPath: /etc/falco
       volumes:
-      - name: dev-fs
-        hostPath:
-          path: /dev
-      - name: proc-fs
-        hostPath:
-          path: /proc
-      - name: boot-fs
-        hostPath:
-          path: /boot
-      - name: modules
-        hostPath:
-          path: /lib/modules
-      - name: usr-fs
-        hostPath:
-          path: /usr
-      - name: etc-fs
-        hostPath:
-          path: /etc
-      - name: falco-config
-        configMap:
-          name: falco-istio-rules
-
+        - name: dev-fs
+          hostPath:
+            path: /dev
+        - name: proc-fs
+          hostPath:
+            path: /proc
+        - name: boot-fs
+          hostPath:
+            path: /boot
+        - name: modules
+          hostPath:
+            path: /lib/modules
+        - name: usr-fs
+          hostPath:
+            path: /usr
+        - name: etc-fs
+          hostPath:
+            path: /etc
+        - name: falco-config
+          configMap:
+            name: falco-istio-rules
 # ---
 # # External Secret Management Integration
 # # Commented out - requires external-secrets operator to be installed first

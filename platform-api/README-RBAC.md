@@ -55,7 +55,7 @@ open docs/RBAC-PRODUCTION-DEPLOYMENT.md
 ```bash
 # Required environment variables
 export AZURE_CLIENT_ID="your-app-client-id"
-export AZURE_CLIENT_SECRET="your-app-client-secret" 
+export AZURE_CLIENT_SECRET="your-app-client-secret"
 export AZURE_TENANT_ID="your-tenant-id"
 export AZURE_SUBSCRIPTION_ID="your-subscription-id"
 
@@ -84,6 +84,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -110,6 +111,7 @@ Authorization: Bearer {token}
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -166,11 +168,11 @@ This ensures users only get access to their specific namespace, not the entire c
 
 ### Supported Roles
 
-| Role | Description | Permissions |
-|------|-------------|-------------|
-| `aks-rbac-admin` | Full namespace admin | All operations in namespace |
-| `aks-rbac-writer` | Read/write access | Create, update, delete resources |
-| `aks-rbac-reader` | Read-only access | View resources only |
+| Role              | Description          | Permissions                      |
+| ----------------- | -------------------- | -------------------------------- |
+| `aks-rbac-admin`  | Full namespace admin | All operations in namespace      |
+| `aks-rbac-writer` | Read/write access    | Create, update, delete resources |
+| `aks-rbac-reader` | Read-only access     | View resources only              |
 
 ## 🛠️ Configuration
 
@@ -193,8 +195,9 @@ The system supports multiple AKS clusters through the `ClusterConfigurationServi
 ### Environment-Based Routing
 
 Clusters are automatically selected based on environment:
+
 - `development` → dev-aks-cluster
-- `staging` → staging-aks-cluster  
+- `staging` → staging-aks-cluster
 - `production` → prod-aks-cluster
 
 ## 🔄 ASO Integration Details
@@ -241,7 +244,7 @@ spec:
 # Run RBAC service tests
 npm test -- tests/unit/services/rbacService.test.ts
 
-# Run Azure AD validation tests  
+# Run Azure AD validation tests
 npm test -- tests/unit/middleware/azureAdValidation.test.ts
 ```
 
@@ -261,7 +264,7 @@ curl -X POST https://platform-api.example.com/api/platform/namespaces/test-ns/rb
   -H "Content-Type: application/json" \
   -d '{
     "principalId": "user@company.com",
-    "principalType": "User", 
+    "principalType": "User",
     "roleDefinition": "aks-rbac-admin"
   }'
 
@@ -273,6 +276,7 @@ k6 run tests/load/rbac-load-test.js
 ```
 
 > 📖 **More Examples**: See [RBAC API Reference](docs/RBAC-API-REFERENCE.md) for comprehensive curl examples and testing scenarios.
+
 ```
 
 ## 🚨 Troubleshooting
@@ -281,7 +285,9 @@ k6 run tests/load/rbac-load-test.js
 
 **1. Azure AD Validation Fails**
 ```
+
 Error: Invalid Azure AD principal: User 'user@company.com' not found
+
 ```
 - Verify user exists in Azure AD
 - Check Microsoft Graph API permissions
@@ -289,7 +295,9 @@ Error: Invalid Azure AD principal: User 'user@company.com' not found
 
 **2. ASO Role Assignment Fails**
 ```
+
 Error: Failed to create custom resource
+
 ```
 - Verify ASO is installed and running
 - Check `aso-system` namespace exists
@@ -297,8 +305,10 @@ Error: Failed to create custom resource
 
 **3. Permission Denied**
 ```
+
 Error: Insufficient permissions. Required roles: platform:admin
-```
+
+````
 - Verify user authentication token
 - Check user has required platform roles
 - Review role mapping configuration
@@ -314,7 +324,7 @@ kubectl logs -n aso-system deployment/azureserviceoperator-controller-manager
 
 # Check Platform API logs
 kubectl logs -n platform-system deployment/platform-api
-```
+````
 
 ## 🔧 Development
 
@@ -324,10 +334,10 @@ kubectl logs -n platform-system deployment/platform-api
 
 ```typescript
 export const AKS_ROLE_DEFINITIONS = {
-  'aks-rbac-admin': '4abbcc35-c38f-4d58-a5d6-ebe1d4c24128',
-  'aks-rbac-reader': '7f6c6a51-bcf8-42ba-9220-52d62157d7db', 
-  'aks-rbac-writer': '8311e382-0749-4cb8-b61a-304f252e45ec',
-  'custom-role': 'your-custom-role-definition-id'  // Add here
+  "aks-rbac-admin": "4abbcc35-c38f-4d58-a5d6-ebe1d4c24128",
+  "aks-rbac-reader": "7f6c6a51-bcf8-42ba-9220-52d62157d7db",
+  "aks-rbac-writer": "8311e382-0749-4cb8-b61a-304f252e45ec",
+  "custom-role": "your-custom-role-definition-id", // Add here
 };
 ```
 
@@ -341,12 +351,12 @@ export const AKS_ROLE_DEFINITIONS = {
 
 ```typescript
 const newCluster: ClusterConfiguration = {
-  name: 'new-aks-cluster',
-  armId: '/subscriptions/.../managedClusters/new-cluster',
-  resourceGroup: 'new-aks-rg',
-  subscriptionId: 'subscription-id',
-  region: 'westeurope',
-  environment: 'development'
+  name: "new-aks-cluster",
+  armId: "/subscriptions/.../managedClusters/new-cluster",
+  resourceGroup: "new-aks-rg",
+  subscriptionId: "subscription-id",
+  region: "westeurope",
+  environment: "development",
 };
 
 clusterConfigService.addCluster(newCluster);
@@ -358,6 +368,7 @@ clusterConfigService.addCluster(newCluster);
 ## 📚 Additional Resources
 
 ### Documentation
+
 - [📋 API Quick Reference](docs/RBAC-API-REFERENCE.md) - curl examples and endpoint documentation
 - [🏗️ Architecture Guide](docs/RBAC-ARCHITECTURE.md) - detailed system design and components
 - [🚀 Production Deployment](docs/RBAC-PRODUCTION-DEPLOYMENT.md) - complete setup and configuration
@@ -365,6 +376,7 @@ clusterConfigService.addCluster(newCluster);
 - [🔧 Operations Runbook](docs/RBAC-OPERATIONS-RUNBOOK.md) - troubleshooting and maintenance
 
 ### External References
+
 - [Azure Service Operator Documentation](https://azure.github.io/azure-service-operator/)
 - [Azure RBAC Documentation](https://docs.microsoft.com/en-us/azure/role-based-access-control/)
 - [Microsoft Graph API Reference](https://docs.microsoft.com/en-us/graph/api/resources/user)

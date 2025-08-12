@@ -1,5 +1,5 @@
 # Cert-Manager Helm Values for Azure Workload Identity
-installCRDs: false  # CRDs already exist
+installCRDs: false # CRDs already exist
 
 global:
   logLevel: 2
@@ -38,10 +38,10 @@ webhook:
       azure.workload.identity/client-id: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
     labels:
       azure.workload.identity/use: "true"
-  
+
   podLabels:
     azure.workload.identity/use: "true"
-  
+
   resources:
     requests:
       cpu: 10m
@@ -58,10 +58,10 @@ cainjector:
       azure.workload.identity/client-id: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
     labels:
       azure.workload.identity/use: "true"
-  
+
   podLabels:
     azure.workload.identity/use: "true"
-  
+
   resources:
     requests:
       cpu: 10m
@@ -78,6 +78,6 @@ startupapicheck:
       azure.workload.identity/client-id: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
     labels:
       azure.workload.identity/use: "true"
-  
+
   podLabels:
     azure.workload.identity/use: "true"

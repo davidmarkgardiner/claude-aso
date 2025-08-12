@@ -1,0 +1,127 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: argo-workflows
+  annotations:
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.workflow-controller: "glob:v*"
+    flux.weave.works/tag.argo-server: "glob:v*"
+
+# Resources deployed in order for proper dependencies
+resources:
+  # 1. Namespace and basic resources
+  - namespace.yaml
+
+  # 2. RBAC configuration
+  - serviceaccount.yaml
+  - clusterrole.yaml
+  - clusterrolebinding.yaml
+
+  # 3. Configuration
+  - configmap.yaml
+
+  # 4. Core deployments
+  - workflow-controller-deployment.yaml
+  - argo-server-deployment.yaml
+
+  # 5. Services
+  - service.yaml
+
+  # 6. Security policies
+  - networkpolicy.yaml
+  - poddisruptionbudget.yaml
+
+  # 7. Workflow templates
+  - workflow-templates.yaml
+
+  # 8. Monitoring
+  - monitoring.yaml
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: argo-workflows
+  app.kubernetes.io/instance: argo-workflows-aks
+  app.kubernetes.io/version: "v3.5.10"
+  app.kubernetes.io/part-of: platform-api
+  app.kubernetes.io/managed-by: flux
+  platform.azure.com/component: workflow-engine
+
+# Common annotations
+commonAnnotations:
+  platform.azure.com/deployed-by: "flux-gitops"
+  platform.azure.com/config-version: "1.0.0"
+  platform.azure.com/last-updated: "2024-01-01T00:00:00Z"
+
+# Images to be used (can be overridden via environment variables)
+images:
+  - name: quay.io/argoproj/workflow-controller
+    newTag: v3.5.10
+  - name: quay.io/argoproj/argocli
+    newTag: v3.5.10
+  - name: quay.io/argoproj/argoexec
+    newTag: v3.5.10
+
+# Configuration for different environments
+patchesStrategicMerge:
+  - |-
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: workflow-controller-configmap
+      namespace: argo
+    data:
+      config: |
+        # Environment-specific overrides will be applied here
+        # This can be customized per environment (dev, staging, prod)
+
+# Namespace transformation
+namespace: argo
+
+# Name prefix for all resources (optional, can be used for multi-tenant scenarios)
+# namePrefix: ""
+
+# Name suffix for all resources (optional)
+# nameSuffix: ""
+
+# Replicas patch for different environments
+replicas:
+  - name: workflow-controller
+    count: 1
+  - name: argo-server
+    count: 2
+
+# Generator for creating additional resources
+generators: []
+
+# Configuration for secret management
+secretGenerator: []
+
+# Configuration for configmap generation
+configMapGenerator: []
+
+# Replacements would be configured when Azure Workload Identity is set up
+
+# Patches for environment-specific configurations
+patches:
+  # Production environment patches
+  - target:
+      kind: Deployment
+      name: argo-server
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  # Development environment resource limits
+  - target:
+      kind: Deployment
+      labelSelector: "app.kubernetes.io/component=workflow-controller"
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1000m"
+
+# Health checks would be configured within the deployment manifests

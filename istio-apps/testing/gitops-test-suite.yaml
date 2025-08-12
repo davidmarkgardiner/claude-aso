@@ -22,92 +22,92 @@ spec:
       restartPolicy: Never
       serviceAccount: test-runner
       containers:
-      - name: istio-config-validator
-        image: istio/istioctl:1.20.0
-        command:
-        - /bin/sh
-        - -c
-        - |
-          # Validate Istio configurations before deployment
-          echo "=== Starting Istio Configuration Validation ==="
-          
-          # Check Gateway configurations
-          kubectl get gateway -A --dry-run=server -o yaml | istioctl validate -f -
-          if [ $? -ne 0 ]; then
-            echo "FAIL: Gateway validation failed"
-            exit 1
-          fi
-          
-          # Check VirtualService configurations
-          kubectl get virtualservice -A --dry-run=server -o yaml | istioctl validate -f -
-          if [ $? -ne 0 ]; then
-            echo "FAIL: VirtualService validation failed"
-            exit 1
-          fi
-          
-          # Validate DestinationRule configurations
-          kubectl get destinationrule -A --dry-run=server -o yaml | istioctl validate -f -
-          if [ $? -ne 0 ]; then
-            echo "FAIL: DestinationRule validation failed"  
-            exit 1
-          fi
-          
-          # Check for conflicting rules
-          istioctl analyze --all-namespaces
-          if [ $? -ne 0 ]; then
-            echo "FAIL: Istio analysis found issues"
-            exit 1
-          fi
-          
-          echo "SUCCESS: All Istio configurations are valid"
+        - name: istio-config-validator
+          image: istio/istioctl:1.20.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Validate Istio configurations before deployment
+              echo "=== Starting Istio Configuration Validation ==="
 
-      - name: security-policy-tester
-        image: curlimages/curl:8.4.0
-        command:
-        - /bin/sh  
-        - -c
-        - |
-          echo "=== Testing Security Policies ==="
-          
-          # Test cross-tenant isolation
-          echo "Testing tenant-a to tenant-b isolation..."
-          timeout 10 curl -f http://podinfo.tenant-b.svc.cluster.local:9898/ && {
-            echo "FAIL: Cross-tenant access should be blocked"
-            exit 1
-          } || echo "SUCCESS: Cross-tenant access properly blocked"
-          
-          # Test authorized access within tenant
-          echo "Testing authorized intra-tenant access..."
-          curl -f http://podinfo.tenant-a.svc.cluster.local:9898/healthz || {
-            echo "FAIL: Intra-tenant access should be allowed"
-            exit 1
-          }
-          
-          echo "SUCCESS: Security policies working correctly"
+              # Check Gateway configurations
+              kubectl get gateway -A --dry-run=server -o yaml | istioctl validate -f -
+              if [ $? -ne 0 ]; then
+                echo "FAIL: Gateway validation failed"
+                exit 1
+              fi
 
-      - name: resource-quota-checker  
-        image: bitnami/kubectl:1.28
-        command:
-        - /bin/sh
-        - -c
-        - |
-          echo "=== Checking Resource Quotas and Limits ==="
-          
-          # Check resource quotas
-          for ns in tenant-a tenant-b shared-services; do
-            quota=$(kubectl get resourcequota -n $ns -o json | jq -r '.items[0].status.used."requests.memory"' 2>/dev/null || echo "0")
-            limit=$(kubectl get resourcequota -n $ns -o json | jq -r '.items[0].spec.hard."requests.memory"' 2>/dev/null || echo "unlimited")
-            echo "Namespace $ns: Memory usage $quota / $limit"
-          done
-          
-          # Verify no resource limits exceeded
-          kubectl top pods --all-namespaces --no-headers | while read ns pod cpu memory; do
-            if [[ $memory =~ ([0-9]+)Mi ]] && [ ${BASH_REMATCH[1]} -gt 1024 ]; then
-              echo "WARNING: Pod $ns/$pod using high memory: $memory"
-            fi
-          done
-          
-          echo "SUCCESS: Resource usage within acceptable limits"
+              # Check VirtualService configurations
+              kubectl get virtualservice -A --dry-run=server -o yaml | istioctl validate -f -
+              if [ $? -ne 0 ]; then
+                echo "FAIL: VirtualService validation failed"
+                exit 1
+              fi
+
+              # Validate DestinationRule configurations
+              kubectl get destinationrule -A --dry-run=server -o yaml | istioctl validate -f -
+              if [ $? -ne 0 ]; then
+                echo "FAIL: DestinationRule validation failed"  
+                exit 1
+              fi
+
+              # Check for conflicting rules
+              istioctl analyze --all-namespaces
+              if [ $? -ne 0 ]; then
+                echo "FAIL: Istio analysis found issues"
+                exit 1
+              fi
+
+              echo "SUCCESS: All Istio configurations are valid"
+
+        - name: security-policy-tester
+          image: curlimages/curl:8.4.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Testing Security Policies ==="
+
+              # Test cross-tenant isolation
+              echo "Testing tenant-a to tenant-b isolation..."
+              timeout 10 curl -f http://podinfo.tenant-b.svc.cluster.local:9898/ && {
+                echo "FAIL: Cross-tenant access should be blocked"
+                exit 1
+              } || echo "SUCCESS: Cross-tenant access properly blocked"
+
+              # Test authorized access within tenant
+              echo "Testing authorized intra-tenant access..."
+              curl -f http://podinfo.tenant-a.svc.cluster.local:9898/healthz || {
+                echo "FAIL: Intra-tenant access should be allowed"
+                exit 1
+              }
+
+              echo "SUCCESS: Security policies working correctly"
+
+        - name: resource-quota-checker
+          image: bitnami/kubectl:1.28
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Checking Resource Quotas and Limits ==="
+
+              # Check resource quotas
+              for ns in tenant-a tenant-b shared-services; do
+                quota=$(kubectl get resourcequota -n $ns -o json | jq -r '.items[0].status.used."requests.memory"' 2>/dev/null || echo "0")
+                limit=$(kubectl get resourcequota -n $ns -o json | jq -r '.items[0].spec.hard."requests.memory"' 2>/dev/null || echo "unlimited")
+                echo "Namespace $ns: Memory usage $quota / $limit"
+              done
+
+              # Verify no resource limits exceeded
+              kubectl top pods --all-namespaces --no-headers | while read ns pod cpu memory; do
+                if [[ $memory =~ ([0-9]+)Mi ]] && [ ${BASH_REMATCH[1]} -gt 1024 ]; then
+                  echo "WARNING: Pod $ns/$pod using high memory: $memory"
+                fi
+              done
+
+              echo "SUCCESS: Resource usage within acceptable limits"
 
 ---
 # Post-Deployment Integration Tests
@@ -133,95 +133,95 @@ spec:
       restartPolicy: Never
       serviceAccount: test-runner
       containers:
-      - name: traffic-flow-tester
-        image: fortio/fortio:1.57.3
-        command:
-        - /bin/sh
-        - -c
-        - |
-          echo "=== Testing Traffic Flow and Routing ==="
-          
-          # Test main gateway connectivity
-          echo "Testing HTTPS gateway connectivity..."
-          fortio load -c 1 -n 10 -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
-            https://podinfo.tenant-a.davidmarkgardiner.co.uk/ || {
-            echo "FAIL: Gateway connectivity test failed"
-            exit 1
-          }
-          
-          # Test canary routing with header
-          echo "Testing canary routing..."
-          for i in {1..20}; do
-            response=$(curl -s -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
-                      -H "canary: true" \
-                      http://aks-istio-ingressgateway-internal.aks-istio-system/ | \
-                      jq -r '.version')
-            echo "Request $i: Version $response"
-          done
-          
-          # Test load balancing distribution
-          echo "Testing load balancing..."
-          fortio load -c 2 -n 100 -qps 10 \
-            -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
-            http://aks-istio-ingressgateway-internal.aks-istio-system/
-          
-          echo "SUCCESS: Traffic routing tests passed"
+        - name: traffic-flow-tester
+          image: fortio/fortio:1.57.3
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Testing Traffic Flow and Routing ==="
 
-      - name: observability-tester
-        image: curlimages/curl:8.4.0  
-        command:
-        - /bin/sh
-        - -c
-        - |
-          echo "=== Testing Observability Stack ==="
-          
-          # Test Prometheus metrics collection
-          echo "Checking Prometheus metrics..."
-          curl -f http://prometheus.shared-services.svc.cluster.local:9090/api/v1/query?query=up || {
-            echo "FAIL: Prometheus not responding"
-            exit 1
-          }
-          
-          # Test Grafana availability
-          echo "Checking Grafana availability..."
-          curl -f http://grafana.shared-services.svc.cluster.local:3000/api/health || {
-            echo "FAIL: Grafana not responding"
-            exit 1
-          }
-          
-          # Test Jaeger tracing
-          echo "Checking Jaeger tracing..."
-          curl -f http://jaeger-query.shared-services.svc.cluster.local:16686/api/services || {
-            echo "FAIL: Jaeger not responding"
-            exit 1
-          }
-          
-          echo "SUCCESS: Observability stack healthy"
+              # Test main gateway connectivity
+              echo "Testing HTTPS gateway connectivity..."
+              fortio load -c 1 -n 10 -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
+                https://podinfo.tenant-a.davidmarkgardiner.co.uk/ || {
+                echo "FAIL: Gateway connectivity test failed"
+                exit 1
+              }
 
-      - name: circuit-breaker-tester
-        image: fortio/fortio:1.57.3
-        command:
-        - /bin/sh
-        - -c  
-        - |
-          echo "=== Testing Circuit Breaker and Resilience ==="
-          
-          # Generate load to trigger circuit breaker
-          echo "Testing circuit breaker activation..."
-          fortio load -c 50 -n 1000 -qps 100 \
-            -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
-            http://aks-istio-ingressgateway-internal.aks-istio-system/
-          
-          # Check circuit breaker metrics
-          sleep 30
-          cb_status=$(curl -s http://prometheus.shared-services.svc.cluster.local:9090/api/v1/query?query=istio_requests_total | \
-                     jq -r '.data.result[] | select(.metric.destination_service_name=="podinfo") | .value[1]')
-          
-          if [ "$cb_status" != "" ]; then
-            echo "SUCCESS: Circuit breaker metrics available"
-          else
-            echo "WARNING: Circuit breaker metrics not found"
-          fi
+              # Test canary routing with header
+              echo "Testing canary routing..."
+              for i in {1..20}; do
+                response=$(curl -s -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
+                          -H "canary: true" \
+                          http://aks-istio-ingressgateway-internal.aks-istio-system/ | \
+                          jq -r '.version')
+                echo "Request $i: Version $response"
+              done
+
+              # Test load balancing distribution
+              echo "Testing load balancing..."
+              fortio load -c 2 -n 100 -qps 10 \
+                -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
+                http://aks-istio-ingressgateway-internal.aks-istio-system/
+
+              echo "SUCCESS: Traffic routing tests passed"
+
+        - name: observability-tester
+          image: curlimages/curl:8.4.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Testing Observability Stack ==="
+
+              # Test Prometheus metrics collection
+              echo "Checking Prometheus metrics..."
+              curl -f http://prometheus.shared-services.svc.cluster.local:9090/api/v1/query?query=up || {
+                echo "FAIL: Prometheus not responding"
+                exit 1
+              }
+
+              # Test Grafana availability
+              echo "Checking Grafana availability..."
+              curl -f http://grafana.shared-services.svc.cluster.local:3000/api/health || {
+                echo "FAIL: Grafana not responding"
+                exit 1
+              }
+
+              # Test Jaeger tracing
+              echo "Checking Jaeger tracing..."
+              curl -f http://jaeger-query.shared-services.svc.cluster.local:16686/api/services || {
+                echo "FAIL: Jaeger not responding"
+                exit 1
+              }
+
+              echo "SUCCESS: Observability stack healthy"
+
+        - name: circuit-breaker-tester
+          image: fortio/fortio:1.57.3
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Testing Circuit Breaker and Resilience ==="
+
+              # Generate load to trigger circuit breaker
+              echo "Testing circuit breaker activation..."
+              fortio load -c 50 -n 1000 -qps 100 \
+                -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
+                http://aks-istio-ingressgateway-internal.aks-istio-system/
+
+              # Check circuit breaker metrics
+              sleep 30
+              cb_status=$(curl -s http://prometheus.shared-services.svc.cluster.local:9090/api/v1/query?query=istio_requests_total | \
+                         jq -r '.data.result[] | select(.metric.destination_service_name=="podinfo") | .value[1]')
+
+              if [ "$cb_status" != "" ]; then
+                echo "SUCCESS: Circuit breaker metrics available"
+              else
+                echo "WARNING: Circuit breaker metrics not found"
+              fi
 
 ---
 # Chaos Engineering Test Suite
@@ -234,84 +234,84 @@ metadata:
     deployment-agent: istio-engineer
     test-type: chaos-engineering
 spec:
-  schedule: "0 2 * * *"  # Run daily at 2 AM
+  schedule: "0 2 * * *" # Run daily at 2 AM
   workflowSpec:
     entrypoint: chaos-test-suite
     templates:
-    - name: chaos-test-suite
-      steps:
-      - - name: pod-failure-test
-          template: pod-chaos
-        - name: network-partition-test
-          template: network-chaos
-        - name: latency-injection-test
-          template: latency-chaos
-          
-    - name: pod-chaos
-      container:
-        image: chaosmesh/chaos-mesh:2.5.1
-        command:
-        - /bin/sh
-        - -c
-        - |
-          echo "=== Pod Failure Chaos Test ==="
-          
-          # Kill random pods in tenant-a
-          kubectl delete pod -n tenant-a -l app=podinfo --field-selector=status.phase=Running \
-            --dry-run=client -o name | head -1 | xargs kubectl delete -n tenant-a
-          
-          # Wait and check recovery
-          sleep 60
-          ready_pods=$(kubectl get pods -n tenant-a -l app=podinfo --field-selector=status.phase=Running --no-headers | wc -l)
-          
-          if [ $ready_pods -ge 2 ]; then
-            echo "SUCCESS: Pods recovered after failure"
-          else
-            echo "FAIL: Insufficient pods recovered"
-            exit 1
-          fi
+      - name: chaos-test-suite
+        steps:
+          - - name: pod-failure-test
+              template: pod-chaos
+            - name: network-partition-test
+              template: network-chaos
+            - name: latency-injection-test
+              template: latency-chaos
 
-    - name: network-chaos
-      container:
-        image: nicolaka/netshoot:v0.11
-        command:
-        - /bin/sh
-        - -c
-        - |
-          echo "=== Network Partition Chaos Test ==="
-          
-          # Simulate network delay
-          tc qdisc add dev eth0 root netem delay 100ms
-          
-          # Test service resilience under network stress
-          timeout 30 curl -f http://podinfo.tenant-a.svc.cluster.local:9898/healthz
-          
-          # Clean up
-          tc qdisc del dev eth0 root
-          
-          echo "SUCCESS: Network chaos test completed"
+      - name: pod-chaos
+        container:
+          image: chaosmesh/chaos-mesh:2.5.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Pod Failure Chaos Test ==="
 
-    - name: latency-chaos
-      container:
-        image: curlimages/curl:8.4.0
-        command:
-        - /bin/sh
-        - -c
-        - |
-          echo "=== Latency Injection Chaos Test ==="
-          
-          # Test with artificial latency via fault injection
-          for i in {1..10}; do
-            start_time=$(date +%s%N)
-            curl -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
-                 -H "x-envoy-fault-delay-request: 1000" \
-                 http://aks-istio-ingressgateway-internal.aks-istio-system/ > /dev/null 2>&1
-            end_time=$(date +%s%N)
-            latency=$(( (end_time - start_time) / 1000000 ))
-            echo "Request $i: ${latency}ms latency"
-          done
-          
-          echo "SUCCESS: Latency chaos test completed"
+              # Kill random pods in tenant-a
+              kubectl delete pod -n tenant-a -l app=podinfo --field-selector=status.phase=Running \
+                --dry-run=client -o name | head -1 | xargs kubectl delete -n tenant-a
+
+              # Wait and check recovery
+              sleep 60
+              ready_pods=$(kubectl get pods -n tenant-a -l app=podinfo --field-selector=status.phase=Running --no-headers | wc -l)
+
+              if [ $ready_pods -ge 2 ]; then
+                echo "SUCCESS: Pods recovered after failure"
+              else
+                echo "FAIL: Insufficient pods recovered"
+                exit 1
+              fi
+
+      - name: network-chaos
+        container:
+          image: nicolaka/netshoot:v0.11
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Network Partition Chaos Test ==="
+
+              # Simulate network delay
+              tc qdisc add dev eth0 root netem delay 100ms
+
+              # Test service resilience under network stress
+              timeout 30 curl -f http://podinfo.tenant-a.svc.cluster.local:9898/healthz
+
+              # Clean up
+              tc qdisc del dev eth0 root
+
+              echo "SUCCESS: Network chaos test completed"
+
+      - name: latency-chaos
+        container:
+          image: curlimages/curl:8.4.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Latency Injection Chaos Test ==="
+
+              # Test with artificial latency via fault injection
+              for i in {1..10}; do
+                start_time=$(date +%s%N)
+                curl -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
+                     -H "x-envoy-fault-delay-request: 1000" \
+                     http://aks-istio-ingressgateway-internal.aks-istio-system/ > /dev/null 2>&1
+                end_time=$(date +%s%N)
+                latency=$(( (end_time - start_time) / 1000000 ))
+                echo "Request $i: ${latency}ms latency"
+              done
+
+              echo "SUCCESS: Latency chaos test completed"
 
 ---
 # ServiceAccount for test runners
@@ -332,21 +332,21 @@ metadata:
   labels:
     deployment-agent: istio-engineer
 rules:
-- apiGroups: [""]
-  resources: ["pods", "services", "namespaces"]
-  verbs: ["get", "list", "create", "delete"]
-- apiGroups: ["apps"]
-  resources: ["deployments", "replicasets"]
-  verbs: ["get", "list"]
-- apiGroups: ["networking.istio.io"]
-  resources: ["*"]
-  verbs: ["get", "list", "create"]
-- apiGroups: ["security.istio.io"]
-  resources: ["*"]
-  verbs: ["get", "list"]
-- apiGroups: ["metrics.k8s.io"]
-  resources: ["*"]
-  verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods", "services", "namespaces"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["*"]
+    verbs: ["get", "list", "create"]
+  - apiGroups: ["security.istio.io"]
+    resources: ["*"]
+    verbs: ["get", "list"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["*"]
+    verbs: ["get", "list"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -356,9 +356,9 @@ metadata:
   labels:
     deployment-agent: istio-engineer
 subjects:
-- kind: ServiceAccount
-  name: test-runner
-  namespace: istio-testing
+  - kind: ServiceAccount
+    name: test-runner
+    namespace: istio-testing
 roleRef:
   kind: ClusterRole
   name: test-runner-role

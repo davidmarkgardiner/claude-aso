@@ -5,6 +5,7 @@ This directory contains comprehensive Istio networking configurations for managi
 ## Overview
 
 The networking layer implements a complete traffic management solution with:
+
 - **Multi-tenant isolation** using Sidecars
 - **Ingress/egress control** via Gateways
 - **Advanced routing** through VirtualServices
@@ -18,9 +19,10 @@ The networking layer implements a complete traffic management solution with:
 Defines entry points for traffic into the service mesh.
 
 #### Main Gateway (Production)
+
 - **Port 443**: HTTPS with cert-manager TLS certificates
 - **Port 80**: HTTP with automatic redirect to HTTPS
-- **Hosts**: 
+- **Hosts**:
   - `podinfo.tenant-a.davidmarkgardiner.co.uk`
   - `podinfo.tenant-b.davidmarkgardiner.co.uk`
   - `monitoring.shared-services.davidmarkgardiner.co.uk`
@@ -29,11 +31,13 @@ Defines entry points for traffic into the service mesh.
 - **Certificate**: Managed by cert-manager (`davidmarkgardiner-tls-cert`)
 
 #### Mesh Gateway (East-West)
+
 - **Port 15443**: mTLS for cross-cluster communication
 - **TLS Mode**: ISTIO_MUTUAL (automatic mTLS)
 - **Purpose**: Service mesh internal communication
 
 #### Development Gateway
+
 - **Port 8080**: HTTP only for testing
 - **Hosts**: Local development domains (`.local`)
 - **Environment**: Development/testing only
@@ -43,6 +47,7 @@ Defines entry points for traffic into the service mesh.
 Controls routing rules and traffic management policies.
 
 #### Tenant A (Production)
+
 - **Traffic Distribution**:
   - Canary: Headers with `canary: true` → v2
   - A/B Testing: Mobile users → 50/50 split
@@ -54,18 +59,21 @@ Controls routing rules and traffic management policies.
 - **Fault Injection**: 0.1% requests get 100ms delay
 
 #### Tenant B (Development)
+
 - **Blue-Green Deployment**:
   - Header `version: v1` → v1
   - Default → v2
 - **Timeout**: 15s (shorter for development)
 
 #### Shared Services
+
 - **Path-based Routing**:
   - `/prometheus` → Prometheus (port 9090)
   - `/grafana` → Grafana (port 3000)
   - `/jaeger` → Jaeger UI (port 16686)
 
 #### Testing Services
+
 - **Chaos Engineering**:
   - `/chaos` endpoint with fault injection:
     - 5% abort with HTTP 500
@@ -77,6 +85,7 @@ Controls routing rules and traffic management policies.
 Configures load balancing, connection pools, and circuit breakers.
 
 #### Tenant A (Production)
+
 - **Load Balancing**: LEAST_REQUEST
 - **Connection Pool**:
   - Max connections: 100 TCP
@@ -91,18 +100,21 @@ Configures load balancing, connection pools, and circuit breakers.
   - v2: Round-robin with limited connections (20)
 
 #### Tenant B (Development)
+
 - **Load Balancing**: RANDOM
 - **Connection Pool**: Higher limits (200 connections)
 - **Circuit Breaker**: Relaxed (10 errors before ejection)
 - **Timeout**: 60s connect timeout
 
 #### Shared Services
+
 - **Load Balancing**: LEAST_CONN
 - **Connection Pool**: Conservative (50 connections)
 - **Circuit Breaker**: Strict (2-3 errors trigger ejection)
 - **Prometheus Specific**: Single connection per request
 
 #### External Services
+
 - **TLS Origination**: Upgrades HTTP to HTTPS
 - **SNI Configuration**: For external APIs
 - **Connection Limits**: Restricted for external calls
@@ -114,15 +126,18 @@ Defines external services accessible from the mesh.
 #### Categories of External Services
 
 ##### Development/Testing
+
 - **HTTPBin**: API testing and validation
 - **JSONPlaceholder**: Mock REST API
 - **GitHub API**: CI/CD integrations
 
 ##### Container Registries
+
 - **Docker Hub**: Multiple endpoints for image pulls
 - **Production CDN**: CloudFlare Docker endpoints
 
 ##### Cloud Services
+
 - **Azure Monitor**: Logging and metrics
   - ODS endpoints
   - OMS endpoints
@@ -132,6 +147,7 @@ Defines external services accessible from the mesh.
   - Staging ACME
 
 ##### Infrastructure
+
 - **DNS Services**:
   - Google DNS (port 53, 853, 443)
   - Cloudflare DNS
@@ -140,6 +156,7 @@ Defines external services accessible from the mesh.
   - NIST time servers
 
 ##### Telemetry
+
 - **Istio Telemetry**: Usage metrics
 - **Google Analytics**: Optional analytics
 
@@ -148,6 +165,7 @@ Defines external services accessible from the mesh.
 Implements namespace isolation and egress control.
 
 #### Tenant A (Strict Production)
+
 - **Ingress Ports**: 9898 (HTTP), 9999 (gRPC)
 - **Egress Policy**: REGISTRY_ONLY
 - **Allowed Destinations**:
@@ -158,6 +176,7 @@ Implements namespace isolation and egress control.
   - Azure monitoring endpoints
 
 #### Tenant B (Relaxed Development)
+
 - **Egress Policy**: REGISTRY_ONLY
 - **Allowed Destinations**:
   - Same namespace
@@ -167,6 +186,7 @@ Implements namespace isolation and egress control.
   - All external services
 
 #### Shared Services (Infrastructure)
+
 - **Ingress Ports**: Service-specific (9090, 3000, 16686)
 - **Egress Policy**: REGISTRY_ONLY
 - **Allowed Destinations**:
@@ -175,11 +195,13 @@ Implements namespace isolation and egress control.
   - Istio telemetry
 
 #### Testing Namespace
+
 - **Egress Policy**: ALLOW_ANY
 - **Purpose**: Unrestricted for chaos testing
 - **Access**: All namespaces
 
 #### Default Sidecar
+
 - **Applied to**: Unspecified workloads
 - **Egress Policy**: REGISTRY_ONLY
 - **Minimal Access**: Control plane and kube-system
@@ -187,16 +209,19 @@ Implements namespace isolation and egress control.
 ## Traffic Flow Patterns
 
 ### Ingress Flow
+
 ```
 Internet → Gateway → VirtualService → DestinationRule → Pod (with Sidecar)
 ```
 
 ### Egress Flow
+
 ```
 Pod → Sidecar → ServiceEntry → DestinationRule → External Service
 ```
 
 ### Cross-Namespace Flow
+
 ```
 Pod A → Sidecar A → Sidecar B → Pod B
          ↓
@@ -206,38 +231,43 @@ Pod A → Sidecar A → Sidecar B → Pod B
 ## Security Features
 
 ### Multi-Tenant Isolation
+
 - **Sidecar configurations** restrict cross-namespace communication
 - **REGISTRY_ONLY mode** blocks unregistered services
 - **Namespace-scoped rules** prevent lateral movement
 
 ### TLS Configuration
+
 - **Gateway TLS termination** with cert-manager certificates
 - **Automatic mTLS** between services
 - **TLS origination** for external HTTPS services
 
 ### Traffic Policies
+
 - **Circuit breakers** prevent cascade failures
 - **Outlier detection** removes unhealthy instances
 - **Connection limits** prevent resource exhaustion
 
 ## Load Balancing Strategies
 
-| Service Type | Strategy | Rationale |
-|-------------|----------|-----------|
-| Production | LEAST_REQUEST | Optimal for varying request costs |
-| Development | RANDOM | Simple, good for testing |
-| Infrastructure | LEAST_CONN | Best for long-lived connections |
-| External | PASSTHROUGH | Preserve client decisions |
+| Service Type   | Strategy      | Rationale                         |
+| -------------- | ------------- | --------------------------------- |
+| Production     | LEAST_REQUEST | Optimal for varying request costs |
+| Development    | RANDOM        | Simple, good for testing          |
+| Infrastructure | LEAST_CONN    | Best for long-lived connections   |
+| External       | PASSTHROUGH   | Preserve client decisions         |
 
 ## Monitoring and Observability
 
 ### Key Metrics
+
 - **Gateway metrics**: Request rate, error rate, P95 latency
 - **Circuit breaker triggers**: Ejection events
 - **Retry attempts**: Success/failure rates
 - **Connection pool**: Active connections, pending requests
 
 ### Debug Commands
+
 ```bash
 # Check gateway configuration
 istioctl proxy-config listeners deployment/aks-istio-ingressgateway-internal -n aks-istio-system
@@ -258,12 +288,15 @@ kubectl exec -n tenant-a deployment/podinfo-v1 -c istio-proxy -- curl -I https:/
 ## Common Issues and Solutions
 
 ### Issue: 503 Service Unavailable
+
 **Causes**:
+
 - Circuit breaker triggered
 - No healthy upstream
 - Sidecar misconfiguration
 
 **Solution**:
+
 ```bash
 # Check outlier detection status
 istioctl proxy-config cluster deployment/podinfo-v1 -n tenant-a --fqdn podinfo.tenant-a.svc.cluster.local
@@ -273,22 +306,28 @@ kubectl rollout restart deployment/podinfo-v1 -n tenant-a
 ```
 
 ### Issue: External Service Blocked
+
 **Causes**:
+
 - Missing ServiceEntry
 - Sidecar egress restrictions
 - REGISTRY_ONLY policy
 
 **Solution**:
+
 1. Add ServiceEntry for the external service
 2. Update Sidecar egress configuration
 3. Or switch to ALLOW_ANY mode (not recommended for production)
 
 ### Issue: Cross-Tenant Communication Blocked
+
 **Causes**:
+
 - Sidecar isolation policies
 - Missing egress rules
 
 **Solution**:
+
 1. Update source namespace Sidecar to allow destination
 2. Ensure destination service is in registry
 3. Verify AuthorizationPolicies allow the traffic
@@ -296,6 +335,7 @@ kubectl rollout restart deployment/podinfo-v1 -n tenant-a
 ## Best Practices
 
 ### Production
+
 1. Always use REGISTRY_ONLY mode
 2. Implement circuit breakers
 3. Set conservative connection limits
@@ -303,12 +343,14 @@ kubectl rollout restart deployment/podinfo-v1 -n tenant-a
 5. Enable outlier detection
 
 ### Development
+
 1. Can use relaxed policies
 2. Higher connection limits acceptable
 3. Enable debug headers
 4. Allow cross-namespace for testing
 
 ### External Services
+
 1. Always define ServiceEntries
 2. Use TLS origination when possible
 3. Implement rate limiting
@@ -318,18 +360,21 @@ kubectl rollout restart deployment/podinfo-v1 -n tenant-a
 ## Testing Configurations
 
 ### Canary Testing
+
 ```bash
 # Send traffic to canary
 curl -H "canary: true" https://podinfo.tenant-a.davidmarkgardiner.co.uk
 ```
 
 ### A/B Testing
+
 ```bash
 # Mobile user agent
 curl -H "User-Agent: Mobile Safari" https://podinfo.tenant-a.davidmarkgardiner.co.uk
 ```
 
 ### Fault Injection Testing
+
 ```bash
 # Trigger chaos endpoints
 curl https://chaos.istio-testing.davidmarkgardiner.co.uk/chaos

@@ -34,12 +34,12 @@ metadata:
   labels:
     deployment-agent: istio-engineer
 rules:
-- apiGroups: [""]
-  resources: ["services", "endpoints", "pods"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: ["networking.istio.io"]
-  resources: ["virtualservices", "destinationrules", "gateways"]
-  verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["virtualservices", "destinationrules", "gateways"]
+    verbs: ["get", "list", "watch"]
 ---
 # Bind tenant-a service account to reader role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -49,9 +49,9 @@ metadata:
   labels:
     deployment-agent: istio-engineer
 subjects:
-- kind: ServiceAccount
-  name: istio-tenant-a
-  namespace: tenant-a
+  - kind: ServiceAccount
+    name: istio-tenant-a
+    namespace: tenant-a
 roleRef:
   kind: ClusterRole
   name: istio-tenant-reader
@@ -65,9 +65,9 @@ metadata:
   labels:
     deployment-agent: istio-engineer
 subjects:
-- kind: ServiceAccount
-  name: istio-tenant-b
-  namespace: tenant-b
+  - kind: ServiceAccount
+    name: istio-tenant-b
+    namespace: tenant-b
 roleRef:
   kind: ClusterRole
   name: istio-tenant-reader

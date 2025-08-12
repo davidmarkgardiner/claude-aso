@@ -1,0 +1,548 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: namespace-provisioning
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: workflow-template
+    app.kubernetes.io/part-of: platform-api
+    managed-by: flux
+    workflow-type: platform-api
+  annotations:
+    workflows.argoproj.io/description: "Platform API namespace provisioning workflow"
+    workflows.argoproj.io/maintainer: "platform-engineering@azure.com"
+    workflows.argoproj.io/version: "1.0.0"
+spec:
+  serviceAccountName: workflow-executor
+  entrypoint: provision-namespace
+  arguments:
+    parameters:
+      - name: namespace-name
+        description: "Name of the namespace to provision"
+      - name: team-name
+        description: "Name of the team requesting the namespace"
+      - name: resource-tier
+        description: "Resource tier (small, medium, large)"
+        value: "small"
+      - name: features
+        description: "Comma-separated list of features to enable"
+        value: "istio-injection,monitoring-enhanced"
+      - name: cost-center
+        description: "Cost center for billing"
+        value: "platform"
+      - name: environment
+        description: "Environment (dev, staging, prod)"
+        value: "dev"
+  templates:
+    - name: provision-namespace
+      dag:
+        tasks:
+          - name: validate-request
+            template: validate-namespace-request
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
+                - name: team-name
+                  value: "{{workflow.parameters.team-name}}"
+
+          - name: create-namespace
+            template: create-k8s-namespace
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
+                - name: team-name
+                  value: "{{workflow.parameters.team-name}}"
+                - name: cost-center
+                  value: "{{workflow.parameters.cost-center}}"
+                - name: environment
+                  value: "{{workflow.parameters.environment}}"
+            depends: validate-request
+
+          - name: apply-resource-quotas
+            template: apply-resource-quotas
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
+                - name: resource-tier
+                  value: "{{workflow.parameters.resource-tier}}"
+            depends: create-namespace
+
+          - name: setup-rbac
+            template: setup-namespace-rbac
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
+                - name: team-name
+                  value: "{{workflow.parameters.team-name}}"
+            depends: create-namespace
+
+          - name: apply-network-policies
+            template: apply-network-policies
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
+            depends: create-namespace
+
+          - name: configure-features
+            template: configure-namespace-features
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
+                - name: features
+                  value: "{{workflow.parameters.features}}"
+            depends: apply-resource-quotas.Succeeded && setup-rbac.Succeeded
+
+          - name: register-namespace
+            template: register-with-platform-api
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
+                - name: team-name
+                  value: "{{workflow.parameters.team-name}}"
+                - name: resource-tier
+                  value: "{{workflow.parameters.resource-tier}}"
+                - name: features
+                  value: "{{workflow.parameters.features}}"
+            depends: configure-features.Succeeded && apply-network-policies.Succeeded
+
+    # Template definitions
+    - name: validate-namespace-request
+      inputs:
+        parameters:
+          - name: namespace-name
+          - name: team-name
+      container:
+        image: bitnami/kubectl:1.28
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -euo pipefail
+            echo "Validating namespace request..."
+
+            # Check if namespace already exists
+            if kubectl get namespace "{{inputs.parameters.namespace-name}}" 2>/dev/null; then
+              echo "ERROR: Namespace {{inputs.parameters.namespace-name}} already exists"
+              exit 1
+            fi
+
+            # Validate namespace name format
+            if [[ ! "{{inputs.parameters.namespace-name}}" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; then
+              echo "ERROR: Invalid namespace name format"
+              exit 1
+            fi
+
+            # Validate team name
+            if [[ -z "{{inputs.parameters.team-name}}" ]]; then
+              echo "ERROR: Team name cannot be empty"
+              exit 1
+            fi
+
+            echo "Validation successful"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          readOnlyRootFilesystem: true
+
+    - name: create-k8s-namespace
+      inputs:
+        parameters:
+          - name: namespace-name
+          - name: team-name
+          - name: cost-center
+          - name: environment
+      container:
+        image: bitnami/kubectl:1.28
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -euo pipefail
+            echo "Creating namespace {{inputs.parameters.namespace-name}}..."
+
+            cat <<EOF | kubectl apply -f -
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: {{inputs.parameters.namespace-name}}
+              labels:
+                name: {{inputs.parameters.namespace-name}}
+                platform.azure.com/team: "{{inputs.parameters.team-name}}"
+                platform.azure.com/cost-center: "{{inputs.parameters.cost-center}}"
+                platform.azure.com/environment: "{{inputs.parameters.environment}}"
+                platform.azure.com/managed-by: "platform-api"
+                platform.azure.com/provisioned-date: "$(date -Iseconds)"
+                pod-security.kubernetes.io/enforce: restricted
+                pod-security.kubernetes.io/audit: restricted
+                pod-security.kubernetes.io/warn: restricted
+              annotations:
+                platform.azure.com/provisioned-by: "argo-workflows"
+                platform.azure.com/workflow-name: "{{workflow.name}}"
+            EOF
+
+            echo "Namespace created successfully"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          readOnlyRootFilesystem: true
+
+    - name: apply-resource-quotas
+      inputs:
+        parameters:
+          - name: namespace-name
+          - name: resource-tier
+      container:
+        image: bitnami/kubectl:1.28
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -euo pipefail
+            echo "Applying resource quotas for tier {{inputs.parameters.resource-tier}}..."
+
+            # Set resource limits based on tier
+            case "{{inputs.parameters.resource-tier}}" in
+              small)
+                CPU_LIMIT="2"
+                MEMORY_LIMIT="4Gi"
+                STORAGE_LIMIT="10Gi"
+                POD_LIMIT="10"
+                ;;
+              medium)
+                CPU_LIMIT="4"
+                MEMORY_LIMIT="8Gi"
+                STORAGE_LIMIT="50Gi"
+                POD_LIMIT="20"
+                ;;
+              large)
+                CPU_LIMIT="8"
+                MEMORY_LIMIT="16Gi"
+                STORAGE_LIMIT="100Gi"
+                POD_LIMIT="50"
+                ;;
+              *)
+                echo "ERROR: Unknown resource tier {{inputs.parameters.resource-tier}}"
+                exit 1
+                ;;
+            esac
+
+            cat <<EOF | kubectl apply -f -
+            apiVersion: v1
+            kind: ResourceQuota
+            metadata:
+              name: resource-quota
+              namespace: {{inputs.parameters.namespace-name}}
+              labels:
+                platform.azure.com/resource-tier: "{{inputs.parameters.resource-tier}}"
+            spec:
+              hard:
+                requests.cpu: "${CPU_LIMIT}"
+                requests.memory: "${MEMORY_LIMIT}"
+                requests.storage: "${STORAGE_LIMIT}"
+                pods: "${POD_LIMIT}"
+                persistentvolumeclaims: "5"
+                services: "5"
+                secrets: "10"
+                configmaps: "10"
+            ---
+            apiVersion: v1
+            kind: LimitRange
+            metadata:
+              name: limit-range
+              namespace: {{inputs.parameters.namespace-name}}
+            spec:
+              limits:
+              - default:
+                  cpu: "500m"
+                  memory: "512Mi"
+                defaultRequest:
+                  cpu: "100m"
+                  memory: "128Mi"
+                type: Container
+              - max:
+                  storage: "5Gi"
+                type: PersistentVolumeClaim
+            EOF
+
+            echo "Resource quotas applied successfully"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          readOnlyRootFilesystem: true
+
+    - name: setup-namespace-rbac
+      inputs:
+        parameters:
+          - name: namespace-name
+          - name: team-name
+      container:
+        image: bitnami/kubectl:1.28
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -euo pipefail
+            echo "Setting up RBAC for team {{inputs.parameters.team-name}}..."
+
+            cat <<EOF | kubectl apply -f -
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: Role
+            metadata:
+              name: team-admin
+              namespace: {{inputs.parameters.namespace-name}}
+            rules:
+            - apiGroups: ["*"]
+              resources: ["*"]
+              verbs: ["*"]
+            ---
+            apiVersion: rbac.authorization.k8s.io/v1
+            kind: RoleBinding
+            metadata:
+              name: team-admin-binding
+              namespace: {{inputs.parameters.namespace-name}}
+            subjects:
+            - kind: Group
+              name: "team-{{inputs.parameters.team-name}}"
+              apiGroup: rbac.authorization.k8s.io
+            roleRef:
+              kind: Role
+              name: team-admin
+              apiGroup: rbac.authorization.k8s.io
+            EOF
+
+            echo "RBAC setup completed"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          readOnlyRootFilesystem: true
+
+    - name: apply-network-policies
+      inputs:
+        parameters:
+          - name: namespace-name
+      container:
+        image: bitnami/kubectl:1.28
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -euo pipefail
+            echo "Applying network policies..."
+
+            cat <<EOF | kubectl apply -f -
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: default-deny-all
+              namespace: {{inputs.parameters.namespace-name}}
+            spec:
+              podSelector: {}
+              policyTypes:
+              - Ingress
+              - Egress
+            ---
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: allow-dns
+              namespace: {{inputs.parameters.namespace-name}}
+            spec:
+              podSelector: {}
+              policyTypes:
+              - Egress
+              egress:
+              - to: []
+                ports:
+                - protocol: UDP
+                  port: 53
+                - protocol: TCP
+                  port: 53
+            ---
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: allow-istio-system
+              namespace: {{inputs.parameters.namespace-name}}
+            spec:
+              podSelector: {}
+              policyTypes:
+              - Ingress
+              - Egress
+              ingress:
+              - from:
+                - namespaceSelector:
+                    matchLabels:
+                      name: istio-system
+              egress:
+              - to:
+                - namespaceSelector:
+                    matchLabels:
+                      name: istio-system
+            EOF
+
+            echo "Network policies applied"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          readOnlyRootFilesystem: true
+
+    - name: configure-namespace-features
+      inputs:
+        parameters:
+          - name: namespace-name
+          - name: features
+      container:
+        image: bitnami/kubectl:1.28
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -euo pipefail
+            echo "Configuring features: {{inputs.parameters.features}}"
+
+            IFS=',' read -ra FEATURES <<< "{{inputs.parameters.features}}"
+
+            for feature in "${FEATURES[@]}"; do
+              case "$feature" in
+                "istio-injection")
+                  echo "Enabling Istio injection..."
+                  kubectl label namespace {{inputs.parameters.namespace-name}} istio-injection=enabled
+                  ;;
+                "monitoring-enhanced")
+                  echo "Enabling enhanced monitoring..."
+                  kubectl label namespace {{inputs.parameters.namespace-name}} platform.azure.com/monitoring=enhanced
+                  ;;
+                "backup-enabled")
+                  echo "Enabling backup..."
+                  kubectl label namespace {{inputs.parameters.namespace-name}} platform.azure.com/backup=enabled
+                  ;;
+                *)
+                  echo "Unknown feature: $feature"
+                  ;;
+              esac
+            done
+
+            echo "Feature configuration completed"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          readOnlyRootFilesystem: true
+
+    - name: register-with-platform-api
+      inputs:
+        parameters:
+          - name: namespace-name
+          - name: team-name
+          - name: resource-tier
+          - name: features
+      container:
+        image: curlimages/curl:8.4.0
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -euo pipefail
+            echo "Registering namespace with Platform API..."
+
+            # Create registration payload
+            cat <<EOF > /tmp/registration.json
+            {
+              "name": "{{inputs.parameters.namespace-name}}",
+              "team": "{{inputs.parameters.team-name}}",
+              "resourceTier": "{{inputs.parameters.resource-tier}}",
+              "features": "{{inputs.parameters.features}}".split(","),
+              "status": "active",
+              "provisionedBy": "argo-workflows",
+              "workflowName": "{{workflow.name}}"
+            }
+            EOF
+
+            # Register with Platform API
+            curl -X POST \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${PLATFORM_API_TOKEN}" \
+              -d @/tmp/registration.json \
+              "http://platform-api.platform-api.svc.cluster.local:3000/api/v1/namespaces"
+
+            echo "Registration completed"
+        env:
+          - name: PLATFORM_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: platform-api-token
+                key: token
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          readOnlyRootFilesystem: true

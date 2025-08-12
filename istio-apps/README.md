@@ -47,6 +47,7 @@ istio-apps/
 ## 🎯 Features Implemented
 
 ### ✅ All 6 Core Istio CRDs Deployed
+
 1. **Gateway** - HTTPS ingress with cert-manager integration
 2. **VirtualService** - Canary deployments, A/B testing, fault injection
 3. **DestinationRule** - Circuit breakers, load balancing, outlier detection
@@ -55,6 +56,7 @@ istio-apps/
 6. **AuthorizationPolicy** - Multi-tenant security boundaries
 
 ### 🏢 Multi-Tenant Architecture
+
 - **tenant-a**: Production-like (strict security, 90/10 canary)
 - **tenant-b**: Development (relaxed policies, experimental features)
 - **shared-services**: Infrastructure (monitoring, tracing, cache)
@@ -62,18 +64,21 @@ istio-apps/
 - **istio-testing**: Chaos engineering and load testing
 
 ### 🔒 Security Implementation
+
 - **mTLS**: Strict mode for production, permissive for development
 - **RBAC**: Namespace-based isolation with service account permissions
 - **Network Policies**: Sidecar configurations prevent cross-tenant access
 - **Pod Security**: Non-root containers, read-only filesystems, security contexts
 
 ### 📊 Observability Stack
+
 - **Prometheus**: Metrics collection with service discovery
 - **Grafana**: Dashboards for Istio and application metrics
 - **Jaeger**: Distributed tracing for request flows
 - **ServiceMonitor**: Automatic Prometheus scraping configuration
 
 ### 🧪 Testing Infrastructure
+
 - **Load Generator**: Continuous traffic generation for all tenants
 - **Chaos Engineering**: Fault injection and resilience testing
 - **External Connectivity**: Validates ServiceEntry configurations
@@ -83,16 +88,17 @@ istio-apps/
 ## 🚀 Deployment Strategy
 
 ### GitOps Deployment Flow
+
 ```mermaid
 graph LR
     A[Git Repository] --> B[FluxCD]
     B --> C[Kustomize Build]
     C --> D[Infrastructure]
-    C --> E[Networking]  
+    C --> E[Networking]
     C --> F[Security]
     C --> G[Applications]
     C --> H[Testing]
-    
+
     D --> I[Namespaces & RBAC]
     E --> J[All 6 CRDs]
     F --> K[mTLS & AuthZ]
@@ -101,6 +107,7 @@ graph LR
 ```
 
 ### Resource Application Order
+
 1. **Infrastructure** (namespaces, RBAC)
 2. **Networking** (gateways, virtual services, destination rules)
 3. **Security** (authorization policies, peer authentication)
@@ -110,26 +117,30 @@ graph LR
 ## 📋 Configuration Details
 
 ### Domain Configuration
+
 - **Production**: `podinfo.tenant-a.davidmarkgardiner.co.uk`
 - **Development**: `podinfo.tenant-b.davidmarkgardiner.co.uk`
 - **Monitoring**: `monitoring.shared-services.davidmarkgardiner.co.uk`
 - **Testing**: `*.istio-testing.davidmarkgardiner.co.uk`
 
 ### Traffic Routing
+
 - **Tenant A**: 90% v1, 10% v2 (production canary)
 - **Tenant B**: Primary v2, fallback v1 (development)
 - **Canary Header**: `canary: true` routes to v2
 - **A/B Testing**: Mobile user agents get 50/50 split
 
 ### Resource Limits
+
 - **Production Pods**: 128Mi memory, 100m CPU
-- **Development Pods**: 128Mi memory, 200m CPU  
+- **Development Pods**: 128Mi memory, 200m CPU
 - **Shared Services**: Higher limits for monitoring stack
 - **Testing Pods**: Varied limits for load testing scenarios
 
 ## 🔧 Operations Guide
 
 ### Deployment Commands
+
 ```bash
 # Apply all resources
 kubectl apply -k .
@@ -141,11 +152,12 @@ kubectl apply -k apps/tenant-a/
 ```
 
 ### Monitoring Commands
+
 ```bash
 # Check all Istio resources
 kubectl get gateway,virtualservice,destinationrule,serviceentry,sidecar,authorizationpolicy -A
 
-# Check application status  
+# Check application status
 kubectl get pods,svc -n tenant-a
 kubectl get pods,svc -n tenant-b
 kubectl get pods,svc -n shared-services
@@ -155,6 +167,7 @@ kubectl get pods -n aks-istio-system
 ```
 
 ### Testing Commands
+
 ```bash
 # Manual traffic testing
 curl -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" http://$INGRESS_IP/
@@ -168,6 +181,7 @@ kubectl exec -n istio-testing debug-client -it -- bash
 ```
 
 ### Troubleshooting
+
 ```bash
 # Check Istio configuration
 kubectl get istio-proxy -n tenant-a
@@ -182,24 +196,28 @@ istioctl proxy-config cluster podinfo-v1-xxx.tenant-a
 ## 🎯 Testing Scenarios
 
 ### Canary Deployment Testing
+
 1. Traffic split validation (90/10 distribution)
 2. Canary header routing (`canary: true`)
 3. Mobile user agent A/B testing
 4. Fault injection testing
 
 ### Security Testing
+
 1. Cross-tenant isolation validation
 2. mTLS connection verification
 3. Authorization policy enforcement
 4. External service access control
 
 ### Resilience Testing
+
 1. Circuit breaker activation
 2. Retry policy validation
 3. Timeout handling
 4. Chaos engineering scenarios
 
 ### Performance Testing
+
 1. Load testing with Fortio
 2. Latency measurement
 3. Throughput benchmarking
@@ -208,6 +226,7 @@ istioctl proxy-config cluster podinfo-v1-xxx.tenant-a
 ## 📈 Metrics and Monitoring
 
 ### Key Metrics Collected
+
 - **Request Rate**: Requests per second by service/version
 - **Error Rate**: 4xx/5xx error percentage
 - **Response Time**: P50, P95, P99 latencies
@@ -215,6 +234,7 @@ istioctl proxy-config cluster podinfo-v1-xxx.tenant-a
 - **mTLS**: Connection success/failure rates
 
 ### Grafana Dashboards
+
 - Istio Service Mesh overview
 - Podinfo application metrics
 - Multi-tenant security monitoring
@@ -223,6 +243,7 @@ istioctl proxy-config cluster podinfo-v1-xxx.tenant-a
 ## 🏁 Ready for Production
 
 This deployment includes:
+
 - ✅ All 6 Istio CRDs with comprehensive examples
 - ✅ Multi-tenant security with proper isolation
 - ✅ Comprehensive observability and monitoring

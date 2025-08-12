@@ -6,14 +6,14 @@ metadata:
   namespace: istio-demo
 spec:
   hosts:
-  - httpbin.org
+    - httpbin.org
   ports:
-  - number: 80
-    name: http
-    protocol: HTTP
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 80
+      name: http
+      protocol: HTTP
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -24,11 +24,11 @@ metadata:
   namespace: istio-staging
 spec:
   hosts:
-  - jsonplaceholder.typicode.com
+    - jsonplaceholder.typicode.com
   ports:
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -39,13 +39,13 @@ metadata:
   namespace: istio-production
 spec:
   hosts:
-  - login.microsoftonline.com
-  - management.azure.com
-  - monitoring.azure.com
+    - login.microsoftonline.com
+    - management.azure.com
+    - monitoring.azure.com
   ports:
-  - number: 443
-    name: https
-    protocol: HTTPS
+    - number: 443
+      name: https
+      protocol: HTTPS
   location: MESH_EXTERNAL
   resolution: DNS
 ---
@@ -57,11 +57,11 @@ metadata:
   namespace: istio-production
 spec:
   hosts:
-  - postgres.example.com
+    - postgres.example.com
   ports:
-  - number: 5432
-    name: postgres
-    protocol: TCP
+    - number: 5432
+      name: postgres
+      protocol: TCP
   location: MESH_EXTERNAL
   resolution: DNS
 ---

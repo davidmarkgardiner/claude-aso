@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workflow-controller
+  namespace: argo
+  labels:
+    app.kubernetes.io/name: argo-workflows
+    app.kubernetes.io/component: workflow-controller
+    app.kubernetes.io/part-of: platform-api
+    app.kubernetes.io/version: "v3.5.10"
+    managed-by: flux
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    platform.azure.com/cost-center: "infrastructure"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argo-workflows
+      app.kubernetes.io/component: workflow-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argo-workflows
+        app.kubernetes.io/component: workflow-controller
+        app.kubernetes.io/part-of: platform-api
+        azure.workload.identity/use: "true"
+      annotations:
+        # Security annotations
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+        container.apparmor.security.beta.kubernetes.io/workflow-controller: runtime/default
+        # Monitoring annotations
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "9090"
+    spec:
+      serviceAccountName: argo
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux
+        agentpool: system
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: argo-workflows
+                    app.kubernetes.io/component: workflow-controller
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: workflow-controller
+          image: quay.io/argoproj/workflow-controller:v3.5.10
+          imagePullPolicy: IfNotPresent
+          command:
+            - workflow-controller
+          args:
+            - --configmap=workflow-controller-configmap
+            - --executor-image=quay.io/argoproj/argoexec:v3.5.10
+            - --loglevel=info
+            - --gloglevel=6
+            - --log-format=json
+            - --namespaced
+            - --managed-namespace=argo
+          ports:
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+            - name: telemetry
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: LEADER_ELECTION_IDENTITY
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ARGO_TRACE
+              value: "1"
+            # Azure-specific environment variables
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: azure-workload-identity
+                  key: client-id
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: azure-workload-identity
+                  key: tenant-id
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 500m
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 6060
+              scheme: HTTP
+            initialDelaySeconds: 90
+            periodSeconds: 60
+            timeoutSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9090
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+      priorityClassName: system-cluster-critical
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

@@ -15,7 +15,7 @@ export interface CatalogTemplate {
 
 export interface TemplateParameter {
   name: string;
-  type: 'string' | 'number' | 'boolean' | 'select';
+  type: "string" | "number" | "boolean" | "select";
   required: boolean;
   description: string;
   defaultValue?: any;
@@ -50,7 +50,7 @@ export interface DeploymentResult {
   team: string;
   namespace: string;
   environment: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: "pending" | "running" | "completed" | "failed";
   progress: number;
   createdAt: string;
   completedAt?: string;

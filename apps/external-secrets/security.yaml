@@ -1,0 +1,338 @@
+# Production security configurations for External Secrets Operator
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: external-secrets-psp
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Pod Security Policy for External Secrets Operator"
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: "runtime/default"
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: "runtime/default"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - "configMap"
+    - "emptyDir"
+    - "projected"
+    - "secret"
+    - "downwardAPI"
+    - "persistentVolumeClaim"
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: "MustRunAsNonRoot"
+  supplementalGroups:
+    rule: "MustRunAs"
+    ranges:
+      - min: 1
+        max: 65535
+  fsGroup:
+    rule: "MustRunAs"
+    ranges:
+      - min: 1
+        max: 65535
+  readOnlyRootFilesystem: true
+  seLinux:
+    rule: "RunAsAny"
+
+---
+# ClusterRole for Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-secrets-psp
+  labels:
+    app.kubernetes.io/name: external-secrets
+    platform.io/component: external-secrets
+    platform.io/tier: system
+rules:
+  - apiGroups: ["policy"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames:
+      - external-secrets-psp
+
+---
+# ClusterRoleBinding for Pod Security Policy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-secrets-psp
+  labels:
+    app.kubernetes.io/name: external-secrets
+    platform.io/component: external-secrets
+    platform.io/tier: system
+roleRef:
+  kind: ClusterRole
+  name: external-secrets-psp
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: external-secrets
+    namespace: external-secrets-system
+
+---
+# Kubernetes Pod Disruption Budget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: external-secrets-pdb
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Pod Disruption Budget for External Secrets Operator"
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-secrets
+      app.kubernetes.io/instance: external-secrets
+
+---
+# Pod Disruption Budget for webhook
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: external-secrets-webhook-pdb
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets-webhook
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Pod Disruption Budget for External Secrets webhook"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-secrets-webhook
+      app.kubernetes.io/instance: external-secrets
+
+---
+# OpenPolicyAgent Gatekeeper ConstraintTemplate for External Secrets
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: externalsecretrequirements
+  labels:
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Gatekeeper constraint template for External Secrets validation"
+spec:
+  crd:
+    spec:
+      names:
+        kind: ExternalSecretRequirements
+      validation:
+        type: object
+        properties:
+          requiredLabels:
+            type: array
+            items:
+              type: string
+          requiredAnnotations:
+            type: array
+            items:
+              type: string
+          allowedSecretStores:
+            type: array
+            items:
+              type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package externalsecretrequirements
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "ExternalSecret"
+          required_label := input.parameters.requiredLabels[_]
+          not input.review.object.metadata.labels[required_label]
+          msg := sprintf("ExternalSecret missing required label: %v", [required_label])
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "ExternalSecret"
+          required_annotation := input.parameters.requiredAnnotations[_]
+          not input.review.object.metadata.annotations[required_annotation]
+          msg := sprintf("ExternalSecret missing required annotation: %v", [required_annotation])
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "ExternalSecret"
+          secret_store := input.review.object.spec.secretStoreRef.name
+          allowed_stores := input.parameters.allowedSecretStores
+          count(allowed_stores) > 0
+          not secret_store in allowed_stores
+          msg := sprintf("ExternalSecret uses disallowed secret store: %v. Allowed stores: %v", [secret_store, allowed_stores])
+        }
+
+---
+# Gatekeeper Constraint for External Secrets
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: ExternalSecretRequirements
+metadata:
+  name: external-secret-requirements
+  labels:
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Gatekeeper constraint for External Secrets requirements"
+spec:
+  match:
+    kinds:
+      - apiGroups: ["external-secrets.io"]
+        kinds: ["ExternalSecret"]
+  parameters:
+    requiredLabels:
+      - "platform.io/component"
+      - "platform.io/managed-by"
+      - "platform.io/secret-type"
+    requiredAnnotations:
+      - "platform.io/description"
+    allowedSecretStores:
+      - "azure-keyvault"
+      - "azure-keyvault-backup"
+      - "kubernetes-secret-store" # For development only
+
+---
+# Resource Quota for External Secrets namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: external-secrets-resource-quota
+  namespace: external-secrets-system
+  labels:
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Resource quota for External Secrets namespace"
+spec:
+  hard:
+    # Compute resources
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+
+    # Storage
+    requests.storage: "10Gi"
+    persistentvolumeclaims: "5"
+
+    # Object counts
+    pods: "20"
+    services: "5"
+    secrets: "50"
+    configmaps: "10"
+
+    # External Secrets specific
+    count/externalsecrets.external-secrets.io: "100"
+    count/secretstores.external-secrets.io: "10"
+    count/clustersecretstores.external-secrets.io: "5"
+
+---
+# Limit Range for pods in External Secrets namespace
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: external-secrets-limit-range
+  namespace: external-secrets-system
+  labels:
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Limit range for External Secrets namespace"
+spec:
+  limits:
+    - default:
+        cpu: 500m
+        memory: 512Mi
+        ephemeral-storage: 1Gi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+        ephemeral-storage: 512Mi
+      max:
+        cpu: "2"
+        memory: 2Gi
+        ephemeral-storage: 4Gi
+      min:
+        cpu: 10m
+        memory: 64Mi
+        ephemeral-storage: 128Mi
+      type: Container
+    - default:
+        storage: 1Gi
+      max:
+        storage: 10Gi
+      min:
+        storage: 100Mi
+      type: PersistentVolumeClaim
+
+---
+# Falco rules for External Secrets security monitoring
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-secrets-falco-rules
+  namespace: external-secrets-system
+  labels:
+    app.kubernetes.io/name: external-secrets
+    platform.io/component: external-secrets
+    platform.io/tier: system
+  annotations:
+    platform.io/description: "Falco rules for External Secrets security monitoring"
+data:
+  external_secrets_rules.yaml: |
+    - rule: External Secrets Unexpected File Access
+      desc: Detect unexpected file access by External Secrets pods
+      condition: >
+        open_read and
+        container and
+        k8s_ns = external-secrets-system and
+        k8s_pod_label_app_kubernetes_io_name = external-secrets and
+        not fd.name in (/tmp, /var/tmp, /dev/null, /dev/random, /dev/urandom) and
+        not fd.directory in (/proc, /sys, /etc, /usr/share/ca-certificates)
+      output: >
+        External Secrets pod accessed unexpected file
+        (user=%user.name container=%container.name file=%fd.name cmd=%proc.cmdline)
+      priority: WARNING
+      tags: [external-secrets, security, file-access]
+
+    - rule: External Secrets Suspicious Network Activity
+      desc: Detect suspicious network activity from External Secrets
+      condition: >
+        inbound_outbound and
+        k8s_ns = external-secrets-system and
+        k8s_pod_label_app_kubernetes_io_name = external-secrets and
+        not fd.rip in (azure_keyvault_ips, kubernetes_api_ips) and
+        not fd.rport in (443, 53, 6443)
+      output: >
+        Suspicious network activity from External Secrets pod
+        (user=%user.name container=%container.name dest_ip=%fd.rip dest_port=%fd.rport cmd=%proc.cmdline)
+      priority: WARNING
+      tags: [external-secrets, security, network]
+
+    - rule: External Secrets Privilege Escalation Attempt
+      desc: Detect privilege escalation attempts in External Secrets
+      condition: >
+        spawned_process and
+        k8s_ns = external-secrets-system and
+        k8s_pod_label_app_kubernetes_io_name = external-secrets and
+        proc.name in (su, sudo, chroot, setuid, setgid)
+      output: >
+        Privilege escalation attempt in External Secrets pod
+        (user=%user.name container=%container.name proc=%proc.name cmd=%proc.cmdline)
+      priority: CRITICAL
+      tags: [external-secrets, security, privilege-escalation]

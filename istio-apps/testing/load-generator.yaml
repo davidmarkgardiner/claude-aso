@@ -23,55 +23,55 @@ spec:
         sidecar.istio.io/inject: "true"
     spec:
       containers:
-      - name: load-generator
-        image: curlimages/curl:8.4.0
-        command: ["/bin/sh"]
-        args:
-        - -c
-        - |
-          echo "Starting load generator..."
-          while true; do
-            echo "=== Load Testing Tenant A ==="
-            for i in $(seq 1 10); do
-              curl -s -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
-                   -H "User-Agent: LoadGenerator/1.0" \
-                   http://aks-istio-ingressgateway-internal.aks-istio-system.svc.cluster.local/ \
-                   || true
-              sleep 0.1
-            done
-            
-            echo "=== Canary Testing ==="
-            for i in $(seq 1 5); do
-              curl -s -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
-                   -H "canary: true" \
-                   http://aks-istio-ingressgateway-internal.aks-istio-system.svc.cluster.local/ \
-                   || true
-              sleep 0.1
-            done
-            
-            echo "=== Load Testing Tenant B ==="
-            for i in $(seq 1 10); do
-              curl -s -H "Host: podinfo.tenant-b.davidmarkgardiner.co.uk" \
-                   -H "User-Agent: LoadGenerator/1.0" \
-                   http://aks-istio-ingressgateway-internal.aks-istio-system.svc.cluster.local/ \
-                   || true
-              sleep 0.1
-            done
-            
-            echo "=== External Service Testing ==="
-            curl -s http://httpbin.org/headers || true
-            curl -s https://jsonplaceholder.typicode.com/posts/1 || true
-            
-            echo "Load generation cycle completed. Waiting 30 seconds..."
-            sleep 30
-          done
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "10m"
-          limits:
-            memory: "64Mi"
-            cpu: "100m"
+        - name: load-generator
+          image: curlimages/curl:8.4.0
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - |
+              echo "Starting load generator..."
+              while true; do
+                echo "=== Load Testing Tenant A ==="
+                for i in $(seq 1 10); do
+                  curl -s -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
+                       -H "User-Agent: LoadGenerator/1.0" \
+                       http://aks-istio-ingressgateway-internal.aks-istio-system.svc.cluster.local/ \
+                       || true
+                  sleep 0.1
+                done
+                
+                echo "=== Canary Testing ==="
+                for i in $(seq 1 5); do
+                  curl -s -H "Host: podinfo.tenant-a.davidmarkgardiner.co.uk" \
+                       -H "canary: true" \
+                       http://aks-istio-ingressgateway-internal.aks-istio-system.svc.cluster.local/ \
+                       || true
+                  sleep 0.1
+                done
+                
+                echo "=== Load Testing Tenant B ==="
+                for i in $(seq 1 10); do
+                  curl -s -H "Host: podinfo.tenant-b.davidmarkgardiner.co.uk" \
+                       -H "User-Agent: LoadGenerator/1.0" \
+                       http://aks-istio-ingressgateway-internal.aks-istio-system.svc.cluster.local/ \
+                       || true
+                  sleep 0.1
+                done
+                
+                echo "=== External Service Testing ==="
+                curl -s http://httpbin.org/headers || true
+                curl -s https://jsonplaceholder.typicode.com/posts/1 || true
+                
+                echo "Load generation cycle completed. Waiting 30 seconds..."
+                sleep 30
+              done
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "10m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
       restartPolicy: Always
 ---
 apiVersion: v1
@@ -85,9 +85,9 @@ metadata:
     deployment-agent: istio-engineer
 spec:
   ports:
-  - name: http
-    port: 8080
-    targetPort: 8080
+    - name: http
+      port: 8080
+      targetPort: 8080
   selector:
     app: load-generator
 ---
@@ -116,44 +116,44 @@ spec:
         sidecar.istio.io/inject: "true"
     spec:
       containers:
-      - name: chaos-engineering
-        image: stefanprodan/podinfo:6.6.0
-        ports:
-        - name: http
-          containerPort: 8080
-        command:
-        - ./podinfo
-        - --port=8080
-        - --level=info
-        - --random-delay=true
-        - --random-error=true
-        - --unhealthy-after=300s
-        env:
-        - name: PODINFO_UI_COLOR
-          value: "#e91e63"  # Pink for chaos engineering
-        - name: PODINFO_UI_MESSAGE
-          value: "Chaos Engineering Test Pod"
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "10m"
-          limits:
-            memory: "128Mi"
-            cpu: "200m"
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: http
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          failureThreshold: 2
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: http
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          failureThreshold: 2
+        - name: chaos-engineering
+          image: stefanprodan/podinfo:6.6.0
+          ports:
+            - name: http
+              containerPort: 8080
+          command:
+            - ./podinfo
+            - --port=8080
+            - --level=info
+            - --random-delay=true
+            - --random-error=true
+            - --unhealthy-after=300s
+          env:
+            - name: PODINFO_UI_COLOR
+              value: "#e91e63" # Pink for chaos engineering
+            - name: PODINFO_UI_MESSAGE
+              value: "Chaos Engineering Test Pod"
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "10m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 2
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 2
 ---
 apiVersion: v1
 kind: Service
@@ -166,8 +166,8 @@ metadata:
     deployment-agent: istio-engineer
 spec:
   ports:
-  - name: http
-    port: 8080
-    targetPort: http
+    - name: http
+      port: 8080
+      targetPort: http
   selector:
     app: chaos-engineering

@@ -24,6 +24,7 @@ A comprehensive API backend for the Namespace-as-a-Service platform, providing s
 ### Local Development
 
 1. **Clone and Install Dependencies**
+
    ```bash
    git clone <repository>
    cd platform-api
@@ -31,12 +32,14 @@ A comprehensive API backend for the Namespace-as-a-Service platform, providing s
    ```
 
 2. **Configure Environment**
+
    ```bash
    cp .env.sample .env
    # Edit .env with your configuration
    ```
 
 3. **Start Development Server**
+
    ```bash
    npm run dev
    ```
@@ -79,6 +82,7 @@ All API endpoints (except health checks) require authentication. The API support
 2. **Platform JWT** - For service-to-service communication
 
 Include the token in the `Authorization` header:
+
 ```bash
 Authorization: Bearer <token>
 ```
@@ -86,23 +90,27 @@ Authorization: Bearer <token>
 ### Core Endpoints
 
 #### Namespace Management
+
 - `POST /api/platform/namespaces/request` - Request new namespace
 - `GET /api/platform/namespaces/request/:id/status` - Get provisioning status
 - `GET /api/platform/namespaces/team/:team` - List team namespaces
 - `GET /api/platform/namespaces/:namespace` - Get namespace details
 
 #### Service Catalog
+
 - `GET /api/platform/catalog/templates` - List available templates
 - `GET /api/platform/catalog/templates/:id` - Get template details
 - `POST /api/platform/catalog/templates/:id/deploy` - Deploy from template
 
 #### Analytics
+
 - `GET /api/platform/analytics/usage` - Platform usage metrics
 - `GET /api/platform/analytics/teams` - Team-based analytics
 - `GET /api/platform/analytics/costs` - Cost analysis
 - `GET /api/platform/analytics/performance` - Performance metrics
 
 #### Health Checks
+
 - `GET /health` - Basic health check
 - `GET /health/detailed` - Detailed health with dependencies
 - `GET /health/ready` - Kubernetes readiness probe
@@ -148,40 +156,40 @@ The platform API is configured through environment variables. See `.env.sample` 
 
 #### Required Configuration
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `JWT_SECRET` | JWT signing secret | `your-secret-key` |
-| `AZURE_CLIENT_ID` | Azure AD app client ID | `abc123...` |
-| `AZURE_CLIENT_SECRET` | Azure AD app secret | `secret123...` |
-| `AZURE_TENANT_ID` | Azure AD tenant ID | `tenant123...` |
+| Variable              | Description            | Example           |
+| --------------------- | ---------------------- | ----------------- |
+| `JWT_SECRET`          | JWT signing secret     | `your-secret-key` |
+| `AZURE_CLIENT_ID`     | Azure AD app client ID | `abc123...`       |
+| `AZURE_CLIENT_SECRET` | Azure AD app secret    | `secret123...`    |
+| `AZURE_TENANT_ID`     | Azure AD tenant ID     | `tenant123...`    |
 
 #### Optional Configuration
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `3000` |
-| `NODE_ENV` | Environment mode | `development` |
-| `LOG_LEVEL` | Logging level | `info` |
-| `RATE_LIMIT_MAX_REQUESTS` | Max requests per window | `100` |
+| Variable                  | Description             | Default       |
+| ------------------------- | ----------------------- | ------------- |
+| `PORT`                    | Server port             | `3000`        |
+| `NODE_ENV`                | Environment mode        | `development` |
+| `LOG_LEVEL`               | Logging level           | `info`        |
+| `RATE_LIMIT_MAX_REQUESTS` | Max requests per window | `100`         |
 
 ### Resource Tiers
 
 The platform supports different resource tiers for namespaces:
 
-| Tier | CPU Limit | Memory Limit | Storage | Est. Cost/Month |
-|------|-----------|--------------|---------|----------------|
-| `micro` | 1 core | 2GB | 10GB | $50 |
-| `small` | 2 cores | 4GB | 20GB | $100 |
-| `medium` | 4 cores | 8GB | 50GB | $200 |
-| `large` | 8 cores | 16GB | 100GB | $400 |
+| Tier     | CPU Limit | Memory Limit | Storage | Est. Cost/Month |
+| -------- | --------- | ------------ | ------- | --------------- |
+| `micro`  | 1 core    | 2GB          | 10GB    | $50             |
+| `small`  | 2 cores   | 4GB          | 20GB    | $100            |
+| `medium` | 4 cores   | 8GB          | 50GB    | $200            |
+| `large`  | 8 cores   | 16GB         | 100GB   | $400            |
 
 ### Network Policies
 
-| Policy | Description | Use Case |
-|--------|-------------|----------|
-| `isolated` | Complete isolation except shared services | Production, sensitive data |
-| `team-shared` | Access within team namespaces | Development, staging |
-| `open` | No network restrictions | Development only |
+| Policy        | Description                               | Use Case                   |
+| ------------- | ----------------------------------------- | -------------------------- |
+| `isolated`    | Complete isolation except shared services | Production, sensitive data |
+| `team-shared` | Access within team namespaces             | Development, staging       |
+| `open`        | No network restrictions                   | Development only           |
 
 ## Architecture
 
@@ -280,10 +288,10 @@ The platform API provides multiple health check endpoints:
 Structured JSON logging using Winston with configurable levels:
 
 ```javascript
-logger.info('Namespace provisioned', {
-  namespaceName: 'my-app-dev',
-  team: 'frontend',
-  requestId: 'req-123'
+logger.info("Namespace provisioned", {
+  namespaceName: "my-app-dev",
+  team: "frontend",
+  requestId: "req-123",
 });
 ```
 
@@ -301,7 +309,7 @@ Prometheus metrics are exposed at `/health/metrics` including:
 ### Authentication & Authorization
 
 - **Azure AD Integration** - Enterprise SSO with group-based roles
-- **JWT Tokens** - Secure service-to-service communication  
+- **JWT Tokens** - Secure service-to-service communication
 - **RBAC** - Role-based access control with fine-grained permissions
 - **Team Isolation** - Users can only access their team's resources
 
@@ -340,28 +348,28 @@ spec:
         app: platform-api
     spec:
       containers:
-      - name: platform-api
-        image: platform-api:latest
-        ports:
-        - containerPort: 3000
-        env:
-        - name: NODE_ENV
-          value: "production"
-        - name: JWT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: platform-secrets
-              key: jwt-secret
-        livenessProbe:
-          httpGet:
-            path: /health/live
-            port: 3000
-          initialDelaySeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /health/ready
-            port: 3000
-          initialDelaySeconds: 5
+        - name: platform-api
+          image: platform-api:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: platform-secrets
+                  key: jwt-secret
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            initialDelaySeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3000
+            initialDelaySeconds: 5
 ```
 
 ### Environment-Specific Configuration

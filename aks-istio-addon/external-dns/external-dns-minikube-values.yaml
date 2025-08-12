@@ -4,7 +4,7 @@ logFormat: json
 interval: 1m
 
 provider:
-  name: azure  # Use 'azure' for public DNS
+  name: azure # Use 'azure' for public DNS
 
 sources:
   - ingress
@@ -12,7 +12,7 @@ sources:
 
 dnsPolicy: Default
 
-domainFilters: 
+domainFilters:
   - davidmarkgardiner.co.uk
 
 txtOwnerId: external-dns-minikube

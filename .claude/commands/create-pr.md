@@ -12,6 +12,7 @@ Create a pull request against the specified branch: `$ARGUMENTS`
 1. **ALWAYS start by running `git status`** to check what branch you're on
 
 2. **Use this template for PR creation:**
+
    ```bash
    gh pr create --base dev --head <current-branch> \
      --title "Clear & concise title" \
@@ -48,8 +49,6 @@ gh pr list
 # View PR details
 gh pr view <pr-number>
 ```
-
-
 
 <example>
 - `gh pr create --base dev --head david --title "FIX: clear & concise title" --body "clear, detailed description of changes"`

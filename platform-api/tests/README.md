@@ -64,6 +64,7 @@ tests/
 **Purpose**: Showcase the complete platform capabilities in real-world scenarios.
 
 **Features Demonstrated**:
+
 - 📋 Service catalog discovery and template browsing
 - 🏗️ End-to-end namespace provisioning workflow
 - 🚀 Service deployment from templates
@@ -73,11 +74,13 @@ tests/
 - ⚡ Performance metrics and rate limiting
 
 **Run Command**:
+
 ```bash
 npm run test -- tests/demo/platform-demo.test.ts --verbose
 ```
 
 **Example Output**:
+
 ```
 🎭 Platform Demo Starting...
 
@@ -104,12 +107,14 @@ npm run test -- tests/demo/platform-demo.test.ts --verbose
 **Purpose**: Test individual components in isolation with mocked dependencies.
 
 **Coverage**:
+
 - `services/namespaceProvisioning.test.ts` - Core provisioning logic
 - `middleware/auth.test.ts` - Authentication and authorization
 - Service validation and error handling
 - Business logic and edge cases
 
 **Features Tested**:
+
 - ✅ Namespace provisioning workflow
 - ✅ Request validation and sanitization
 - ✅ JWT token authentication
@@ -119,18 +124,19 @@ npm run test -- tests/demo/platform-demo.test.ts --verbose
 - ✅ Workflow generation and status tracking
 
 **Example Test**:
+
 ```typescript
-it('should successfully provision a namespace', async () => {
+it("should successfully provision a namespace", async () => {
   mockKubernetesClient.namespaceExists.mockResolvedValue(false);
   mockArgoClient.submitWorkflow.mockResolvedValue({
-    metadata: { name: 'workflow-123' },
-    status: { phase: 'Running' }
+    metadata: { name: "workflow-123" },
+    status: { phase: "Running" },
   });
 
   const result = await service.provisionNamespace(validRequest);
 
   expect(result.requestId).toBeValidUUID();
-  expect(result.status).toBe('pending');
+  expect(result.status).toBe("pending");
   expect(mockKubernetesClient.namespaceExists).toHaveBeenCalled();
 });
 ```
@@ -140,6 +146,7 @@ it('should successfully provision a namespace', async () => {
 **Purpose**: Test complete API endpoints with realistic request/response cycles.
 
 **Coverage**:
+
 - `namespaces.test.ts` - Namespace management endpoints
 - `catalog.test.ts` - Service catalog and deployment endpoints
 - Full HTTP request/response validation
@@ -147,8 +154,9 @@ it('should successfully provision a namespace', async () => {
 - Error response handling
 
 **Features Tested**:
+
 - 🌐 Complete HTTP API endpoints
-- 🔐 Authentication and authorization flows  
+- 🔐 Authentication and authorization flows
 - 📝 Request validation and error responses
 - 📊 Pagination and filtering
 - ⏱️ Rate limiting enforcement
@@ -156,11 +164,12 @@ it('should successfully provision a namespace', async () => {
 - 📈 Response format consistency
 
 **Example Test**:
+
 ```typescript
-it('should successfully create namespace request', async () => {
+it("should successfully create namespace request", async () => {
   const response = await request(app)
-    .post('/api/platform/namespaces/request')
-    .set('Authorization', `Bearer ${validToken}`)
+    .post("/api/platform/namespaces/request")
+    .set("Authorization", `Bearer ${validToken}`)
     .send(namespaceRequest)
     .expect(201);
 
@@ -174,6 +183,7 @@ it('should successfully create namespace request', async () => {
 ### Namespace Fixtures (`tests/fixtures/namespaces.ts`)
 
 Provides realistic test data including:
+
 - **Mock Namespaces**: Complete namespace objects with quotas, resources, and metadata
 - **Provisioning Requests**: Sample requests in various states (pending, completed, failed)
 - **User Profiles**: Different user types (developer, admin, team lead) with proper roles
@@ -181,12 +191,14 @@ Provides realistic test data including:
 ### Template Fixtures (`tests/fixtures/templates.ts`)
 
 Comprehensive service catalog data:
+
 - **Service Templates**: Microservices, static websites, workers, databases
 - **Template Parameters**: Validation rules, default values, and examples
 - **Deployment Examples**: Real-world configuration scenarios
 - **Workflow Manifests**: Complete Argo Workflow specifications
 
 ### Example Mock Template:
+
 ```typescript
 {
   id: 'microservice-api',
@@ -221,24 +233,20 @@ Comprehensive service catalog data:
 
 ```javascript
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  globalSetup: '<rootDir>/tests/globalSetup.ts',
-  globalTeardown: '<rootDir>/tests/globalTeardown.ts',
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/server.ts'
-  ],
+  preset: "ts-jest",
+  testEnvironment: "node",
+  setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
+  globalSetup: "<rootDir>/tests/globalSetup.ts",
+  globalTeardown: "<rootDir>/tests/globalTeardown.ts",
+  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.d.ts", "!src/server.ts"],
   coverageThreshold: {
     global: {
       branches: 80,
       functions: 80,
       lines: 80,
-      statements: 80
-    }
-  }
+      statements: 80,
+    },
+  },
 };
 ```
 
@@ -253,8 +261,8 @@ module.exports = {
 ### Custom Jest Matchers
 
 ```typescript
-expect('123e4567-e89b-12d3-a456-426614174000').toBeValidUUID();
-expect('2023-01-01T12:00:00Z').toBeValidISO8601();
+expect("123e4567-e89b-12d3-a456-426614174000").toBeValidUUID();
+expect("2023-01-01T12:00:00Z").toBeValidISO8601();
 ```
 
 ## 🔍 Coverage Reports
@@ -268,8 +276,9 @@ npm run test:coverage
 ### Coverage Targets
 
 The project maintains high test coverage standards:
+
 - **Lines**: 80%+ coverage
-- **Functions**: 80%+ coverage  
+- **Functions**: 80%+ coverage
 - **Branches**: 80%+ coverage
 - **Statements**: 80%+ coverage
 
@@ -295,7 +304,7 @@ All files                  |   85.23  |   82.45  |   87.12  |   84.67 |
 # Unit tests only
 npm test -- tests/unit/
 
-# Integration tests only  
+# Integration tests only
 npm test -- tests/integration/
 
 # Demo tests only
@@ -333,13 +342,13 @@ npm test -- --testNamePattern="error"
 ### 1. Test Structure (AAA Pattern)
 
 ```typescript
-it('should do something specific', async () => {
+it("should do something specific", async () => {
   // Arrange - Set up test data and mocks
   mockService.method.mockResolvedValue(expectedResult);
-  
+
   // Act - Execute the functionality being tested
   const result = await serviceUnderTest.performAction(input);
-  
+
   // Assert - Verify the expected outcomes
   expect(result).toEqual(expectedResult);
   expect(mockService.method).toHaveBeenCalledWith(input);
@@ -350,17 +359,17 @@ it('should do something specific', async () => {
 
 ```typescript
 // ✅ Good - Specific and descriptive
-it('should reject namespace request when user lacks team access')
+it("should reject namespace request when user lacks team access");
 
 // ❌ Bad - Vague and unclear
-it('should handle error case')
+it("should handle error case");
 ```
 
 ### 3. Mock External Dependencies
 
 ```typescript
 // Mock Kubernetes client
-jest.mock('../../src/services/kubernetesClient');
+jest.mock("../../src/services/kubernetesClient");
 
 // Mock specific methods with expected behavior
 mockKubernetesClient.namespaceExists.mockResolvedValue(false);
@@ -369,7 +378,7 @@ mockKubernetesClient.namespaceExists.mockResolvedValue(false);
 ### 4. Use Test Fixtures
 
 ```typescript
-import { mockUsers, mockNamespaces } from '../fixtures/namespaces';
+import { mockUsers, mockNamespaces } from "../fixtures/namespaces";
 
 // Use realistic test data
 const testRequest = mockNamespaces[0];
@@ -392,12 +401,12 @@ npm test -- tests/demo/platform-demo.test.ts --verbose --no-coverage
 
 ```typescript
 // Add debug logging in tests
-it('should debug specific behavior', async () => {
-  console.log('Test data:', testInput);
-  
+it("should debug specific behavior", async () => {
+  console.log("Test data:", testInput);
+
   const result = await service.method(testInput);
-  
-  console.log('Result:', result);
+
+  console.log("Result:", result);
   expect(result).toBeDefined();
 });
 ```
@@ -423,17 +432,19 @@ Add to `.vscode/launch.json`:
 ### Load Testing Example
 
 ```typescript
-it('should handle concurrent requests', async () => {
-  const requests = Array(10).fill(null).map(() =>
-    request(app)
-      .post('/api/platform/namespaces/request')
-      .set('Authorization', `Bearer ${token}`)
-      .send(requestData)
-  );
+it("should handle concurrent requests", async () => {
+  const requests = Array(10)
+    .fill(null)
+    .map(() =>
+      request(app)
+        .post("/api/platform/namespaces/request")
+        .set("Authorization", `Bearer ${token}`)
+        .send(requestData),
+    );
 
   const responses = await Promise.all(requests);
-  
-  responses.forEach(response => {
+
+  responses.forEach((response) => {
     expect(response.status).toBeLessThan(500);
   });
 });
@@ -442,20 +453,20 @@ it('should handle concurrent requests', async () => {
 ### Memory Usage Monitoring
 
 ```typescript
-it('should not leak memory during batch operations', async () => {
+it("should not leak memory during batch operations", async () => {
   const initialMemory = process.memoryUsage();
-  
+
   // Perform many operations
   for (let i = 0; i < 1000; i++) {
     await service.performOperation();
   }
-  
+
   // Force garbage collection (in test environment)
   global.gc && global.gc();
-  
+
   const finalMemory = process.memoryUsage();
   const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed;
-  
+
   expect(memoryIncrease).toBeLessThan(50 * 1024 * 1024); // 50MB threshold
 });
 ```
@@ -472,31 +483,31 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          cache: 'npm'
-      
+          node-version: "18"
+          cache: "npm"
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run unit tests
         run: npm run test:unit
-      
+
       - name: Run integration tests
         run: npm run test:integration
-        
+
       - name: Run platform demo
         run: npm run test:demo
-      
+
       - name: Generate coverage report
         run: npm run test:coverage
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
 ```
@@ -504,17 +515,20 @@ jobs:
 ## 🎉 Getting Started
 
 1. **Install Dependencies**:
+
    ```bash
    npm install
    ```
 
 2. **Set Environment Variables**:
+
    ```bash
    cp .env.sample .env.test
    # Edit .env.test with test configuration
    ```
 
 3. **Run Quick Test**:
+
    ```bash
    npm test -- tests/demo/platform-demo.test.ts
    ```

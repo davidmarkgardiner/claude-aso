@@ -21,30 +21,30 @@ commonLabels:
   service-type: infrastructure
 
 images:
-- name: prom/prometheus
-  newTag: "v2.48.0"
-- name: grafana/grafana
-  newTag: "10.2.0"
-- name: jaegertracing/all-in-one
-  newTag: "1.51"
-- name: redis
-  newTag: "7-alpine"
+  - name: prom/prometheus
+    newTag: "v2.48.0"
+  - name: grafana/grafana
+    newTag: "10.2.0"
+  - name: jaegertracing/all-in-one
+    newTag: "1.51"
+  - name: redis
+    newTag: "7-alpine"
 
 replicas:
-- name: prometheus
-  count: 1
-- name: grafana
-  count: 1
-- name: jaeger
-  count: 1
-- name: redis-cluster
-  count: 3
+  - name: prometheus
+    count: 1
+  - name: grafana
+    count: 1
+  - name: jaeger
+    count: 1
+  - name: redis-cluster
+    count: 3
 
 configMapGenerator:
-- name: prometheus-config
-  files:
-  - prometheus.yml
-- name: grafana-dashboards
-  files:
-  - istio-dashboard.json
-  - podinfo-dashboard.json
+  - name: prometheus-config
+    files:
+      - prometheus.yml
+  - name: grafana-dashboards
+    files:
+      - istio-dashboard.json
+      - podinfo-dashboard.json

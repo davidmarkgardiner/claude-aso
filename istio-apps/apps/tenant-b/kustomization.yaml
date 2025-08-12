@@ -10,7 +10,7 @@ metadata:
 resources:
   - podinfo-v1.yaml
   - podinfo-v2.yaml
-  - podinfo-v3.yaml  # Extra version for development testing
+  - podinfo-v3.yaml # Extra version for development testing
   - podinfo-service.yaml
   - redis.yaml
 
@@ -23,27 +23,27 @@ commonLabels:
   environment: development
 
 images:
-- name: stefanprodan/podinfo
-  newTag: "6.6.1"
-- name: redis
-  newTag: "7-alpine"
+  - name: stefanprodan/podinfo
+    newTag: "6.6.1"
+  - name: redis
+    newTag: "7-alpine"
 
 replicas:
-- name: podinfo-v1
-  count: 1
-- name: podinfo-v2
-  count: 2  # More v2 replicas in development
-- name: podinfo-v3
-  count: 1
-- name: redis
-  count: 1
+  - name: podinfo-v1
+    count: 1
+  - name: podinfo-v2
+    count: 2 # More v2 replicas in development
+  - name: podinfo-v3
+    count: 1
+  - name: redis
+    count: 1
 
 configMapGenerator:
-- name: podinfo-config-dev
-  literals:
-  - PODINFO_LEVEL=debug
-  - PODINFO_COLOR=#00d2ff
-  - PODINFO_MESSAGE="Development Podinfo - Tenant B"
-  - PODINFO_BACKEND_URL=http://redis.tenant-b.svc.cluster.local:6379
-  - PODINFO_RANDOM_ERROR=true
-  - PODINFO_RANDOM_DELAY=true
+  - name: podinfo-config-dev
+    literals:
+      - PODINFO_LEVEL=debug
+      - PODINFO_COLOR=#00d2ff
+      - PODINFO_MESSAGE="Development Podinfo - Tenant B"
+      - PODINFO_BACKEND_URL=http://redis.tenant-b.svc.cluster.local:6379
+      - PODINFO_RANDOM_ERROR=true
+      - PODINFO_RANDOM_DELAY=true

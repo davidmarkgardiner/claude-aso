@@ -22,26 +22,26 @@ spec:
     - target: admission.k8s.gatekeeper.sh
       rego: |
         package requireistiosidecar
-        
+
         violation[{"msg": msg}] {
           input.review.object.kind == "Pod"
           not is_exempt_namespace
           not has_sidecar_injection
           msg := sprintf("Pod %v in namespace %v must have istio sidecar injection enabled", [input.review.object.metadata.name, input.review.object.metadata.namespace])
         }
-        
+
         is_exempt_namespace {
           input.parameters.exemptNamespaces[_] == input.review.object.metadata.namespace
         }
-        
+
         has_sidecar_injection {
           input.review.object.metadata.annotations["sidecar.istio.io/inject"] == "true"
         }
-        
+
         has_sidecar_injection {
           input.review.object.metadata.labels["istio.io/rev"] == "asm-1-25"
         }
-        
+
         has_sidecar_injection {
           input.review.namespace.metadata.labels["istio.io/rev"] == "asm-1-25"
         }
@@ -65,7 +65,7 @@ spec:
 
 ---
 # Validate proper resource limits for GitOps safety
-apiVersion: templates.gatekeeper.sh/v1beta1  
+apiVersion: templates.gatekeeper.sh/v1beta1
 kind: ConstraintTemplate
 metadata:
   name: requireresourcelimits
@@ -87,14 +87,14 @@ spec:
     - target: admission.k8s.gatekeeper.sh
       rego: |
         package requireresourcelimits
-        
+
         violation[{"msg": msg}] {
           input.review.object.kind == "Deployment"
           container := input.review.object.spec.template.spec.containers[_]
           not container.resources.limits.cpu
           msg := sprintf("Container %v must specify CPU limits", [container.name])
         }
-        
+
         violation[{"msg": msg}] {
           input.review.object.kind == "Deployment"
           container := input.review.object.spec.template.spec.containers[_]
@@ -138,7 +138,7 @@ spec:
     - target: admission.k8s.gatekeeper.sh
       rego: |
         package validateistioresources
-        
+
         # Ensure VirtualServices have timeout configured
         violation[{"msg": msg}] {
           input.review.object.kind == "VirtualService"
@@ -147,7 +147,7 @@ spec:
           not route.timeout
           msg := "VirtualService must specify timeout for GitOps safety"
         }
-        
+
         # Ensure DestinationRules have circuit breaker
         violation[{"msg": msg}] {
           input.review.object.kind == "DestinationRule"
@@ -155,7 +155,7 @@ spec:
           not input.review.object.spec.trafficPolicy.outlierDetection
           msg := "DestinationRule must have outlierDetection for resilience"
         }
-        
+
         # Ensure AuthorizationPolicy has explicit rules
         violation[{"msg": msg}] {
           input.review.object.kind == "AuthorizationPolicy"
@@ -177,7 +177,7 @@ spec:
     kinds:
       - apiGroups: ["networking.istio.io"]
         kinds: ["VirtualService", "DestinationRule"]
-      - apiGroups: ["security.istio.io"] 
+      - apiGroups: ["security.istio.io"]
         kinds: ["AuthorizationPolicy"]
 
 ---
@@ -198,21 +198,21 @@ spec:
     - target: admission.k8s.gatekeeper.sh
       rego: |
         package requiresecuritycontext
-        
+
         violation[{"msg": msg}] {
           input.review.object.kind == "Pod"
           container := input.review.object.spec.containers[_]
           not container.securityContext.runAsNonRoot
           msg := sprintf("Container %v must run as non-root user", [container.name])
         }
-        
+
         violation[{"msg": msg}] {
           input.review.object.kind == "Pod"
           container := input.review.object.spec.containers[_]
           container.securityContext.runAsUser == 0
           msg := sprintf("Container %v cannot run as root (UID 0)", [container.name])
         }
-        
+
         violation[{"msg": msg}] {
           input.review.object.kind == "Pod"
           container := input.review.object.spec.containers[_]
@@ -233,7 +233,7 @@ spec:
     kinds:
       - apiGroups: [""]
         kinds: ["Pod"]
-    namespaces: ["tenant-a"]  # Strict for production
+    namespaces: ["tenant-a"] # Strict for production
 
 ---
 # Config Validation Webhook for GitOps
@@ -244,21 +244,21 @@ metadata:
   labels:
     deployment-agent: istio-engineer
 webhooks:
-- name: istio-config.validation.io
-  clientConfig:
-    service:
-      name: istio-validator
-      namespace: shared-services
-      path: "/validate"
-  rules:
-  - operations: ["CREATE", "UPDATE"]
-    apiGroups: ["networking.istio.io"]
-    apiVersions: ["v1alpha3", "v1beta1"]
-    resources: ["*"]
-  - operations: ["CREATE", "UPDATE"] 
-    apiGroups: ["security.istio.io"]
-    apiVersions: ["v1beta1"]
-    resources: ["*"]
-  failurePolicy: Fail
-  sideEffects: None
-  admissionReviewVersions: ["v1", "v1beta1"]
+  - name: istio-config.validation.io
+    clientConfig:
+      service:
+        name: istio-validator
+        namespace: shared-services
+        path: "/validate"
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["networking.istio.io"]
+        apiVersions: ["v1alpha3", "v1beta1"]
+        resources: ["*"]
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["security.istio.io"]
+        apiVersions: ["v1beta1"]
+        resources: ["*"]
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1", "v1beta1"]

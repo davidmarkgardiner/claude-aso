@@ -6,7 +6,12 @@ metadata:
     name: platform-system
     platform.io/managed: "true"
     platform.io/component: "platform-system"
-    istio-injection: enabled  # Enable Istio sidecar injection
+    istio-injection: enabled
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
   annotations:
     platform.io/description: "Platform engineering system namespace for namespace-as-a-service API"
     platform.io/created-by: "platform-ops"
+    platform.io/version: "v1.1.0"
+    flux.weave.works/automated: "true"

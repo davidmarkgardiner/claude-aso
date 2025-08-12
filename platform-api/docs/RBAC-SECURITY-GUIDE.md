@@ -25,8 +25,10 @@ This comprehensive security guide covers all aspects of securing the Platform AP
 ### High-Severity Threats
 
 #### 1. Privilege Escalation
+
 **Threat:** Unauthorized users gaining admin access to production namespaces
 **Mitigations:**
+
 - ✅ Namespace-scoped role assignments only
 - ✅ Admin role approval workflow for production
 - ✅ Comprehensive audit logging
@@ -40,16 +42,20 @@ private requiresApproval(roleDefinition?: AKSRoleDefinition, environment?: strin
 ```
 
 #### 2. Credential Theft
+
 **Threat:** Stolen service principal credentials used for unauthorized access
 **Mitigations:**
+
 - ✅ Azure Key Vault for secret storage
 - ✅ Workload Identity (no stored secrets)
 - ✅ Short-lived tokens with automatic rotation
 - ✅ Network restrictions on API access
 
 #### 3. API Abuse & DoS
+
 **Threat:** Malicious requests overwhelming the RBAC service
 **Mitigations:**
+
 - ✅ Multi-tier rate limiting
 - ✅ Circuit breakers for external services
 - ✅ Request validation and sanitization
@@ -58,15 +64,19 @@ private requiresApproval(roleDefinition?: AKSRoleDefinition, environment?: strin
 ### Medium-Severity Threats
 
 #### 4. Azure AD Token Interception
+
 **Threat:** Man-in-the-middle attacks on Graph API calls
 **Mitigations:**
+
 - ✅ TLS 1.3 encryption for all API calls
 - ✅ Certificate pinning for Graph API
 - ✅ Token validation and expiration checks
 
 #### 5. Audit Log Tampering
+
 **Threat:** Attackers modifying or deleting audit logs
 **Mitigations:**
+
 - ✅ Immutable log storage (Azure Monitor)
 - ✅ Log forwarding to multiple destinations
 - ✅ Cryptographic log integrity verification
@@ -76,6 +86,7 @@ private requiresApproval(roleDefinition?: AKSRoleDefinition, environment?: strin
 ### Azure AD Integration Security
 
 #### Service Principal Configuration
+
 ```bash
 # Create dedicated service principal with minimal permissions
 az ad sp create-for-rbac --name platform-rbac-service \
@@ -90,31 +101,32 @@ az ad sp credential reset --id $APP_ID --create-cert --keyvault $KEYVAULT_NAME
 ```
 
 #### JWT Token Validation
+
 ```typescript
 // Comprehensive token validation
 export const validateJWTToken = async (token: string): Promise<boolean> => {
   try {
     // 1. Verify signature
-    const decoded = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
-    
+    const decoded = jwt.verify(token, publicKey, { algorithms: ["RS256"] });
+
     // 2. Check expiration
     if (decoded.exp < Math.floor(Date.now() / 1000)) {
-      throw new Error('Token expired');
+      throw new Error("Token expired");
     }
-    
+
     // 3. Validate issuer
     if (decoded.iss !== `https://sts.windows.net/${AZURE_TENANT_ID}/`) {
-      throw new Error('Invalid issuer');
+      throw new Error("Invalid issuer");
     }
-    
+
     // 4. Check audience
     if (!decoded.aud.includes(config.azure.clientId)) {
-      throw new Error('Invalid audience');
+      throw new Error("Invalid audience");
     }
-    
+
     return true;
   } catch (error) {
-    logger.error('JWT validation failed', { error: error.message });
+    logger.error("JWT validation failed", { error: error.message });
     return false;
   }
 };
@@ -123,6 +135,7 @@ export const validateJWTToken = async (token: string): Promise<boolean> => {
 ### Role-Based Access Control
 
 #### Permission Matrix
+
 ```yaml
 # platform-rbac-roles.yaml
 roles:
@@ -133,19 +146,19 @@ roles:
       - rbac:read:*
       - clusters:list
     namespaces: ["*"]
-    
+
   namespace:admin:
     permissions:
       - rbac:create:owned
       - rbac:delete:owned
       - rbac:read:owned
     namespaces: ["team-*"] # Pattern-based namespace access
-    
+
   developer:
     permissions:
       - rbac:read:owned
     namespaces: ["team-frontend", "team-backend"]
-    
+
   viewer:
     permissions:
       - rbac:read:owned
@@ -157,12 +170,14 @@ roles:
 ### Encryption Standards
 
 #### At Rest
+
 - **Kubernetes etcd:** AES-256 encryption enabled
 - **Azure Storage:** Customer-managed keys in Key Vault
 - **Database:** TDE with HSM-backed keys
 - **Logs:** Encrypted storage with retention policies
 
 #### In Transit
+
 ```yaml
 # TLS Configuration
 tls:
@@ -171,7 +186,7 @@ tls:
     - TLS_AES_256_GCM_SHA384
     - TLS_CHACHA20_POLY1305_SHA256
   certificateSource: "Azure Key Vault"
-  mtls: 
+  mtls:
     enabled: true
     clientCertValidation: required
 ```
@@ -179,32 +194,34 @@ tls:
 ### Secret Management
 
 #### Azure Key Vault Integration
+
 ```typescript
 // Secure secret retrieval
 export class SecureConfigService {
   private keyVaultClient: SecretClient;
-  
+
   async getSecret(secretName: string): Promise<string> {
     try {
       const secret = await this.keyVaultClient.getSecret(secretName);
-      
+
       // Log access for audit
-      logger.info('Secret accessed', {
+      logger.info("Secret accessed", {
         secretName: this.hashSecretName(secretName),
         timestamp: new Date().toISOString(),
-        userId: 'system'
+        userId: "system",
       });
-      
+
       return secret.value!;
     } catch (error) {
-      logger.error('Failed to retrieve secret', { secretName, error });
-      throw new Error('Secret retrieval failed');
+      logger.error("Failed to retrieve secret", { secretName, error });
+      throw new Error("Secret retrieval failed");
     }
   }
 }
 ```
 
 #### Environment Variable Security
+
 ```bash
 # ❌ NEVER DO THIS
 export AZURE_CLIENT_SECRET="super-secret-value" # pragma: allowlist secret
@@ -230,6 +247,7 @@ spec:
 ### Real-Time Threat Detection
 
 #### Anomaly Detection Rules
+
 ```yaml
 # security-rules.yaml
 rules:
@@ -237,12 +255,12 @@ rules:
     condition: "count(rbac.admin_assignments) > 5 in 1h"
     severity: "HIGH"
     action: "alert+block"
-    
+
   - name: "unusual-source-ip"
     condition: "source_ip not in allowed_ranges"
-    severity: "MEDIUM" 
+    severity: "MEDIUM"
     action: "alert+log"
-    
+
   - name: "after-hours-rbac"
     condition: "time outside business_hours AND action=create"
     severity: "MEDIUM"
@@ -250,13 +268,14 @@ rules:
 ```
 
 #### Security Metrics Dashboard
+
 ```promql
 # High-priority security metrics
 
 # Failed authentication rate
 rate(platform_rbac_auth_failures_total[5m]) > 0.1
 
-# Admin role assignment rate 
+# Admin role assignment rate
 rate(platform_rbac_admin_assignments_total[1h]) > 3
 
 # Unusual geographic access
@@ -269,11 +288,16 @@ platform_circuit_breaker_state{service="azure-ad"} == 1
 ### Audit Trail Requirements
 
 #### SOC 2 Compliance
+
 ```typescript
 // Comprehensive audit event structure
 interface SecurityAuditEvent {
   timestamp: string;
-  eventType: 'AUTHENTICATION' | 'AUTHORIZATION' | 'DATA_ACCESS' | 'RBAC_OPERATION';
+  eventType:
+    | "AUTHENTICATION"
+    | "AUTHORIZATION"
+    | "DATA_ACCESS"
+    | "RBAC_OPERATION";
   userId: string;
   sourceIP: string;
   userAgent: string;
@@ -283,11 +307,11 @@ interface SecurityAuditEvent {
     namespace?: string;
   };
   action: string;
-  result: 'SUCCESS' | 'FAILURE';
+  result: "SUCCESS" | "FAILURE";
   riskScore: number; // 0-100
   businessJustification?: string;
   approverUserId?: string;
-  retentionClass: 'IMMEDIATE' | 'SHORT_TERM' | 'LONG_TERM' | 'PERMANENT';
+  retentionClass: "IMMEDIATE" | "SHORT_TERM" | "LONG_TERM" | "PERMANENT";
 }
 ```
 
@@ -296,6 +320,7 @@ interface SecurityAuditEvent {
 ### Security Incident Playbooks
 
 #### 1. Compromised Service Principal
+
 ```bash
 #!/bin/bash
 # incident-response/compromised-sp.sh
@@ -333,6 +358,7 @@ echo "✅ Emergency response completed. Review audit logs immediately."
 ```
 
 #### 2. Mass Unauthorized Access
+
 ```bash
 #!/bin/bash
 # incident-response/mass-unauthorized-access.sh
@@ -367,6 +393,7 @@ echo "✅ Emergency containment completed. Investigate affected role assignments
 ### Forensic Data Collection
 
 #### Log Collection Script
+
 ```bash
 #!/bin/bash
 # forensics/collect-rbac-logs.sh
@@ -481,12 +508,14 @@ echo "✅ Security validation completed"
 ### Regulatory Compliance
 
 #### SOC 2 Type II Controls
+
 - **CC6.1:** Logical access controls restrict unauthorized access
 - **CC6.2:** Transmission and disposal of confidential information is protected
 - **CC6.3:** Access rights are reviewed and approved periodically
 - **CC7.1:** Data is classified and appropriate controls are implemented
 
 #### GDPR Compliance
+
 - **Article 25:** Privacy by Design implemented
 - **Article 32:** Appropriate security measures in place
 - **Article 35:** Data Protection Impact Assessment completed
@@ -494,22 +523,26 @@ echo "✅ Security validation completed"
 ### Security Governance
 
 #### Quarterly Security Review Process
+
 1. **Access Review:** Validate all role assignments are still necessary
 2. **Threat Assessment:** Update threat model based on new attack vectors
 3. **Penetration Testing:** Conduct third-party security assessment
 4. **Compliance Audit:** Verify continued adherence to standards
 
 #### Security Metrics Reporting
+
 ```typescript
 // Monthly security report generation
-export const generateSecurityReport = async (month: string): Promise<SecurityReport> => {
+export const generateSecurityReport = async (
+  month: string,
+): Promise<SecurityReport> => {
   return {
     period: month,
-    totalRBACOperations: await getMetric('rbac_operations_total'),
-    failedAuthentications: await getMetric('auth_failures_total'),
+    totalRBACOperations: await getMetric("rbac_operations_total"),
+    failedAuthentications: await getMetric("auth_failures_total"),
     securityIncidents: await getIncidentCount(month),
     complianceScore: await calculateComplianceScore(),
-    recommendations: await generateSecurityRecommendations()
+    recommendations: await generateSecurityRecommendations(),
   };
 };
 ```
@@ -518,12 +551,12 @@ export const generateSecurityReport = async (month: string): Promise<SecurityRep
 
 ## 📞 Security Contacts
 
-| Issue Type | Contact | Phone | Email |
-|------------|---------|-------|-------|
-| **Critical Security Incident** | SOC Team | +1-XXX-XXX-XXXX | soc@company.com |
-| **Data Breach** | CISO Office | +1-XXX-XXX-XXXX | security@company.com |
-| **Compliance Issues** | Legal Team | +1-XXX-XXX-XXXX | legal@company.com |
-| **Azure AD Issues** | Identity Team | +1-XXX-XXX-XXXX | identity@company.com |
+| Issue Type                     | Contact       | Phone           | Email                |
+| ------------------------------ | ------------- | --------------- | -------------------- |
+| **Critical Security Incident** | SOC Team      | +1-XXX-XXX-XXXX | soc@company.com      |
+| **Data Breach**                | CISO Office   | +1-XXX-XXX-XXXX | security@company.com |
+| **Compliance Issues**          | Legal Team    | +1-XXX-XXX-XXXX | legal@company.com    |
+| **Azure AD Issues**            | Identity Team | +1-XXX-XXX-XXXX | identity@company.com |
 
 ---
 

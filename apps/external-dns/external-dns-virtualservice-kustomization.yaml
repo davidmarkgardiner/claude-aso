@@ -9,7 +9,7 @@ resources:
   - external-dns-helmrepo.yaml
   - external-dns-helmrelease.yaml
   - external-dns-rbac-patch.yaml
-  
+
   # Test Application and VirtualService Setup
   - test-app-podinfo.yaml
   - test-istio-gateway.yaml

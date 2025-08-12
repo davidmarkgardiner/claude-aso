@@ -14,13 +14,13 @@ spec:
     name: at39473-weu-dev-prod
   kind: StorageV2
   sku:
-    name: Standard_LRS  # Use Premium_LRS for better performance if needed
+    name: Standard_LRS # Use Premium_LRS for better performance if needed
   properties:
     # Security settings
     allowBlobPublicAccess: false
     minimumTlsVersion: TLS1_2
     supportsHttpsTrafficOnly: true
-    
+
     # Network access restrictions
     networkAcls:
       defaultAction: Deny
@@ -29,7 +29,7 @@ spec:
       virtualNetworkRules:
         - id: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-vnet/subnets/default
           action: Allow
-    
+
     # Enable secure transfer
     encryption:
       services:
@@ -38,7 +38,7 @@ spec:
         file:
           enabled: true
       keySource: Microsoft.Storage
-    
+
     # Access tier for cost optimization
     accessTier: Hot
   tags:
@@ -94,11 +94,11 @@ spec:
   owner:
     name: at39473-weu-dev-prod
   sku:
-    name: Premium  # Required for private endpoints and geo-replication
+    name: Premium # Required for private endpoints and geo-replication
   properties:
     # Admin user disabled for security
     adminUserEnabled: false
-    
+
     # Network access restrictions
     networkRuleSet:
       defaultAction: Deny
@@ -106,10 +106,10 @@ spec:
       virtualNetworkRules:
         - action: Allow
           virtualNetworkResourceId: /subscriptions/133d5755-4074-4d6e-ad38-eb2a6ad12903/resourceGroups/at39473-weu-dev-prod/providers/Microsoft.Network/virtualNetworks/aks-vnet
-    
+
     # Public network access
     publicNetworkAccess: Disabled
-    
+
     # Enable vulnerability scanning
     policies:
       quarantinePolicy:
@@ -120,7 +120,7 @@ spec:
       retentionPolicy:
         status: Enabled
         days: 30
-    
+
     # Enable content trust
     encryption:
       status: Enabled
