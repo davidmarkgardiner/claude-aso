@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - identity-configmap.yaml
+  # - identity-configmap.yaml
   - helm-repository.yaml
   - helm-release.yaml
 
