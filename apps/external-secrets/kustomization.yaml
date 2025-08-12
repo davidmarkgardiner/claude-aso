@@ -8,8 +8,8 @@ resources:
   - namespace.yaml
   - helm-repository.yaml
   - helm-release.yaml
-  - cluster-secret-store.yaml
-  - rbac.yaml
+  # - cluster-secret-store.yaml
+  # - rbac.yaml
   # - monitoring.yaml
   # - security.yaml
   # - disaster-recovery.yaml
