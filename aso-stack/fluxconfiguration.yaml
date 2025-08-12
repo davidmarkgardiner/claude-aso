@@ -11,7 +11,14 @@ spec:
       branch: feature/external-secrets
     url: https://github.com/davidmarkgardiner/claude-aso
   kustomizations:
+    configuration:
+      path: ./apps/configuration
+      timeoutInSeconds: 60
+      syncIntervalInSeconds: 60
+      prune: true
+      force: true
     external-dns:
+      dependsOn: ["configuration"]
       path: ./apps/external-dns
       timeoutInSeconds: 60
       syncIntervalInSeconds: 60
@@ -22,6 +29,7 @@ spec:
           - kind: ConfigMap
             name: external-dns-identity-cm
     cert-manager-base:
+      dependsOn: ["configuration"]
       path: ./apps/cert-manager-base
       timeoutInSeconds: 60
       syncIntervalInSeconds: 120
@@ -60,7 +68,7 @@ spec:
         substituteFrom:
           - kind: ConfigMap
             name: platform-api-identity-cm
-  namespace: azure-system
+  namespace: flux-system
   owner:
     group: containerservice.azure.com
     kind: ManagedCluster

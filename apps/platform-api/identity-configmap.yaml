@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: cert-manager-identity-cm
-  namespace: flux-system
+  name: platform-api-identity-cm
+  namespace: platform-system
   labels:
     platform.io/managed: "true"
-    platform.io/component: "cert-manager"
+    platform.io/component: "platform-api"
     platform.io/environment: "production"
 data:
-  clientId: "1317ba0a-60d3-4f05-b41e-483ed1d6acb3"
+  clientId: "1bc849b8-d08e-4bb9-8e7d-11c04f3e310c"
   principalId: "673bb40c-4302-4f9f-a94a-7aa85eccde2a"
   tenantId: "550cfcda-8a2d-452c-ba71-d6bc6bf5bb31"

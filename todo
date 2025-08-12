@@ -2,8 +2,8 @@
 ---
 
 12/8
-The external DNS is using an SPN and not a managed identity. 
-We're missing the CRD for that on the Minikube cluster. 
+Create the managed identity and the federated on the actual target cluster. This way the config mac can be passed to the application at build time. So we can pick up the client IDs etc. for the service accounts. So that we can do it. 
+Unless we use some of Shula's logic to have a job that goes and gets the client ID at build time. 
 
 We want to spin up a cluster as a service through agile workflows. 
 
@@ -15,10 +15,3 @@ How can we integrate that with the platform API?
 
 ---
 
-error from dns
-```
-"Failed to do run once: WorkloadIdentityCredential authentication failed. \nPOST https://login.microsoftonline.com/550cfcda-8a2d-452c-ba71-d6bc6bf5bb31/oauth2/v2.0/token\n--------------------------------------------------------------------------------\nRESPONSE 400: 400 Bad Request\n--------------------------------------------------------------------------------\n{\n  \"error\": \"unauthorized_client\",\n  \"error_description\": \"AADSTS700016: Application with identifier '1c0b7ee1-f55a-407c-946c-83254494df30' was not found in the directory 'Default Directory'. This can happen if the application has not been installed by the administrator of the tenant or consented to by any user in the tenant. You may have sent your authentication request to the wrong tenant. Trace ID: 71928fc6-17c9-4be7-a5c0-70ca2f5c3700 Correlation ID: 7f0cc104-89e8-46e7-b405-d893c92f1735 Timestamp: 2025-08-12 18:03:08Z\",\n  \"error_codes\": [\n    700016\n  ],\n  \"timestamp\": \"2025-08-12 18:03:08Z\",\n  \"trace_id\": \"71928fc6-17c9-4be7-a5c0-70ca2f5c3700\",\n  \"correlation_id\": \"7f0cc104-89e8-46e7-b405-d893c92f1735\",\n  \"error_uri\": \"https://login.microsoftonline.com/error?code=700016\"\n}\n--------------------------------------------------------------------------------\nTo troubleshoot, visit https://aka.ms/azsdk/go/identity/troubleshoot#workload"
-
-☸ uk8s-tsshared-weu-gt025-int-prod-admin (external-dns) in claude-aso on  feature/external-secrets [📝] via  v22.16.0 via 🐍 v3.9.6 
-➜ 
-```
