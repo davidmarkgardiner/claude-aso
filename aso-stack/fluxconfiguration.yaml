@@ -13,8 +13,8 @@ spec:
   kustomizations:
     external-dns:
       path: ./apps/external-dns
-      timeoutInSeconds: 600
-      syncIntervalInSeconds: 120
+      timeoutInSeconds: 60
+      syncIntervalInSeconds: 60
       prune: true
       force: true
       postBuild:
@@ -23,7 +23,7 @@ spec:
             name: external-dns-identity-cm
     cert-manager-base:
       path: ./apps/cert-manager-base
-      timeoutInSeconds: 600
+      timeoutInSeconds: 60
       syncIntervalInSeconds: 120
       prune: true
       force: true
@@ -34,7 +34,7 @@ spec:
     cert-manager-config:
       dependsOn: ["cert-manager-base"]
       path: ./apps/cert-manager-config
-      timeoutInSeconds: 600
+      timeoutInSeconds: 60
       syncIntervalInSeconds: 120
       prune: true
       force: true
@@ -52,7 +52,7 @@ spec:
     apps:
       dependsOn: ["external-dns", "cert-manager-config"]
       path: ./apps
-      timeoutInSeconds: 600
+      timeoutInSeconds: 60
       syncIntervalInSeconds: 120
       prune: true
       force: true

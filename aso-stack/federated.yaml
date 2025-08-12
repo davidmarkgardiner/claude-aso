@@ -2,7 +2,7 @@ apiVersion: managedidentity.azure.com/v1api20230131
 kind: FederatedIdentityCredential
 metadata:
   name: aso-fic-flux-source
-  namespace: azure-
+  namespace: azure-system
 
 spec:
   azureName: flux-identity
